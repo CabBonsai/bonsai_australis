@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
 
 export default function Home() {
   const [species, setSpecies] = useState<any[]>([])
@@ -57,18 +58,20 @@ export default function Home() {
 
       <ul className="divide-y">
         {species.map((s) => (
-          <li key={s.sp_no} className="py-3 flex justify-between items-center">
+          <li key={s.sp_no} className="py-3">
+            <Link href={`/species/${s.sp_no}`} className="flex justify-between items-center">
             <div>
-              <p className="font-medium">{s.species}</p>
+              <p className="font-medium text-blue-600">{s.species}</p>
               <p className="text-sm text-gray-500">
                 {s.common_name !== 'Unknown' ? s.common_name : ''} {s.species_family ? `· ${s.species_family}` : ''}
               </p>
-            </div>
+           </div>
             {s.australian_native && (
               <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
                 AU Native
               </span>
             )}
+            </Link>
           </li>
         ))}
       </ul>
