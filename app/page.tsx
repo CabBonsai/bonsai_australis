@@ -1,8 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
+
+const statusColors: Record<string, string> = {
+  'Complete': 'bg-green-100 text-green-800',
+  'In Progress': 'bg-yellow-100 text-yellow-800',
+  'Not Started': 'bg-gray-100 text-gray-500',
+}
 
 export default function Home() {
   const [species, setSpecies] = useState<any[]>([])
@@ -21,7 +27,7 @@ export default function Home() {
     setLoading(true)
     let query = supabase
       .from('species')
-      .select('sp_no, species, common_name, species_genus, species_family, australian_native')
+      .select('sp_no, species, common_name, species_family, australian_native, research_status')
       .order('species', { ascending: true })
       .limit(50)
 
@@ -60,17 +66,20 @@ export default function Home() {
         {species.map((s) => (
           <li key={s.sp_no} className="py-3">
             <Link href={`/species/${s.sp_no}`} className="flex justify-between items-center">
-            <div>
-              <p className="font-medium text-blue-600">{s.species}</p>
-              <p className="text-sm text-gray-500">
-                {s.common_name !== 'Unknown' ? s.common_name : ''} {s.species_family ? `· ${s.species_family}` : ''}
-              </p>
-           </div>
-            {s.australian_native && (
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                AU Native
-              </span>
-            )}
+              <div>
+                <p className="font-medium text-blue-600">{s.species}</p>
+                <p className="text-sm text-gray-500">
+                  {s.common_name !== 'Unknown' ? s.common_name : ''}{s.species_family ? ` · ${s.species_family}` : ''}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1 ml-2">
+                {s.australian_native && (
+                  <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full whitespace-nowrap">AU Native</span>
+                )}
+                <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${statusColors[s.research_status] || 'bg-gray-100 text-gray-500'}`}>
+                  {s.research_status || 'Not Started'}
+                </span>
+              </div>
             </Link>
           </li>
         ))}

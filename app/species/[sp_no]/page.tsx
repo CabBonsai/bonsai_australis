@@ -101,7 +101,6 @@ export default function SpeciesDetail() {
   async function handleSave() {
     setSaving(true)
     setSaveMessage(null)
-
     const saves: any[] = [
       supabase.from('species').update({
         species: species.species,
@@ -116,9 +115,9 @@ export default function SpeciesDetail() {
         natural_habitat: species.natural_habitat,
         species_notes: species.species_notes,
         research_notes: species.research_notes,
+        research_status: species.research_status,
       }).eq('sp_no', spNo),
     ]
-
     if (suitability) saves.push(supabase.from('bonsai_suitability').update({
       bonsai_suitability: suitability.bonsai_suitability,
       difficulty: suitability.difficulty,
@@ -136,7 +135,6 @@ export default function SpeciesDetail() {
       final_bonsai_score: suitability.final_bonsai_score,
       bonsai_tier: suitability.bonsai_tier,
     }).eq('sp_no', spNo))
-
     if (careGuide) saves.push(supabase.from('care_guide').update({
       growth_season: careGuide.growth_season,
       growth_season_notes: careGuide.growth_season_notes,
@@ -168,7 +166,6 @@ export default function SpeciesDetail() {
       repotting_season: careGuide.repotting_season,
       repotting_freq_yrs: careGuide.repotting_freq_yrs,
     }).eq('sp_no', spNo))
-
     if (fertilisation) saves.push(supabase.from('fertilisation').update({
       p_tolerance: fertilisation.p_tolerance,
       n_requirement: fertilisation.n_requirement,
@@ -177,7 +174,6 @@ export default function SpeciesDetail() {
       recommended_products: fertilisation.recommended_products,
       notes_schema: fertilisation.notes_schema,
     }).eq('sp_no', spNo))
-
     if (pruning) saves.push(supabase.from('pruning_protocols').update({
       pruning_core_rules: pruning.pruning_core_rules,
       structural_pruning_timing: pruning.structural_pruning_timing,
@@ -197,7 +193,6 @@ export default function SpeciesDetail() {
       refinement_method: pruning.refinement_method,
       notes: pruning.notes,
     }).eq('sp_no', spNo))
-
     if (nebari) saves.push(supabase.from('nebari_root').update({
       root_architecture_type: nebari.root_architecture_type,
       natural_nebari_form: nebari.natural_nebari_form,
@@ -231,7 +226,6 @@ export default function SpeciesDetail() {
       ageing_notes: nebari.ageing_notes,
       notes_for_future_development: nebari.notes_for_future_development,
     }).eq('sp_no', spNo))
-
     if (seasonal) saves.push(supabase.from('seasonal_maintenance').update({
       spring_maintenance_guide: seasonal.spring_maintenance_guide,
       summer_maintenance_guide: seasonal.summer_maintenance_guide,
@@ -243,7 +237,6 @@ export default function SpeciesDetail() {
       autumn_care: seasonal.autumn_care,
       winter_care: seasonal.winter_care,
     }).eq('sp_no', spNo))
-
     if (advanced) saves.push(supabase.from('advanced_expert').update({
       ph_target: advanced.ph_target,
       acquisition_raw_material: advanced.acquisition_raw_material,
@@ -265,7 +258,6 @@ export default function SpeciesDetail() {
       development_years_7_8: advanced.development_years_7_8,
       development_years_9_10: advanced.development_years_9_10,
     }).eq('sp_no', spNo))
-
     if (regional) saves.push(supabase.from('regional_suitability').update({
       tropical_suitability: regional.tropical_suitability,
       tropical_notes: regional.tropical_notes,
@@ -296,10 +288,8 @@ export default function SpeciesDetail() {
       nursery_availability: regional.nursery_availability,
       wild_collection_status: regional.wild_collection_status,
     }).eq('sp_no', spNo))
-
     const results = await Promise.all(saves)
     const errors = results.filter((r: any) => r.error).map((r: any) => r.error.message)
-
     if (errors.length > 0) {
       setSaveMessage('Error: ' + errors.join(', '))
     } else {
@@ -322,10 +312,8 @@ export default function SpeciesDetail() {
           {prevNext.next && <Link href={`/species/${prevNext.next}`} className="text-blue-600 text-sm">Next &#8594;</Link>}
         </div>
       </div>
-
       <h1 className="text-2xl font-bold">{species.species}</h1>
       <p className="text-sm text-gray-400 mb-4">sp_no: {species.sp_no}</p>
-
       <div className="mb-4">
         <label className="block text-sm font-medium mb-1">Quick Notes</label>
         <textarea
@@ -336,8 +324,19 @@ export default function SpeciesDetail() {
           placeholder="Voice-to-text notes go here..."
         />
       </div>
-
       <Section title="Species Info">
+        <div>
+          <label className="block text-sm font-medium mb-1">Research status</label>
+          <select
+            value={species.research_status || "Not Started"}
+            onChange={e => updateSpecies("research_status", e.target.value)}
+            className="w-full border rounded-lg px-3 py-2 text-base"
+          >
+            <option value="Not Started">Not Started</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Complete">Complete</option>
+          </select>
+        </div>
         <Field label="Species name" value={species.species} onChange={v => updateSpecies('species', v)} />
         <Field label="Common name" value={species.common_name} onChange={v => updateSpecies('common_name', v)} />
         <div className="flex gap-2">
@@ -360,7 +359,6 @@ export default function SpeciesDetail() {
         <Field label="Natural habitat" value={species.natural_habitat} onChange={v => updateSpecies('natural_habitat', v)} />
         <Field label="Species notes" value={species.species_notes} onChange={v => updateSpecies('species_notes', v)} type="textarea" />
       </Section>
-
       {suitability && (
         <Section title="Bonsai Suitability">
           <Field label="Suitability" value={suitability.bonsai_suitability} onChange={v => updateSuitability('bonsai_suitability', v)} />
@@ -380,7 +378,6 @@ export default function SpeciesDetail() {
           <Field label="Tier" value={suitability.bonsai_tier} onChange={v => updateSuitability('bonsai_tier', v)} />
         </Section>
       )}
-
       {careGuide && (
         <Section title="Care Guide">
           <Field label="Growth season" value={careGuide.growth_season} onChange={v => updateCareGuide('growth_season', v)} />
@@ -408,13 +405,12 @@ export default function SpeciesDetail() {
           <Field label="Watering (winter)" value={careGuide.watering_winter_notes} onChange={v => updateCareGuide('watering_winter_notes', v)} type="textarea" />
           <Field label="Summer sun protection" value={careGuide.summer_sun_protection} onChange={v => updateCareGuide('summer_sun_protection', v)} type="textarea" />
           <Field label="Frost risk" value={careGuide.frost_risk} onChange={v => updateCareGuide('frost_risk', v)} />
-          <Field label="Min temp (°C)" value={careGuide.min_temp_c} onChange={v => updateCareGuide('min_temp_c', v)} />
+          <Field label="Min temp (C)" value={careGuide.min_temp_c} onChange={v => updateCareGuide('min_temp_c', v)} />
           <Field label="Pruning season" value={careGuide.pruning_season} onChange={v => updateCareGuide('pruning_season', v)} />
           <Field label="Repotting season" value={careGuide.repotting_season} onChange={v => updateCareGuide('repotting_season', v)} />
           <Field label="Repotting frequency (yrs)" value={careGuide.repotting_freq_yrs} onChange={v => updateCareGuide('repotting_freq_yrs', v)} />
         </Section>
       )}
-
       {fertilisation && (
         <Section title="Fertilisation">
           <Field label="P tolerance" value={fertilisation.p_tolerance} onChange={v => updateFertilisation('p_tolerance', v)} />
@@ -425,7 +421,6 @@ export default function SpeciesDetail() {
           <Field label="Notes" value={fertilisation.notes_schema} onChange={v => updateFertilisation('notes_schema', v)} type="textarea" />
         </Section>
       )}
-
       {pruning && (
         <Section title="Pruning Protocols">
           <Field label="Core rules" value={pruning.pruning_core_rules} onChange={v => updatePruning('pruning_core_rules', v)} type="textarea" />
@@ -447,9 +442,8 @@ export default function SpeciesDetail() {
           <Field label="Notes" value={pruning.notes} onChange={v => updatePruning('notes', v)} type="textarea" />
         </Section>
       )}
-
       {nebari && (
-        <Section title="Nebari & Root">
+        <Section title="Nebari and Root">
           <Field label="Root architecture type" value={nebari.root_architecture_type} onChange={v => updateNebari('root_architecture_type', v)} />
           <Field label="Natural nebari form" value={nebari.natural_nebari_form} onChange={v => updateNebari('natural_nebari_form', v)} type="textarea" />
           <Field label="Root depth tendency" value={nebari.root_depth_tendency} onChange={v => updateNebari('root_depth_tendency', v)} />
@@ -483,7 +477,6 @@ export default function SpeciesDetail() {
           <Field label="Notes for future development" value={nebari.notes_for_future_development} onChange={v => updateNebari('notes_for_future_development', v)} type="textarea" />
         </Section>
       )}
-
       {seasonal && (
         <Section title="Seasonal Maintenance">
           <Field label="Spring guide" value={seasonal.spring_maintenance_guide} onChange={v => updateSeasonal('spring_maintenance_guide', v)} type="textarea" />
@@ -497,12 +490,11 @@ export default function SpeciesDetail() {
           <Field label="Winter care" value={seasonal.winter_care} onChange={v => updateSeasonal('winter_care', v)} type="textarea" />
         </Section>
       )}
-
       {advanced && (
-        <Section title="Advanced & Expert">
+        <Section title="Advanced and Expert">
           <Field label="pH target" value={advanced.ph_target} onChange={v => updateAdvanced('ph_target', v)} />
-          <Field label="Acquisition & raw material" value={advanced.acquisition_raw_material} onChange={v => updateAdvanced('acquisition_raw_material', v)} type="textarea" />
-          <Field label="Aesthetics & exhibition philosophy" value={advanced.aesthetics_exhibition_philosophy} onChange={v => updateAdvanced('aesthetics_exhibition_philosophy', v)} type="textarea" />
+          <Field label="Acquisition and raw material" value={advanced.acquisition_raw_material} onChange={v => updateAdvanced('acquisition_raw_material', v)} type="textarea" />
+          <Field label="Aesthetics and exhibition philosophy" value={advanced.aesthetics_exhibition_philosophy} onChange={v => updateAdvanced('aesthetics_exhibition_philosophy', v)} type="textarea" />
           <Field label="Advanced structural engineering" value={advanced.advanced_structural_engineering} onChange={v => updateAdvanced('advanced_structural_engineering', v)} type="textarea" />
           <Field label="Morphology notes" value={advanced.morphology_notes} onChange={v => updateAdvanced('morphology_notes', v)} type="textarea" />
           <Field label="Cambial notes" value={advanced.cambial_notes} onChange={v => updateAdvanced('cambial_notes', v)} type="textarea" />
@@ -521,7 +513,6 @@ export default function SpeciesDetail() {
           <Field label="Development years 9-10" value={advanced.development_years_9_10} onChange={v => updateAdvanced('development_years_9_10', v)} type="textarea" />
         </Section>
       )}
-
       {regional && (
         <Section title="Regional Suitability">
           <Field label="Tropical suitability" value={regional.tropical_suitability} onChange={v => updateRegional('tropical_suitability', v)} />
@@ -554,7 +545,6 @@ export default function SpeciesDetail() {
           <Field label="Wild collection status" value={regional.wild_collection_status} onChange={v => updateRegional('wild_collection_status', v)} />
         </Section>
       )}
-
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex justify-between items-center max-w-2xl mx-auto">
         {saveMessage && <span className="text-sm">{saveMessage}</span>}
         <button
