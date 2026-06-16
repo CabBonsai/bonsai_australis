@@ -39,6 +39,7 @@ export default function SpeciesDetail() {
   const params = useParams()
   const spNo = params.sp_no
 
+  const [prevNext, setPrevNext] = useState<{prev: number|null, next: number|null}>({prev: null, next: null})
   const [species, setSpecies] = useState<any>(null)
   const [suitability, setSuitability] = useState<any>(null)
   const [careGuide, setCareGuide] = useState<any>(null)
@@ -55,7 +56,7 @@ export default function SpeciesDetail() {
 
   useEffect(() => {
     async function fetchAll() {
-      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes] = await Promise.all([
+      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes, prevRes, nextRes] = await Promise.all([
         supabase.from('species').select('*').eq('sp_no', spNo).single(),
         supabase.from('bonsai_suitability').select('*').eq('sp_no', spNo).single(),
         supabase.from('care_guide').select('*').eq('sp_no', spNo).single(),
@@ -65,6 +66,8 @@ export default function SpeciesDetail() {
         supabase.from('seasonal_maintenance').select('*').eq('sp_no', spNo).single(),
         supabase.from('advanced_expert').select('*').eq('sp_no', spNo).single(),
         supabase.from('regional_suitability').select('*').eq('sp_no', spNo).single(),
+        supabase.from('species').select('sp_no').lt('sp_no', spNo).order('sp_no', { ascending: false }).limit(1).single(),
+        supabase.from('species').select('sp_no').gt('sp_no', spNo).order('sp_no', { ascending: true }).limit(1).single(),
       ])
       if (speciesRes.error) setError(speciesRes.error.message)
       else setSpecies(speciesRes.data)
@@ -76,6 +79,10 @@ export default function SpeciesDetail() {
       if (!seasRes.error) setSeasonal(seasRes.data)
       if (!advRes.error) setAdvanced(advRes.data)
       if (!regRes.error) setRegional(regRes.data)
+      setPrevNext({
+        prev: prevRes.data?.sp_no ?? null,
+        next: nextRes.data?.sp_no ?? null,
+      })
       setLoading(false)
     }
     fetchAll()
@@ -308,7 +315,13 @@ export default function SpeciesDetail() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 pb-24">
-      <Link href="/" className="text-blue-600 text-sm mb-4 inline-block">&larr; Back to list</Link>
+      <div className="flex justify-between items-center mb-4">
+        <Link href="/" className="text-blue-600 text-sm">&larr; Back to list</Link>
+        <div className="flex gap-3">
+          {prevNext.prev && <Link href={`/species/${prevNext.prev}`} className="text-blue-600 text-sm">&#8592; Prev</Link>}
+          {prevNext.next && <Link href={`/species/${prevNext.next}`} className="text-blue-600 text-sm">Next &#8594;</Link>}
+        </div>
+      </div>
 
       <h1 className="text-2xl font-bold">{species.species}</h1>
       <p className="text-sm text-gray-400 mb-4">sp_no: {species.sp_no}</p>
