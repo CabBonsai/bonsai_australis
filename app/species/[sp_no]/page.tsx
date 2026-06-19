@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import VariantsSection from '@/components/VariantsSection'
 
 function Section({ title, children }: { title: string, children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -513,6 +514,9 @@ export default function SpeciesDetail() {
           <Field label="Development years 9-10" value={advanced.development_years_9_10} onChange={v => updateAdvanced('development_years_9_10', v)} type="textarea" />
         </Section>
       )}
+<Section title="Variants">
+        <VariantsSection spNo={spNo as string} />
+      </Section>
       {regional && (
         <Section title="Regional Suitability">
           <Field label="Tropical suitability" value={regional.tropical_suitability} onChange={v => updateRegional('tropical_suitability', v)} />
