@@ -53,6 +53,7 @@ export default function CollectionPage() {
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
+      <a href="/" className="text-sm text-blue-600 block mb-4">&larr; Back to Admin Home</a>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">My Bonsai Collection</h1>
         <button
