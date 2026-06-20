@@ -48,7 +48,12 @@ export default function Home() {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-1">Bonsai Australis</h1>
+     <div className="flex justify-between items-center mb-1">
+        <h1 className="text-2xl font-bold">Bonsai Australis</h1>
+        <Link href="/collection" className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded">
+          My Collection
+        </Link>
+      </div>
       <p className="text-sm text-gray-500 mb-4">Species Admin</p>
 
       <input
