@@ -58,7 +58,7 @@ function SpeciesAutocomplete({ value, onChange }: { value: number | null, onChan
       const { data } = await supabase
         .from('species')
         .select('sp_no, species, common_name')
-        .or(`species.ilike.%${query}%,common_name.ilike.%${query}%`)
+        .or(`species.ilike.%${query}%,common_name.ilike.%${query}%,sp_no.eq.${parseInt(query) || 0}`)
         .order('species', { ascending: true })
         .limit(10)
       setResults(data || [])
