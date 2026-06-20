@@ -33,6 +33,130 @@ function Field({ label, children }: { label: string, children: React.ReactNode }
 
 const inputClass = "w-full border rounded px-3 py-2 text-base"
 
+function SpeciesAutocomplete({ value, onChange }: { value: number | null, onChange: (spNo: number | null, name: string) => void }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<any[]>([])
+  const [open, setOpen] = useState(false)
+  const [loadedName, setLoadedName] = useState('')
+
+  useEffect(() => {
+    if (value && !loadedName) {
+      supabase.from('species').select('sp_no, species, common_name')
+        .eq('sp_no', value).single()
+        .then(({ data }) => {
+          if (data) {
+            setLoadedName(data.species)
+            setQuery(data.species)
+          }
+        })
+    }
+  }, [value])
+
+  useEffect(() => {
+    if (!query.trim() || query === loadedName) {
+      setResults([])
+      return
+    }
+    const timeout = setTimeout(async () => {
+      const { data } = await supabase
+        .from('species')
+        .select('sp_no, species, common_name')
+        .or(`species.ilike.%${query}%,common_name.ilike.%${query}%,sp_no.eq.${parseInt(query) || 0}`)
+        .order('species', { ascending: true })
+        .limit(10)
+      setResults(data || [])
+    }, 250)
+    return () => clearTimeout(timeout)
+  }, [query])
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        value={query}
+        onChange={e => { setQuery(e.target.value); setOpen(true); if (!e.target.value) onChange(null, '') }}
+        onFocus={() => setOpen(true)}
+        placeholder="Search species name..."
+        className={inputClass}
+      />
+      {open && results.length > 0 && (
+        <ul className="absolute z-10 bg-white border rounded mt-1 w-full max-h-48 overflow-y-auto shadow-lg">
+          {results.map(r => (
+            <li
+              key={r.sp_no}
+              onClick={() => {
+                onChange(r.sp_no, r.species)
+                setQuery(r.species)
+                setLoadedName(r.species)
+                setOpen(false)
+                setResults([])
+              }}
+              className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b last:border-0"
+            >
+              <span className="font-medium">{r.species}</span>
+              {r.common_name && r.common_name !== 'Unknown' && (
+                <span className="text-gray-500"> — {r.common_name}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function VariantAutocomplete({ spNo, value, onChange }: { spNo: number | null, value: string, onChange: (name: string) => void }) {
+  const [query, setQuery] = useState(value || '')
+  const [results, setResults] = useState<any[]>([])
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => { setQuery(value || '') }, [value])
+
+  useEffect(() => {
+    if (!spNo || !query.trim()) {
+      setResults([])
+      return
+    }
+    const timeout = setTimeout(async () => {
+      const { data } = await supabase
+        .from('variants')
+        .select('variant_name')
+        .eq('parent_sp_no', spNo)
+        .ilike('variant_name', `%${query}%`)
+        .limit(10)
+      setResults(data || [])
+    }, 250)
+    return () => clearTimeout(timeout)
+  }, [query, spNo])
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        value={query}
+        onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        placeholder={spNo ? "Type to search known variants..." : "Select a species first"}
+        disabled={!spNo}
+        className={inputClass}
+      />
+      {open && results.length > 0 && (
+        <ul className="absolute z-10 bg-white border rounded mt-1 w-full max-h-48 overflow-y-auto shadow-lg">
+          {results.map((r, i) => (
+            <li
+              key={i}
+              onClick={() => { onChange(r.variant_name); setQuery(r.variant_name); setOpen(false); setResults([]) }}
+              className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b last:border-0"
+            >
+              {r.variant_name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export default function CollectionDetailPage() {
   const params = useParams()
   const id = params.id as string
@@ -177,8 +301,12 @@ export default function CollectionDetailPage() {
 
       <div className="mt-4">
         <Section title="Development & Styling" defaultOpen>
-          <Field label="Sp No"><input type="number" value={tree.sp_no || ''} onChange={e => set('sp_no', e.target.value ? parseInt(e.target.value) : null)} className={inputClass} /></Field>
-          <Field label="Variation / Cultivar"><input type="text" value={tree.variation_or_cultivar || ''} onChange={e => set('variation_or_cultivar', e.target.value)} className={inputClass} /></Field>
+          <Field label="Species">
+            <SpeciesAutocomplete value={tree.sp_no} onChange={(spNo) => set('sp_no', spNo)} />
+          </Field>
+          <Field label="Variation / Cultivar">
+            <VariantAutocomplete spNo={tree.sp_no} value={tree.variation_or_cultivar || ''} onChange={val => set('variation_or_cultivar', val)} />
+          </Field>
           <Field label="Style"><input type="text" value={tree.style || ''} onChange={e => set('style', e.target.value)} className={inputClass} /></Field>
           <Field label="Development Stage"><input type="text" value={tree.development_stage || ''} onChange={e => set('development_stage', e.target.value)} className={inputClass} /></Field>
           <Field label="Training Stage"><input type="text" value={tree.training_stage || ''} onChange={e => set('training_stage', e.target.value)} className={inputClass} /></Field>
@@ -269,7 +397,7 @@ export default function CollectionDetailPage() {
         </button>
       </div>
 
-     {/* Save button - normal flow, not fixed */}
+      {/* Save button - normal flow, not fixed */}
       <div className="mt-6 mb-10">
         <button
           onClick={handleSave}
