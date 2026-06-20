@@ -269,13 +269,12 @@ export default function CollectionDetailPage() {
         </button>
       </div>
 
-      {/* Sticky save bar */}
-      {/* Sticky save bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t px-4 py-3 flex justify-center z-50" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
+     {/* Save button - normal flow, not fixed */}
+      <div className="mt-6 mb-10">
         <button
           onClick={handleSave}
           disabled={saving}
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold w-full max-w-2xl disabled:opacity-50"
+          className="bg-blue-600 text-white px-6 py-4 rounded-lg font-semibold w-full text-lg disabled:opacity-50"
         >
           {saving ? 'Saving...' : 'Save All'}
         </button>
