@@ -33,6 +33,70 @@ function Field({ label, children }: { label: string, children: React.ReactNode }
 
 const inputClass = "w-full border rounded px-3 py-2 text-base"
 
+const STYLE_OPTIONS = ['Formal Upright', 'Informal Upright', 'Slanting', 'Cascade', 'Semi-Cascade', 'Windswept', 'Literati', 'Group/Forest', 'Raft', 'Root-over-rock', 'Multi-trunk', 'Broom', 'Driftwood']
+const SOURCE_OPTIONS = ['Nursery', 'Grown from Seed', 'Grown from Cutting', 'Air Layer', 'Collected (Yamadori)', 'Club Auction', 'Online Purchase', 'Private Sale', 'Gift', 'Other']
+const DEV_STAGE_OPTIONS = ['Raw Material', 'Initial Styling', 'Developing', 'Refining', 'Mature / Show Ready', 'Maintenance']
+const TRAINING_STAGE_OPTIONS = ['Untrained', 'Primary Wiring', 'Branch Development', 'Ramification', 'Refinement', 'Maintenance Only']
+const ORIGIN_MATERIAL_OPTIONS = ['Nursery Stock', 'Yamadori (Collected)', 'Cutting', 'Seedling', 'Air Layer', 'Pre-Bonsai', 'Field Grown', 'Tubestock']
+
+function Dropdown({ value, onChange, options, category }: { value: string, onChange: (v: string) => void, options: string[], category: string }) {
+  const [customOptions, setCustomOptions] = useState<string[]>([])
+  const [adding, setAdding] = useState(false)
+  const [newValue, setNewValue] = useState('')
+
+  useEffect(() => {
+    supabase.from('dropdown_options').select('value').eq('category', category)
+      .then(({ data }) => setCustomOptions((data || []).map((d: any) => d.value)))
+  }, [category])
+
+  const allOptions = [...options, ...customOptions.filter(c => !options.includes(c))].sort()
+
+  async function handleAdd() {
+    const trimmed = newValue.trim()
+    if (!trimmed) return
+    await supabase.from('dropdown_options').upsert({ category, value: trimmed }, { onConflict: 'category,value' })
+    setCustomOptions(prev => [...prev, trimmed])
+    onChange(trimmed)
+    setNewValue('')
+    setAdding(false)
+  }
+
+  if (adding) {
+    return (
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={newValue}
+          onChange={e => setNewValue(e.target.value)}
+          placeholder="New option..."
+          className={inputClass}
+          autoFocus
+        />
+        <button type="button" onClick={handleAdd} className="bg-blue-600 text-white px-3 rounded text-sm">Add</button>
+        <button type="button" onClick={() => setAdding(false)} className="text-gray-400 px-2 text-sm">✕</button>
+      </div>
+    )
+  }
+
+  return (
+    <select
+      value={value || ''}
+      onChange={e => {
+        if (e.target.value === '__add_new__') {
+          setAdding(true)
+        } else {
+          onChange(e.target.value)
+        }
+      }}
+      className={inputClass}
+    >
+      <option value="">Select...</option>
+      {allOptions.map(o => <option key={o} value={o}>{o}</option>)}
+      <option value="__add_new__">+ Add new option...</option>
+    </select>
+  )
+}
+
 function SpeciesAutocomplete({ value, onChange }: { value: number | null, onChange: (spNo: number | null, name: string) => void }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<any[]>([])
@@ -299,7 +363,7 @@ export default function CollectionDetailPage() {
         />
       </Field>
 
-     <div className="mt-4">
+      <div className="mt-4">
         <Section title="Development & Styling" defaultOpen>
           <Field label="Tree Number"><input type="number" value={tree.tree_number ?? ''} onChange={e => set('tree_number', e.target.value ? parseInt(e.target.value) : null)} className={inputClass} /></Field>
           <Field label="Species">
@@ -308,10 +372,10 @@ export default function CollectionDetailPage() {
           <Field label="Variation / Cultivar">
             <VariantAutocomplete spNo={tree.sp_no} value={tree.variation_or_cultivar || ''} onChange={val => set('variation_or_cultivar', val)} />
           </Field>
-          <Field label="Style"><input type="text" value={tree.style || ''} onChange={e => set('style', e.target.value)} className={inputClass} /></Field>
-          <Field label="Development Stage"><input type="text" value={tree.development_stage || ''} onChange={e => set('development_stage', e.target.value)} className={inputClass} /></Field>
-          <Field label="Training Stage"><input type="text" value={tree.training_stage || ''} onChange={e => set('training_stage', e.target.value)} className={inputClass} /></Field>
-          <Field label="Origin Material"><input type="text" value={tree.origin_material || ''} onChange={e => set('origin_material', e.target.value)} className={inputClass} /></Field>
+          <Field label="Style"><Dropdown value={tree.style} onChange={v => set('style', v)} options={STYLE_OPTIONS} category="style" /></Field>
+          <Field label="Development Stage"><Dropdown value={tree.development_stage} onChange={v => set('development_stage', v)} options={DEV_STAGE_OPTIONS} category="development_stage" /></Field>
+          <Field label="Training Stage"><Dropdown value={tree.training_stage} onChange={v => set('training_stage', v)} options={TRAINING_STAGE_OPTIONS} category="training_stage" /></Field>
+          <Field label="Origin Material"><Dropdown value={tree.origin_material} onChange={v => set('origin_material', v)} options={ORIGIN_MATERIAL_OPTIONS} category="origin_material" /></Field>
           <Field label="Year Est. Planted"><input type="text" value={tree.year_est_planted || ''} onChange={e => set('year_est_planted', e.target.value)} className={inputClass} /></Field>
           <Field label="Estimated Age"><input type="text" value={tree.estimated_age || ''} onChange={e => set('estimated_age', e.target.value)} className={inputClass} /></Field>
           <Field label="Plan"><textarea value={tree.plan || ''} onChange={e => set('plan', e.target.value)} rows={2} className={inputClass} /></Field>
@@ -320,7 +384,7 @@ export default function CollectionDetailPage() {
         </Section>
 
         <Section title="Commercial">
-          <Field label="Source"><input type="text" value={tree.source || ''} onChange={e => set('source', e.target.value)} className={inputClass} /></Field>
+          <Field label="Source"><Dropdown value={tree.source} onChange={v => set('source', v)} options={SOURCE_OPTIONS} category="source" /></Field>
           <Field label="Acquired Date"><input type="date" value={tree.acquired_date || ''} onChange={e => set('acquired_date', e.target.value)} className={inputClass} /></Field>
           <Field label="Pot Price"><input type="number" value={tree.pot_price || ''} onChange={e => set('pot_price', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
           <Field label="Price Paid"><input type="number" value={tree.price_paid || ''} onChange={e => set('price_paid', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
@@ -389,14 +453,6 @@ export default function CollectionDetailPage() {
           <Field label="Weight (kg)"><input type="number" value={tree.weight_kg || ''} onChange={e => set('weight_kg', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
         </Section>
 
-        <button
-          type="button"
-          onClick={handleDelete}
-          className="text-red-500 text-sm mt-2"
-        >
-          Delete this tree
-        </button>
-      </div>
         <button
           type="button"
           onClick={handleDelete}
