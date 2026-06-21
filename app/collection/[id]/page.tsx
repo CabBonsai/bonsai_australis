@@ -376,7 +376,22 @@ export default function CollectionDetailPage() {
           <Field label="Development Stage"><Dropdown value={tree.development_stage} onChange={v => set('development_stage', v)} options={DEV_STAGE_OPTIONS} category="development_stage" /></Field>
           <Field label="Training Stage"><Dropdown value={tree.training_stage} onChange={v => set('training_stage', v)} options={TRAINING_STAGE_OPTIONS} category="training_stage" /></Field>
           <Field label="Origin Material"><Dropdown value={tree.origin_material} onChange={v => set('origin_material', v)} options={ORIGIN_MATERIAL_OPTIONS} category="origin_material" /></Field>
-          <Field label="Year Est. Planted"><input type="text" value={tree.year_est_planted || ''} onChange={e => set('year_est_planted', e.target.value)} className={inputClass} /></Field>
+          <Field label="Year Est. Planted">
+            <input
+              type="number"
+              value={tree.year_est_planted || ''}
+              onChange={e => set('year_est_planted', e.target.value)}
+              placeholder="e.g. 1995"
+              min="1900"
+              max={new Date().getFullYear()}
+              className={inputClass}
+            />
+            {tree.year_est_planted && /^\d{4}$/.test(String(tree.year_est_planted)) && (
+              <p className="text-xs text-gray-500 mt-1">
+                ≈ {new Date().getFullYear() - parseInt(tree.year_est_planted)} years old
+              </p>
+            )}
+          </Field>
           <Field label="Estimated Age"><input type="text" value={tree.estimated_age || ''} onChange={e => set('estimated_age', e.target.value)} className={inputClass} /></Field>
           <Field label="Plan"><textarea value={tree.plan || ''} onChange={e => set('plan', e.target.value)} rows={2} className={inputClass} /></Field>
           <Field label="Intended Look"><textarea value={tree.intended_look || ''} onChange={e => set('intended_look', e.target.value)} rows={2} className={inputClass} /></Field>
