@@ -36,6 +36,12 @@ function Field({ label, value, onChange, type = 'text' }: {
   )
 }
 
+function formatVal(v: any): string {
+  if (v === null || v === undefined || v === '') return '— not set —'
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No'
+  return String(v)
+}
+
 export default function SpeciesDetail() {
   const params = useParams()
   const spNo = params.sp_no
@@ -54,6 +60,7 @@ export default function SpeciesDetail() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
+  const [generatingReport, setGeneratingReport] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchAll() {
@@ -300,18 +307,339 @@ export default function SpeciesDetail() {
     setSaving(false)
   }
 
+  async function generatePDF(reportType: 'basic' | 'advanced') {
+    setGeneratingReport(reportType)
+    try {
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const margin = 40
+      let y = 40
+
+      let logoDataUrl: string | null = null
+      try {
+        const res = await fetch('/logo.png')
+        const blob = await res.blob()
+        logoDataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+      } catch (e) {
+        console.warn('Logo failed to load', e)
+      }
+
+      const reportLabel = reportType === 'basic' ? 'Species Report' : 'Advanced Species Report'
+
+      if (logoDataUrl) {
+        const logoSize = 60
+        doc.addImage(logoDataUrl, 'PNG', margin, y, logoSize, logoSize)
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Bonsai Australis', margin + logoSize + 15, y + 28)
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'normal')
+        doc.text(reportLabel, margin + logoSize + 15, y + 46)
+        y += logoSize + 25
+      } else {
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.text(`Bonsai Australis — ${reportLabel}`, margin, y + 10)
+        y += 35
+      }
+
+      doc.setDrawColor(180)
+      doc.line(margin, y, pageWidth - margin, y)
+      y += 20
+
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.text(species.species || 'Unnamed Species', margin, y)
+      y += 18
+
+      if (species.common_name && species.common_name !== 'Unknown') {
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'italic')
+        doc.text(species.common_name, margin, y)
+        y += 16
+      }
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`sp_no: ${spNo}`, margin, y)
+      y += 18
+
+      function checkPageBreak(needed: number) {
+        if (y + needed > doc.internal.pageSize.getHeight() - 40) {
+          doc.addPage()
+          y = 40
+        }
+      }
+
+      function addSection(title: string, fields: [string, any][]) {
+        checkPageBreak(30)
+        doc.setFontSize(13)
+        doc.setFont('helvetica', 'bold')
+        doc.setFillColor(245, 245, 245)
+        doc.rect(margin, y - 12, pageWidth - margin * 2, 18, 'F')
+        doc.text(title, margin + 5, y)
+        y += 20
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+
+        fields.forEach(([label, value]) => {
+          const formatted = formatVal(value)
+          const isEmpty = formatted === '— not set —'
+          const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 170)
+          checkPageBreak(14 * lines.length + 4)
+          doc.setTextColor(60, 60, 60)
+          doc.text(`${label}:`, margin + 5, y)
+          if (isEmpty) {
+            doc.setTextColor(180, 180, 180)
+          } else {
+            doc.setTextColor(20, 20, 20)
+          }
+          doc.text(lines, margin + 170, y)
+          y += 14 * lines.length
+        })
+        doc.setTextColor(0, 0, 0)
+        y += 8
+      }
+
+      if (reportType === 'basic') {
+        addSection('Species Info', [
+          ['Research Status', species.research_status],
+          ['Genus', species.species_genus],
+          ['Epithet', species.species_epithet],
+          ['Family', species.species_family],
+          ['Tree Type', species.tree_type],
+          ['Pure Species', species.pure_species],
+          ['AU Native', species.australian_native],
+          ['Origin', species.species_origin],
+          ['Natural Habitat', species.natural_habitat],
+          ['Species Notes', species.species_notes],
+          ['Quick Notes', species.research_notes],
+        ])
+
+        if (suitability) addSection('Bonsai Suitability', [
+          ['Suitability', suitability.bonsai_suitability],
+          ['Difficulty', suitability.difficulty],
+          ['Recommended Styles', suitability.recommended_bonsai_styles],
+          ['Vigor', suitability.vigor],
+          ['Vigor Notes', suitability.vigor_notes],
+          ['Back Budding Ability', suitability.back_budding_ability],
+          ['Back Budding Notes', suitability.back_budding_notes],
+          ['Ramification Potential', suitability.ramification_potential],
+          ['Ramification Notes', suitability.ramification_notes],
+          ['Leaf Reduction Potential', suitability.leaf_reduction_potential],
+          ['Leaf Reduction Notes', suitability.leaf_reduction_notes],
+          ['Root Tolerance Score', suitability.root_tolerance_score],
+          ['Root Tolerance Notes', suitability.root_tolerance_notes],
+          ['Final Bonsai Score', suitability.final_bonsai_score],
+          ['Tier', suitability.bonsai_tier],
+        ])
+
+        if (careGuide) addSection('Care Guide', [
+          ['Growth Season', careGuide.growth_season],
+          ['Growth Season Notes', careGuide.growth_season_notes],
+          ['Growth Plan', careGuide.growth_plan],
+          ['Watering', careGuide.watering],
+          ['Watering Frequency', careGuide.watering_frequency],
+          ['Sun Exposure', careGuide.sun_exposure],
+          ['Light Requirements', careGuide.light_requirements],
+          ['Fertilizing', careGuide.fertilizing],
+          ['Best Fertiliser (AU)', careGuide.best_fertiliser_australia],
+          ['Promote Growth', careGuide.promote_growth],
+          ['Promote Back Budding', careGuide.promote_back_budding],
+          ['Style Options', careGuide.style_options],
+          ['Styling Considerations', careGuide.styling_considerations],
+          ['Technical Training & Styling', careGuide.technical_training_styling],
+          ['Pruning & Refinement Protocols', careGuide.pruning_refinement_protocols],
+          ['Wiring', careGuide.wiring],
+          ['Branch Direction After Wiring', careGuide.branch_direction_after_wiring],
+          ['Repotting Guide', careGuide.repotting_guide],
+          ['Best Soil Mix', careGuide.best_soil_mix],
+          ['Pests & Diseases', careGuide.pests_and_diseases],
+          ['Climate Zone', careGuide.climate_zone],
+          ['Watering (Summer)', careGuide.watering_summer_notes],
+          ['Watering (Winter)', careGuide.watering_winter_notes],
+          ['Summer Sun Protection', careGuide.summer_sun_protection],
+          ['Frost Risk', careGuide.frost_risk],
+          ['Min Temp (C)', careGuide.min_temp_c],
+          ['Pruning Season', careGuide.pruning_season],
+          ['Repotting Season', careGuide.repotting_season],
+          ['Repotting Frequency (yrs)', careGuide.repotting_freq_yrs],
+        ])
+      } else {
+        if (fertilisation) addSection('Fertilisation', [
+          ['P Tolerance', fertilisation.p_tolerance],
+          ['N Requirement', fertilisation.n_requirement],
+          ['Preferred Fertiliser Types', fertilisation.preferred_fertiliser_types],
+          ['Avoid Fertilisers', fertilisation.avoid_fertilisers],
+          ['Recommended Products', fertilisation.recommended_products],
+          ['Notes', fertilisation.notes_schema],
+        ])
+
+        if (pruning) addSection('Pruning Protocols', [
+          ['Core Rules', pruning.pruning_core_rules],
+          ['Structural Pruning Timing', pruning.structural_pruning_timing],
+          ['Structural Pruning Method', pruning.structural_pruning_method],
+          ['Structural Pruning Limits', pruning.structural_pruning_limits],
+          ['Post-Flowering Pruning Timing', pruning.post_flowering_pruning_timing],
+          ['Post-Flowering Pruning Method', pruning.post_flowering_pruning_method],
+          ['Maintenance Pruning Timing', pruning.maintenance_pruning_timing],
+          ['Maintenance Pruning Method', pruning.maintenance_pruning_method],
+          ['Old Wood Management', pruning.old_wood_management],
+          ['Seasonal Timing', pruning.seasonal_timing_seq],
+          ['Recommended Techniques', pruning.recommended_techniques],
+          ['Common Mistakes', pruning.common_mistakes],
+          ['Apical Management', pruning.apical_management_strategy],
+          ['Branch Selection Rules', pruning.branch_selection_rules],
+          ['Light Penetration Strategy', pruning.light_penetration_strategy],
+          ['Refinement Method', pruning.refinement_method],
+          ['Notes', pruning.notes],
+        ])
+
+        if (nebari) addSection('Nebari and Root', [
+          ['Root Architecture Type', nebari.root_architecture_type],
+          ['Natural Nebari Form', nebari.natural_nebari_form],
+          ['Root Depth Tendency', nebari.root_depth_tendency],
+          ['Root Spread Behaviour', nebari.root_spread_behaviour],
+          ['Development Speed', nebari.development_speed],
+          ['Years to Initial Nebari', nebari.years_to_initial_nebari],
+          ['Years to Mature Nebari', nebari.years_to_mature_nebari],
+          ['Climate Influence', nebari.climate_influence_seq],
+          ['Taproot Removal Tolerance', nebari.taproot_removal_tolerance],
+          ['Radial Root Pruning Response', nebari.radial_root_pruning_response],
+          ['Root Reduction Tolerance', nebari.root_reduction_tolerance],
+          ['Fine Root Production', nebari.fine_root_production],
+          ['Root Rot Susceptibility', nebari.root_rot_susceptibility],
+          ['Ground Layering Suitability', nebari.ground_layering_suitability],
+          ['Tourniquet Method Suitability', nebari.tourniquet_method_suitability],
+          ['Root Grafting Success Rate', nebari.root_grafting_success_rate],
+          ['Nebari Fusion Potential', nebari.nebari_fusion_potential],
+          ['Best Techniques', nebari.best_techniques_for_species],
+          ['Typical Nebari Faults', nebari.typical_nebari_faults],
+          ['Underlying Causes', nebari.underlying_causes],
+          ['Corrective Strategies', nebari.corrective_strategies],
+          ['Preferred Pot Depth', nebari.preferred_pot_depth],
+          ['Preferred Pot Width', nebari.preferred_pot_width],
+          ['Surface Substrate Preference', nebari.surface_substrate_preference],
+          ['Moisture Preference', nebari.moisture_preference],
+          ['Heat Sensitivity at Root Base', nebari.heat_sensitivity_at_root_base],
+          ['Ultimate Nebari Quality Potential', nebari.ultimate_nebari_quality_potential],
+          ['Expected Mature Nebari Form', nebari.expected_mature_nebari_form],
+          ['Maintenance Requirements', nebari.maintenance_requirements],
+          ['Ageing Notes', nebari.ageing_notes],
+          ['Notes for Future Development', nebari.notes_for_future_development],
+        ])
+
+        if (seasonal) addSection('Seasonal Maintenance', [
+          ['Spring Guide', seasonal.spring_maintenance_guide],
+          ['Summer Guide', seasonal.summer_maintenance_guide],
+          ['Autumn Guide', seasonal.autumn_maintenance_guide],
+          ['Winter Guide', seasonal.winter_maintenance_guide],
+          ['General Maintenance Notes', seasonal.general_maintenance_notes],
+          ['Spring Care', seasonal.spring_care],
+          ['Summer Care', seasonal.summer_care],
+          ['Autumn Care', seasonal.autumn_care],
+          ['Winter Care', seasonal.winter_care],
+        ])
+
+        if (advanced) addSection('Advanced and Expert', [
+          ['pH Target', advanced.ph_target],
+          ['Acquisition and Raw Material', advanced.acquisition_raw_material],
+          ['Aesthetics and Exhibition Philosophy', advanced.aesthetics_exhibition_philosophy],
+          ['Advanced Structural Engineering', advanced.advanced_structural_engineering],
+          ['Morphology Notes', advanced.morphology_notes],
+          ['Cambial Notes', advanced.cambial_notes],
+          ['Seasonal Physiology', advanced.seasonal_physiology],
+          ['Energy Model', advanced.energy_model],
+          ['Back Budding Notes', advanced.backbudding_notes],
+          ['Ramification Stages', advanced.ramification_stages],
+          ['Root Notes', advanced.root_notes],
+          ['Hormonal Model', advanced.hormonal_model],
+          ['Needle Control', advanced.needle_control],
+          ['Climate Notes', advanced.climate_notes],
+          ['Styling Biomechanics', advanced.styling_biomechanics],
+          ['Development Years 1-3', advanced.development_years_1_3],
+          ['Development Years 4-6', advanced.development_years_4_6],
+          ['Development Years 7-8', advanced.development_years_7_8],
+          ['Development Years 9-10', advanced.development_years_9_10],
+        ])
+
+        if (regional) addSection('Regional Suitability', [
+          ['Tropical Suitability', regional.tropical_suitability],
+          ['Tropical Notes', regional.tropical_notes],
+          ['Tropical Risk', regional.tropical_risk],
+          ['Tropical Training Adjustments', regional.tropical_training_adjustments],
+          ['Tropical Soil Modifier', regional.tropical_soil_modifier],
+          ['Tropical Watering Modifier', regional.tropical_watering_modifier],
+          ['Subtropical Suitability', regional.subtropical_suitability],
+          ['Subtropical Notes', regional.subtropical_notes],
+          ['Subtropical Risk', regional.subtropical_risk],
+          ['Subtropical Training Adjustments', regional.subtropical_training_adjustments],
+          ['Subtropical Soil Modifier', regional.subtropical_soil_modifier],
+          ['Subtropical Watering Modifier', regional.subtropical_watering_modifier],
+          ['Temperate Suitability', regional.temperate_suitability],
+          ['Temperate Notes', regional.temperate_notes],
+          ['Temperate Risk', regional.temperate_risk],
+          ['Temperate Training Adjustments', regional.temperate_training_adjustments],
+          ['Temperate Soil Modifier', regional.temperate_soil_modifier],
+          ['Temperate Watering Modifier', regional.temperate_watering_modifier],
+          ['Cold Suitability', regional.cold_suitability],
+          ['Cold Notes', regional.cold_notes],
+          ['Cold Risk', regional.cold_risk],
+          ['Cold Training Adjustments', regional.cold_training_adjustments],
+          ['Cold Soil Modifier', regional.cold_soil_modifier],
+          ['Cold Watering Modifier', regional.cold_watering_modifier],
+          ['Availability (Australia)', regional.availability_australia],
+          ['Availability Notes', regional.availability_notes],
+          ['Nursery Availability', regional.nursery_availability],
+          ['Wild Collection Status', regional.wild_collection_status],
+        ])
+      }
+
+      const fileName = (species.species || 'species').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
+      doc.save(`${fileName}_${reportType}_report.pdf`)
+    } catch (e: any) {
+      alert('Error generating report: ' + e.message)
+    } finally {
+      setGeneratingReport(null)
+    }
+  }
+
   if (loading) return <div className="p-4">Loading...</div>
   if (error) return <div className="p-4 text-red-600">Error: {error}</div>
   if (!species) return <div className="p-4">Species not found.</div>
 
   return (
     <div className="max-w-2xl mx-auto p-4 pb-24">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-2">
         <Link href="/" className="text-blue-600 text-sm">&larr; Back to list</Link>
         <div className="flex gap-3">
           {prevNext.prev && <Link href={`/species/${prevNext.prev}`} className="text-blue-600 text-sm">&#8592; Prev</Link>}
           {prevNext.next && <Link href={`/species/${prevNext.next}`} className="text-blue-600 text-sm">Next &#8594;</Link>}
         </div>
+      </div>
+      <div className="flex gap-2 mb-4">
+        <button
+          type="button"
+          onClick={() => generatePDF('basic')}
+          disabled={generatingReport !== null}
+          className="text-xs bg-gray-800 text-white px-3 py-1.5 rounded disabled:opacity-50"
+        >
+          {generatingReport === 'basic' ? 'Generating...' : '📄 Basic Report'}
+        </button>
+        <button
+          type="button"
+          onClick={() => generatePDF('advanced')}
+          disabled={generatingReport !== null}
+          className="text-xs bg-gray-600 text-white px-3 py-1.5 rounded disabled:opacity-50"
+        >
+          {generatingReport === 'advanced' ? 'Generating...' : '📄 Advanced Report'}
+        </button>
       </div>
       <h1 className="text-2xl font-bold">{species.species}</h1>
       <p className="text-sm text-gray-400 mb-4">sp_no: {species.sp_no}</p>
