@@ -97,6 +97,57 @@ function Dropdown({ value, onChange, options, category }: { value: string, onCha
   )
 }
 
+function PhotoField({ label, value, onChange }: { label: string, value: string, onChange: (v: string) => void }) {
+  const [uploading, setUploading] = useState(false)
+  const inputId = `photo-${label.replace(/\s+/g, '-')}`
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop() || 'jpg'
+      const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('tree-photos').upload(path, file)
+      if (error) {
+        alert('Upload failed: ' + error.message)
+        return
+      }
+      const { data } = supabase.storage.from('tree-photos').getPublicUrl(path)
+      onChange(data.publicUrl)
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  return (
+    <div>
+      <span className="text-gray-500 block mb-1 text-sm">{label}</span>
+      {value && (
+        <img src={value} alt={label} className="w-full max-h-48 object-cover rounded mb-2 border" />
+      )}
+      <div className="flex gap-2">
+        <label htmlFor={inputId} className="flex-1 text-center bg-gray-100 border rounded px-3 py-2 text-sm cursor-pointer">
+          {uploading ? 'Uploading...' : value ? '📷 Replace Photo' : '📷 Add Photo'}
+        </label>
+        <input
+          id={inputId}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleFile}
+          className="hidden"
+          disabled={uploading}
+        />
+        {value && (
+          <button type="button" onClick={() => onChange('')} className="text-red-500 text-sm px-2">✕</button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SpeciesAutocomplete({ value, onChange }: { value: number | null, onChange: (spNo: number | null, name: string) => void }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<any[]>([])
@@ -390,9 +441,10 @@ export default function CollectionDetailPage() {
         doc.setFont('helvetica', 'normal')
 
         fields.forEach(([label, value]) => {
-          checkPageBreak(16)
           const formatted = formatVal(value)
           const isEmpty = formatted === '— not set —'
+          const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 160)
+          checkPageBreak(14 * lines.length + 4)
           doc.setTextColor(60, 60, 60)
           doc.text(`${label}:`, margin + 5, y)
           if (isEmpty) {
@@ -400,7 +452,6 @@ export default function CollectionDetailPage() {
           } else {
             doc.setTextColor(20, 20, 20)
           }
-          const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 160)
           doc.text(lines, margin + 160, y)
           y += 14 * lines.length
         })
@@ -618,10 +669,10 @@ export default function CollectionDetailPage() {
         </Section>
 
         <Section title="Media & Notes">
-          <Field label="Image URL (primary)"><input type="text" value={tree.image_url || ''} onChange={e => set('image_url', e.target.value)} className={inputClass} /></Field>
-          <Field label="Photo 1"><input type="text" value={tree.photo_1 || ''} onChange={e => set('photo_1', e.target.value)} className={inputClass} /></Field>
-          <Field label="Photo 2"><input type="text" value={tree.photo_2 || ''} onChange={e => set('photo_2', e.target.value)} className={inputClass} /></Field>
-          <Field label="Photo 3"><input type="text" value={tree.photo_3 || ''} onChange={e => set('photo_3', e.target.value)} className={inputClass} /></Field>
+          <PhotoField label="Primary Photo" value={tree.image_url || ''} onChange={v => set('image_url', v)} />
+          <PhotoField label="Photo 2" value={tree.photo_1 || ''} onChange={v => set('photo_1', v)} />
+          <PhotoField label="Photo 3" value={tree.photo_2 || ''} onChange={v => set('photo_2', v)} />
+          <PhotoField label="Photo 4" value={tree.photo_3 || ''} onChange={v => set('photo_3', v)} />
           <Field label="External Documents"><input type="text" value={tree.external_documents || ''} onChange={e => set('external_documents', e.target.value)} className={inputClass} /></Field>
           <Field label="Blog Link"><input type="text" value={tree.blog_link || ''} onChange={e => set('blog_link', e.target.value)} className={inputClass} /></Field>
           <Field label="Notes (extended)"><textarea value={tree.notes_collection || ''} onChange={e => set('notes_collection', e.target.value)} rows={3} className={inputClass} /></Field>
