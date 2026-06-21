@@ -301,6 +301,7 @@ export default function CollectionDetailPage() {
 
       <div className="mt-4">
         <Section title="Development & Styling" defaultOpen>
+<Field label="Tree Number"><input type="number" value={tree.tree_number ?? ''} onChange={e => set('tree_number', e.target.value ? parseInt(e.target.value) : null)} className={inputClass} /></Field>
           <Field label="Species">
             <SpeciesAutocomplete value={tree.sp_no} onChange={(spNo) => set('sp_no', spNo)} />
           </Field>
