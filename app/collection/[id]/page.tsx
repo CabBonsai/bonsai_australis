@@ -135,7 +135,6 @@ function PhotoField({ label, value, onChange }: { label: string, value: string, 
           id={inputId}
           type="file"
           accept="image/*"
-          capture="environment"
           onChange={handleFile}
           className="hidden"
           disabled={uploading}
