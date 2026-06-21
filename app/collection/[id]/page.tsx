@@ -299,9 +299,9 @@ export default function CollectionDetailPage() {
         />
       </Field>
 
-      <div className="mt-4">
+     <div className="mt-4">
         <Section title="Development & Styling" defaultOpen>
-<Field label="Tree Number"><input type="number" value={tree.tree_number ?? ''} onChange={e => set('tree_number', e.target.value ? parseInt(e.target.value) : null)} className={inputClass} /></Field>
+          <Field label="Tree Number"><input type="number" value={tree.tree_number ?? ''} onChange={e => set('tree_number', e.target.value ? parseInt(e.target.value) : null)} className={inputClass} /></Field>
           <Field label="Species">
             <SpeciesAutocomplete value={tree.sp_no} onChange={(spNo) => set('sp_no', spNo)} />
           </Field>
@@ -317,6 +317,44 @@ export default function CollectionDetailPage() {
           <Field label="Plan"><textarea value={tree.plan || ''} onChange={e => set('plan', e.target.value)} rows={2} className={inputClass} /></Field>
           <Field label="Intended Look"><textarea value={tree.intended_look || ''} onChange={e => set('intended_look', e.target.value)} rows={2} className={inputClass} /></Field>
           <Field label="Work Plan"><textarea value={tree.work_plan || ''} onChange={e => set('work_plan', e.target.value)} rows={2} className={inputClass} /></Field>
+        </Section>
+
+        <Section title="Commercial">
+          <Field label="Source"><input type="text" value={tree.source || ''} onChange={e => set('source', e.target.value)} className={inputClass} /></Field>
+          <Field label="Acquired Date"><input type="date" value={tree.acquired_date || ''} onChange={e => set('acquired_date', e.target.value)} className={inputClass} /></Field>
+          <Field label="Pot Price"><input type="number" value={tree.pot_price || ''} onChange={e => set('pot_price', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
+          <Field label="Price Paid"><input type="number" value={tree.price_paid || ''} onChange={e => set('price_paid', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
+          <Field label="Estimated Value"><input type="number" value={tree.estimated_value || ''} onChange={e => set('estimated_value', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={!!tree.for_sale} onChange={e => set('for_sale', e.target.checked)} />
+            For Sale
+          </label>
+          <Field label="Sale Price"><input type="number" value={tree.sale_price || ''} onChange={e => set('sale_price', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
+          <Field label="Sold Price"><input type="number" value={tree.sold_price || ''} onChange={e => set('sold_price', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
+          <Field label="Customer Facing Wording"><textarea value={tree.customer_facing_wording || ''} onChange={e => set('customer_facing_wording', e.target.value)} rows={2} className={inputClass} /></Field>
+        </Section>
+
+        <Section title="Location & Display">
+          <Field label="Location"><input type="text" value={tree.location || ''} onChange={e => set('location', e.target.value)} className={inputClass} /></Field>
+          <Field label="Bench Position"><input type="text" value={tree.bench_position || ''} onChange={e => set('bench_position', e.target.value)} className={inputClass} /></Field>
+          <Field label="Display Status"><input type="text" value={tree.display_status || ''} onChange={e => set('display_status', e.target.value)} className={inputClass} /></Field>
+        </Section>
+
+        <Section title="Media & Notes">
+          <Field label="Image URL (primary)"><input type="text" value={tree.image_url || ''} onChange={e => set('image_url', e.target.value)} className={inputClass} /></Field>
+          <Field label="Photo 1"><input type="text" value={tree.photo_1 || ''} onChange={e => set('photo_1', e.target.value)} className={inputClass} /></Field>
+          <Field label="Photo 2"><input type="text" value={tree.photo_2 || ''} onChange={e => set('photo_2', e.target.value)} className={inputClass} /></Field>
+          <Field label="Photo 3"><input type="text" value={tree.photo_3 || ''} onChange={e => set('photo_3', e.target.value)} className={inputClass} /></Field>
+          <Field label="External Documents"><input type="text" value={tree.external_documents || ''} onChange={e => set('external_documents', e.target.value)} className={inputClass} /></Field>
+          <Field label="Blog Link"><input type="text" value={tree.blog_link || ''} onChange={e => set('blog_link', e.target.value)} className={inputClass} /></Field>
+          <Field label="Notes (extended)"><textarea value={tree.notes_collection || ''} onChange={e => set('notes_collection', e.target.value)} rows={3} className={inputClass} /></Field>
+        </Section>
+
+        <Section title="Growing Medium">
+          <Field label="Pot Size"><input type="text" value={tree.pot_size || ''} onChange={e => set('pot_size', e.target.value)} className={inputClass} /></Field>
+          <Field label="Pot Type"><input type="text" value={tree.pot_type || ''} onChange={e => set('pot_type', e.target.value)} className={inputClass} /></Field>
+          <Field label="Best Soil Mix"><input type="text" value={tree.best_soil_mix || ''} onChange={e => set('best_soil_mix', e.target.value)} className={inputClass} /></Field>
+          <Field label="Soil Mix Used"><input type="text" value={tree.soil_mix_used || ''} onChange={e => set('soil_mix_used', e.target.value)} className={inputClass} /></Field>
         </Section>
 
         <Section title="Care Schedule">
@@ -344,13 +382,6 @@ export default function CollectionDetailPage() {
           </Field>
         </Section>
 
-        <Section title="Growing Medium">
-          <Field label="Pot Size"><input type="text" value={tree.pot_size || ''} onChange={e => set('pot_size', e.target.value)} className={inputClass} /></Field>
-          <Field label="Pot Type"><input type="text" value={tree.pot_type || ''} onChange={e => set('pot_type', e.target.value)} className={inputClass} /></Field>
-          <Field label="Best Soil Mix"><input type="text" value={tree.best_soil_mix || ''} onChange={e => set('best_soil_mix', e.target.value)} className={inputClass} /></Field>
-          <Field label="Soil Mix Used"><input type="text" value={tree.soil_mix_used || ''} onChange={e => set('soil_mix_used', e.target.value)} className={inputClass} /></Field>
-        </Section>
-
         <Section title="Physical Details">
           <Field label="Height (mm)"><input type="number" value={tree.height_mm || ''} onChange={e => set('height_mm', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
           <Field label="Trunk Thickness (mm)"><input type="number" value={tree.trunk_thickness_mm || ''} onChange={e => set('trunk_thickness_mm', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
@@ -358,37 +389,14 @@ export default function CollectionDetailPage() {
           <Field label="Weight (kg)"><input type="number" value={tree.weight_kg || ''} onChange={e => set('weight_kg', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
         </Section>
 
-        <Section title="Location & Display">
-          <Field label="Location"><input type="text" value={tree.location || ''} onChange={e => set('location', e.target.value)} className={inputClass} /></Field>
-          <Field label="Bench Position"><input type="text" value={tree.bench_position || ''} onChange={e => set('bench_position', e.target.value)} className={inputClass} /></Field>
-          <Field label="Display Status"><input type="text" value={tree.display_status || ''} onChange={e => set('display_status', e.target.value)} className={inputClass} /></Field>
-        </Section>
-
-        <Section title="Commercial">
-          <Field label="Source"><input type="text" value={tree.source || ''} onChange={e => set('source', e.target.value)} className={inputClass} /></Field>
-          <Field label="Acquired Date"><input type="date" value={tree.acquired_date || ''} onChange={e => set('acquired_date', e.target.value)} className={inputClass} /></Field>
-          <Field label="Pot Price"><input type="number" value={tree.pot_price || ''} onChange={e => set('pot_price', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <Field label="Price Paid"><input type="number" value={tree.price_paid || ''} onChange={e => set('price_paid', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <Field label="Estimated Value"><input type="number" value={tree.estimated_value || ''} onChange={e => set('estimated_value', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={!!tree.for_sale} onChange={e => set('for_sale', e.target.checked)} />
-            For Sale
-          </label>
-          <Field label="Sale Price"><input type="number" value={tree.sale_price || ''} onChange={e => set('sale_price', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <Field label="Sold Price"><input type="number" value={tree.sold_price || ''} onChange={e => set('sold_price', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <Field label="Customer Facing Wording"><textarea value={tree.customer_facing_wording || ''} onChange={e => set('customer_facing_wording', e.target.value)} rows={2} className={inputClass} /></Field>
-        </Section>
-
-        <Section title="Media & Notes">
-          <Field label="Image URL (primary)"><input type="text" value={tree.image_url || ''} onChange={e => set('image_url', e.target.value)} className={inputClass} /></Field>
-          <Field label="Photo 1"><input type="text" value={tree.photo_1 || ''} onChange={e => set('photo_1', e.target.value)} className={inputClass} /></Field>
-          <Field label="Photo 2"><input type="text" value={tree.photo_2 || ''} onChange={e => set('photo_2', e.target.value)} className={inputClass} /></Field>
-          <Field label="Photo 3"><input type="text" value={tree.photo_3 || ''} onChange={e => set('photo_3', e.target.value)} className={inputClass} /></Field>
-          <Field label="External Documents"><input type="text" value={tree.external_documents || ''} onChange={e => set('external_documents', e.target.value)} className={inputClass} /></Field>
-          <Field label="Blog Link"><input type="text" value={tree.blog_link || ''} onChange={e => set('blog_link', e.target.value)} className={inputClass} /></Field>
-          <Field label="Notes (extended)"><textarea value={tree.notes_collection || ''} onChange={e => set('notes_collection', e.target.value)} rows={3} className={inputClass} /></Field>
-        </Section>
-
+        <button
+          type="button"
+          onClick={handleDelete}
+          className="text-red-500 text-sm mt-2"
+        >
+          Delete this tree
+        </button>
+      </div>
         <button
           type="button"
           onClick={handleDelete}
