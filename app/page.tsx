@@ -60,7 +60,7 @@ export default function Home() {
           <li key={s.sp_no} className="py-3">
             <Link href={`/species/${s.sp_no}`} className="flex justify-between items-center">
               <div className="flex items-center gap-3">
-                {{s.reference_photo && (
+                {s.reference_photo && (
                   <img
                     src={s.reference_photo}
                     alt={s.species}

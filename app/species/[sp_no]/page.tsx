@@ -938,3 +938,7 @@ export default function SpeciesDetail() {
           {saving ? 'Saving...' : 'Save'}
         </button>
       </div>
+</div>
+  )
+}
+
