@@ -221,13 +221,21 @@ function VariantAutocomplete({ spNo, value, onChange }: { spNo: number | null, v
   )
 }
 
+function formatVal(v: any): string {
+  if (v === null || v === undefined || v === '') return '— not set —'
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No'
+  return String(v)
+}
+
 export default function CollectionDetailPage() {
   const params = useParams()
   const id = params.id as string
 
   const [tree, setTree] = useState<any>(null)
+  const [speciesName, setSpeciesName] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [generatingReport, setGeneratingReport] = useState(false)
 
   useEffect(() => {
     fetchTree()
@@ -245,6 +253,12 @@ export default function CollectionDetailPage() {
       alert('Error loading tree: ' + error.message)
     }
     setTree(data)
+
+    if (data?.sp_no) {
+      const { data: sp } = await supabase.from('species').select('species, common_name').eq('sp_no', data.sp_no).single()
+      if (sp) setSpeciesName(`${sp.species}${sp.common_name && sp.common_name !== 'Unknown' ? ' — ' + sp.common_name : ''}`)
+    }
+
     setLoading(false)
   }
 
@@ -289,6 +303,180 @@ export default function CollectionDetailPage() {
     return new Date(dateStr) < new Date()
   }
 
+  async function handleGenerateReport() {
+    setGeneratingReport(true)
+    try {
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const margin = 40
+      let y = 40
+
+      let logoDataUrl: string | null = null
+      try {
+        const res = await fetch('/logo.png')
+        const blob = await res.blob()
+        logoDataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+      } catch (e) {
+        console.warn('Logo failed to load', e)
+      }
+
+      if (logoDataUrl) {
+        const logoSize = 60
+        doc.addImage(logoDataUrl, 'PNG', margin, y, logoSize, logoSize)
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Bonsai Australis', margin + logoSize + 15, y + 28)
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'normal')
+        doc.text('Collection Report', margin + logoSize + 15, y + 46)
+        y += logoSize + 25
+      } else {
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Bonsai Australis — Collection Report', margin, y + 10)
+        y += 35
+      }
+
+      doc.setDrawColor(180)
+      doc.line(margin, y, pageWidth - margin, y)
+      y += 20
+
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.text(tree.display_name || 'Unnamed Tree', margin, y)
+      y += 18
+
+      if (tree.tree_name) {
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'italic')
+        doc.text(`"${tree.tree_name}"`, margin, y)
+        y += 16
+      }
+
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Tree Number: ${formatVal(tree.tree_number)}`, margin, y)
+      y += 14
+      doc.text(`Species: ${speciesName || '— not set —'}`, margin, y)
+      y += 14
+      if (tree.variation_or_cultivar) {
+        doc.text(`Variation/Cultivar: ${tree.variation_or_cultivar}`, margin, y)
+        y += 14
+      }
+      y += 10
+
+      function checkPageBreak(needed: number) {
+        if (y + needed > doc.internal.pageSize.getHeight() - 40) {
+          doc.addPage()
+          y = 40
+        }
+      }
+
+      function addSection(title: string, fields: [string, any][]) {
+        checkPageBreak(30)
+        doc.setFontSize(13)
+        doc.setFont('helvetica', 'bold')
+        doc.setFillColor(245, 245, 245)
+        doc.rect(margin, y - 12, pageWidth - margin * 2, 18, 'F')
+        doc.text(title, margin + 5, y)
+        y += 20
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+
+        fields.forEach(([label, value]) => {
+          checkPageBreak(16)
+          const formatted = formatVal(value)
+          const isEmpty = formatted === '— not set —'
+          doc.setTextColor(60, 60, 60)
+          doc.text(`${label}:`, margin + 5, y)
+          if (isEmpty) {
+            doc.setTextColor(180, 180, 180)
+          } else {
+            doc.setTextColor(20, 20, 20)
+          }
+          const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 160)
+          doc.text(lines, margin + 160, y)
+          y += 14 * lines.length
+        })
+        doc.setTextColor(0, 0, 0)
+        y += 8
+      }
+
+      addSection('Development & Styling', [
+        ['Style', tree.style],
+        ['Development Stage', tree.development_stage],
+        ['Training Stage', tree.training_stage],
+        ['Origin Material', tree.origin_material],
+        ['Year Est. Planted', tree.year_est_planted],
+        ['Estimated Age', tree.estimated_age],
+        ['Plan', tree.plan],
+        ['Intended Look', tree.intended_look],
+        ['Work Plan', tree.work_plan],
+      ])
+
+      addSection('Commercial', [
+        ['Source', tree.source],
+        ['Acquired Date', tree.acquired_date],
+        ['Pot Price', tree.pot_price],
+        ['Price Paid', tree.price_paid],
+        ['Estimated Value', tree.estimated_value],
+        ['For Sale', tree.for_sale],
+        ['Sale Price', tree.sale_price],
+        ['Sold Price', tree.sold_price],
+      ])
+
+      addSection('Location & Display', [
+        ['Location', tree.location],
+        ['Bench Position', tree.bench_position],
+        ['Display Status', tree.display_status],
+      ])
+
+      addSection('Growing Medium', [
+        ['Pot Size', tree.pot_size],
+        ['Pot Type', tree.pot_type],
+        ['Best Soil Mix', tree.best_soil_mix],
+        ['Soil Mix Used', tree.soil_mix_used],
+      ])
+
+      addSection('Care Schedule', [
+        ['Last Watered', tree.last_watered],
+        ['Last Fertilised', tree.last_fertilised],
+        ['Next Fertilise Due', tree.next_fertilise_due],
+        ['Last Repotted', tree.last_repotted],
+        ['Next Repot Due', tree.next_repot_due],
+        ['Last Pruned', tree.last_pruned],
+        ['Due Prune Date', tree.due_prune_date],
+        ['Date Wired', tree.date_wired],
+        ['Date Check Wire', tree.date_check_wire],
+      ])
+
+      addSection('Physical Details', [
+        ['Height (mm)', tree.height_mm],
+        ['Trunk Thickness (mm)', tree.trunk_thickness_mm],
+        ['Canopy Width (mm)', tree.canopy_width_mm],
+        ['Weight (kg)', tree.weight_kg],
+      ])
+
+      addSection('Notes', [
+        ['Quick Notes', tree.notes],
+        ['Extended Notes', tree.notes_collection],
+      ])
+
+      const fileName = (tree.display_name || 'tree').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
+      doc.save(`${fileName}_report.pdf`)
+    } catch (e: any) {
+      alert('Error generating report: ' + e.message)
+    } finally {
+      setGeneratingReport(false)
+    }
+  }
+
   if (loading) {
     return <main className="max-w-2xl mx-auto px-4 py-8"><p className="text-gray-400">Loading...</p></main>
   }
@@ -299,7 +487,17 @@ export default function CollectionDetailPage() {
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-6 pb-28">
-      <a href="/collection" className="text-sm text-blue-600 block mb-4">&larr; Back to Collection</a>
+      <div className="flex justify-between items-center mb-4">
+        <a href="/collection" className="text-sm text-blue-600">&larr; Back to Collection</a>
+        <button
+          type="button"
+          onClick={handleGenerateReport}
+          disabled={generatingReport}
+          className="text-sm bg-gray-800 text-white px-3 py-1.5 rounded disabled:opacity-50"
+        >
+          {generatingReport ? 'Generating...' : '📄 PDF Report'}
+        </button>
+      </div>
 
       {/* Identity header - always visible */}
       <div className="mb-4">
@@ -367,7 +565,7 @@ export default function CollectionDetailPage() {
         <Section title="Development & Styling" defaultOpen>
           <Field label="Tree Number"><input type="number" value={tree.tree_number ?? ''} onChange={e => set('tree_number', e.target.value ? parseInt(e.target.value) : null)} className={inputClass} /></Field>
           <Field label="Species">
-            <SpeciesAutocomplete value={tree.sp_no} onChange={(spNo) => set('sp_no', spNo)} />
+            <SpeciesAutocomplete value={tree.sp_no} onChange={(spNo, name) => { set('sp_no', spNo); setSpeciesName(name) }} />
           </Field>
           <Field label="Variation / Cultivar">
             <VariantAutocomplete spNo={tree.sp_no} value={tree.variation_or_cultivar || ''} onChange={val => set('variation_or_cultivar', val)} />
