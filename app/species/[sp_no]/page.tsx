@@ -36,6 +36,55 @@ function Field({ label, value, onChange, type = 'text' }: {
   )
 }
 
+function SpeciesPhotoField({ value, onChange }: { value: string, onChange: (v: string) => void }) {
+  const [uploading, setUploading] = useState(false)
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop() || 'jpg'
+      const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('species-photos').upload(path, file)
+      if (error) {
+        alert('Upload failed: ' + error.message)
+        return
+      }
+      const { data } = supabase.storage.from('species-photos').getPublicUrl(path)
+      onChange(data.publicUrl)
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-medium mb-1">Reference Photo</label>
+      {value && (
+        <img src={value} alt="Reference" className="w-full max-h-56 object-cover rounded mb-2 border" />
+      )}
+      <div className="flex gap-2">
+        <label htmlFor="species-ref-photo" className="flex-1 text-center bg-gray-100 border rounded px-3 py-2 text-sm cursor-pointer">
+          {uploading ? 'Uploading...' : value ? '📷 Replace Photo' : '📷 Add Reference Photo'}
+        </label>
+        <input
+          id="species-ref-photo"
+          type="file"
+          accept="image/*"
+          onChange={handleFile}
+          className="hidden"
+          disabled={uploading}
+        />
+        {value && (
+          <button type="button" onClick={() => onChange('')} className="text-red-500 text-sm px-2">✕</button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function formatVal(v: any): string {
   if (v === null || v === undefined || v === '') return '— not set —'
   if (typeof v === 'boolean') return v ? 'Yes' : 'No'
@@ -124,6 +173,7 @@ export default function SpeciesDetail() {
         species_notes: species.species_notes,
         research_notes: species.research_notes,
         research_status: species.research_status,
+        reference_photo: species.reference_photo,
       }).eq('sp_no', spNo),
     ]
     if (suitability) saves.push(supabase.from('bonsai_suitability').update({
@@ -643,6 +693,7 @@ export default function SpeciesDetail() {
       </div>
       <h1 className="text-2xl font-bold">{species.species}</h1>
       <p className="text-sm text-gray-400 mb-4">sp_no: {species.sp_no}</p>
+      <SpeciesPhotoField value={species.reference_photo || ''} onChange={v => updateSpecies('reference_photo', v)} />
       <div className="mb-4">
         <label className="block text-sm font-medium mb-1">Quick Notes</label>
         <textarea
