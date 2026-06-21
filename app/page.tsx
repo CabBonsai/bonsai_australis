@@ -60,8 +60,12 @@ export default function Home() {
           <li key={s.sp_no} className="py-3">
             <Link href={`/species/${s.sp_no}`} className="flex justify-between items-center">
               <div className="flex items-center gap-3">
-                {s.reference_photo && (
-                  <img src={s.reference_photo} alt={s.species} className="w-12 h-12 object-cover rounded border flex-shrink-0" />
+                {{s.reference_photo && (
+                  <img
+                    src={s.reference_photo}
+                    alt={s.species}
+                    style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #ddd', flexShrink: 0 }}
+                  />
                 )}
                 <div>
                   <p className="font-medium text-blue-600">{s.species}</p>
