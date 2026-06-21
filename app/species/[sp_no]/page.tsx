@@ -928,16 +928,13 @@ export default function SpeciesDetail() {
           <Field label="Wild collection status" value={regional.wild_collection_status} onChange={v => updateRegional('wild_collection_status', v)} />
         </Section>
       )}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex justify-between items-center max-w-2xl mx-auto">
+     <div className="mt-6 mb-10 flex justify-between items-center">
         {saveMessage && <span className="text-sm">{saveMessage}</span>}
         <button
           onClick={handleSave}
           disabled={saving}
-          className="ml-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50"
+          className="ml-auto bg-blue-600 text-white px-6 py-4 rounded-lg font-semibold w-full text-lg disabled:opacity-50"
         >
           {saving ? 'Saving...' : 'Save'}
         </button>
       </div>
-    </div>
-  )
-}
