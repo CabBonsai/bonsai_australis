@@ -18,7 +18,7 @@ export default function CollectionPage() {
     const { data } = await supabase
       .from('collection_detail')
       .select('*')
-      .order('display_name', { ascending: true })
+      .order('tree_number', { ascending: false, nullsFirst: false })
 
     setTrees(data || [])
     setLoading(false)
@@ -96,8 +96,12 @@ export default function CollectionPage() {
                   {t.image_url && (
                     <img src={t.image_url} alt={t.display_name} className="w-full h-32 object-cover rounded mb-2" />
                   )}
-                  <h2 className="font-semibold">{t.display_name || t.tree_name || 'Unnamed'}</h2>
-                  {t.species && <p className="text-sm text-gray-500 italic">{t.species}</p>}
+                  <div className="flex items-center gap-2">
+                    {t.tree_number != null && <span className="text-xs bg-gray-200 px-1.5 py-0.5 rounded font-mono">#{t.tree_number}</span>}
+                    <h2 className="font-semibold">{t.display_name || 'Unnamed'}</h2>
+                  </div>
+                  {t.tree_name && <p className="text-sm text-gray-600">"{t.tree_name}"</p>}
+                  {t.species && <p className="text-sm text-gray-500 italic">{t.species}{t.common_name && t.common_name !== 'Unknown' ? ` — ${t.common_name}` : ''}</p>}
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {t.status && (
                       <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{t.status}</span>
