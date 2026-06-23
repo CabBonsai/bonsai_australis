@@ -2,22 +2,20 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-const statusColors: Record<string, string> = {
-  'Complete': 'bg-green-100 text-green-800',
-  'In Progress': 'bg-yellow-100 text-yellow-800',
-  'Not Started': 'bg-gray-100 text-gray-500',
-}
+
 export default function Home() {
   const [species, setSpecies] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       fetchSpecies(search)
     }, 300)
     return () => clearTimeout(timeout)
   }, [search])
+
   async function fetchSpecies(term: string) {
     setLoading(true)
     let query = supabase
@@ -37,40 +35,45 @@ export default function Home() {
     }
     setLoading(false)
   }
+
   return (
-    <div className="max-w-2xl mx-auto p-4">
-    <div className="flex justify-between items-center mb-1">
-        <h1 className="text-2xl font-bold">Bonsai Australis</h1>
+    <div style={{ maxWidth: '680px', margin: '0 auto', padding: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>Bonsai Australis</h1>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-  <Link href="/species/new" style={{ fontSize: '13px', background: '#16a34a', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
-    + New Species
-  </Link>
-  <Link href="/collection" style={{ fontSize: '13px', background: '#2563eb', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
-    My Collection
-  </Link>
-  <button
-    onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login' }}
-    style={{ fontSize: '13px', background: '#e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
-  >
-    Log Out
-  </button>
-</div>
-      <div style={{ minWidth: 0 }}>
-  <p style={{ fontWeight: '600', color: '#2563eb', margin: 0 }}>{s.species}</p>
+          <Link href="/species/new" style={{ fontSize: '13px', background: '#16a34a', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            + New Species
+          </Link>
+          <Link href="/collection" style={{ fontSize: '13px', background: '#2563eb', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            My Collection
+          </Link>
+          <button
+            onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login' }}
+            style={{ fontSize: '13px', background: '#e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
+          >
+            Log Out
+          </button>
+        </div>
+      </div>
+
+      <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>Species Admin</p>
+
       <input
         type="text"
         placeholder="Search species, common name, or genus..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="w-full border rounded-lg px-4 py-3 mb-4 text-base"
+        style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: '8px', padding: '10px 14px', fontSize: '15px', marginBottom: '16px', boxSizing: 'border-box' }}
       />
-      {error && <p className="text-red-600 mb-4">Error: {error}</p>}
-      {loading && <p className="text-gray-400">Loading...</p>}
+
+      {error && <p style={{ color: '#dc2626', marginBottom: '16px' }}>Error: {error}</p>}
+      {loading && <p style={{ color: '#9ca3af' }}>Loading...</p>}
+
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-  {species.map((s) => (
-    <li key={s.sp_no} style={{ padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
-      <Link href={`/species/${s.sp_no}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {species.map((s) => (
+          <li key={s.sp_no} style={{ borderBottom: '1px solid #e5e7eb' }}>
+            <Link href={`/species/${s.sp_no}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', textDecoration: 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
                 {s.reference_photo && (
                   <img
                     src={s.reference_photo}
@@ -78,18 +81,18 @@ export default function Home() {
                     style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #ddd', flexShrink: 0 }}
                   />
                 )}
-                <div>
-                  <p className="font-medium text-blue-600">{s.species}</p>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontWeight: '600', color: '#2563eb', margin: 0 }}>{s.species}</p>
                   <p style={{ fontSize: '13px', color: '#6b7280', margin: '2px 0 0 0' }}>
                     {s.common_name !== 'Unknown' ? s.common_name : ''}{s.species_family ? ` · ${s.species_family}` : ''}
                   </p>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-1 ml-2">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', marginLeft: '8px', flexShrink: 0 }}>
                 {s.australian_native && (
-                  <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full whitespace-nowrap">AU Native</span>
+                  <span style={{ fontSize: '11px', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '999px', whiteSpace: 'nowrap' }}>AU Native</span>
                 )}
-                <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${statusColors[s.research_status] || 'bg-gray-100 text-gray-500'}`}>
+                <span style={{ fontSize: '11px', background: '#f3f4f6', color: '#6b7280', padding: '2px 8px', borderRadius: '999px', whiteSpace: 'nowrap' }}>
                   {s.research_status || 'Not Started'}
                 </span>
               </div>
@@ -97,8 +100,9 @@ export default function Home() {
           </li>
         ))}
       </ul>
+
       {!loading && species.length === 0 && (
-        <p className="text-gray-400 text-center py-8">No species found.</p>
+        <p style={{ color: '#9ca3af', textAlign: 'center', padding: '32px 0' }}>No species found.</p>
       )}
     </div>
   )
