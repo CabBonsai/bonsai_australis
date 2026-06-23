@@ -55,8 +55,8 @@ export default function Home() {
     Log Out
   </button>
 </div>
-      </div>
-      <p className="text-sm text-gray-500 mb-4">Species Admin</p>
+      <div style={{ minWidth: 0 }}>
+  <p style={{ fontWeight: '600', color: '#2563eb', margin: 0 }}>{s.species}</p>
       <input
         type="text"
         placeholder="Search species, common name, or genus..."
@@ -80,7 +80,7 @@ export default function Home() {
                 )}
                 <div>
                   <p className="font-medium text-blue-600">{s.species}</p>
-                  <p className="text-sm text-gray-500">
+                  <p style={{ fontSize: '13px', color: '#6b7280', margin: '2px 0 0 0' }}>
                     {s.common_name !== 'Unknown' ? s.common_name : ''}{s.species_family ? ` · ${s.species_family}` : ''}
                   </p>
                 </div>
