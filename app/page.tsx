@@ -42,9 +42,12 @@ export default function Home() {
     <div className="flex justify-between items-center mb-1">
         <h1 className="text-2xl font-bold">Bonsai Australis</h1>
         <div className="flex gap-2">
-          <Link href="/collection" className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded">
-            My Collection
-          </Link>
+          <Link href="/species/new" className="text-sm bg-green-600 text-white px-3 py-1.5 rounded">
+          + New Species
+        </Link>
+        <Link href="/collection" className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded">
+          My Collection
+        </Link>
           <button
             onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login' }}
             className="text-sm bg-gray-200 text-gray-700 px-3 py-1.5 rounded"
