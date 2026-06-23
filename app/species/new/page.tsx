@@ -161,10 +161,10 @@ export default function NewSpeciesPage() {
         {error && <p className="text-red-600 text-sm">{error}</p>}
 
         <button
-          onClick={handleSubmit}
-          disabled={saving}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50 mt-4"
-        >
+  onClick={handleSubmit}
+  disabled={saving}
+  style={{ width: '100%', background: saving ? '#93c5fd' : '#2563eb', color: 'white', padding: '12px', borderRadius: '8px', fontWeight: '600', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', marginTop: '16px' }}
+>
           {saving ? 'Creating...' : 'Create Species'}
         </button>
       </div>
