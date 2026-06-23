@@ -66,11 +66,11 @@ export default function Home() {
       />
       {error && <p className="text-red-600 mb-4">Error: {error}</p>}
       {loading && <p className="text-gray-400">Loading...</p>}
-      <ul className="divide-y">
-        {species.map((s) => (
-          <li key={s.sp_no} className="py-3">
-            <Link href={`/species/${s.sp_no}`} className="flex justify-between items-center">
-              <div className="flex items-center gap-3">
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+  {species.map((s) => (
+    <li key={s.sp_no} style={{ padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
+      <Link href={`/species/${s.sp_no}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {s.reference_photo && (
                   <img
                     src={s.reference_photo}
