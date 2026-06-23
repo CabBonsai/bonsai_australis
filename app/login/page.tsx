@@ -27,23 +27,26 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm bg-white p-6 rounded-lg shadow border">
-        <h1 className="text-xl font-bold mb-1 text-center">Bonsai Australis</h1>
-        <p className="text-sm text-gray-500 mb-4 text-center">Enter password to continue</p>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', backgroundColor: '#f9fafb' }}>
+      <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '380px', backgroundColor: '#fff', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.12)', border: '1px solid #e5e7eb' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <img src="/logo.png" alt="Bonsai Australis" style={{ width: '80px', height: '80px', objectFit: 'contain', margin: '0 auto 12px' }} />
+          <h1 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '4px' }}>Bonsai Australis</h1>
+          <p style={{ fontSize: '14px', color: '#6b7280' }}>Enter password to continue</p>
+        </div>
         <input
           type="password"
           value={password}
           onChange={e => setPassword(e.target.value)}
           placeholder="Password"
           autoFocus
-          className="w-full border rounded-lg px-4 py-3 mb-3 text-base"
+          style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: '8px', padding: '12px 16px', fontSize: '16px', marginBottom: '12px', boxSizing: 'border-box' }}
         />
-        {error && <p className="text-red-600 text-sm mb-3 text-center">{error}</p>}
+        {error && <p style={{ color: '#dc2626', fontSize: '14px', textAlign: 'center', marginBottom: '12px' }}>{error}</p>}
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50"
+          style={{ width: '100%', backgroundColor: loading ? '#93c5fd' : '#2563eb', color: '#fff', padding: '12px', borderRadius: '8px', fontWeight: '600', fontSize: '16px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer' }}
         >
           {loading ? 'Checking...' : 'Log In'}
         </button>
