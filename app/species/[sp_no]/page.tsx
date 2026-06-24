@@ -47,10 +47,7 @@ function SpeciesPhotoField({ value, onChange }: { value: string, onChange: (v: s
       const ext = file.name.split('.').pop() || 'jpg'
       const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
       const { error } = await supabase.storage.from('species-photos').upload(path, file)
-      if (error) {
-        alert('Upload failed: ' + error.message)
-        return
-      }
+      if (error) { alert('Upload failed: ' + error.message); return }
       const { data } = supabase.storage.from('species-photos').getPublicUrl(path)
       onChange(data.publicUrl)
     } finally {
@@ -62,24 +59,13 @@ function SpeciesPhotoField({ value, onChange }: { value: string, onChange: (v: s
   return (
     <div className="mb-4">
       <label className="block text-sm font-medium mb-1">Reference Photo</label>
-      {value && (
-        <img src={value} alt="Reference" className="w-full max-h-56 object-cover rounded mb-2 border" />
-      )}
+      {value && <img src={value} alt="Reference" className="w-full max-h-56 object-cover rounded mb-2 border" />}
       <div className="flex gap-2">
         <label htmlFor="species-ref-photo" className="flex-1 text-center bg-gray-100 border rounded px-3 py-2 text-sm cursor-pointer">
           {uploading ? 'Uploading...' : value ? '📷 Replace Photo' : '📷 Add Reference Photo'}
         </label>
-        <input
-          id="species-ref-photo"
-          type="file"
-          accept="image/*"
-          onChange={handleFile}
-          className="hidden"
-          disabled={uploading}
-        />
-        {value && (
-          <button type="button" onClick={() => onChange('')} className="text-red-500 text-sm px-2">✕</button>
-        )}
+        <input id="species-ref-photo" type="file" accept="image/*" onChange={handleFile} className="hidden" disabled={uploading} />
+        {value && <button type="button" onClick={() => onChange('')} className="text-red-500 text-sm px-2">✕</button>}
       </div>
     </div>
   )
@@ -136,10 +122,7 @@ export default function SpeciesDetail() {
       if (!seasRes.error) setSeasonal(seasRes.data)
       if (!advRes.error) setAdvanced(advRes.data)
       if (!regRes.error) setRegional(regRes.data)
-      setPrevNext({
-        prev: prevRes.data?.sp_no ?? null,
-        next: nextRes.data?.sp_no ?? null,
-      })
+      setPrevNext({ prev: prevRes.data?.sp_no ?? null, next: nextRes.data?.sp_no ?? null })
       setLoading(false)
     }
     fetchAll()
@@ -304,23 +287,17 @@ export default function SpeciesDetail() {
       cambial_notes: advanced.cambial_notes,
       seasonal_physiology: advanced.seasonal_physiology,
       energy_model: advanced.energy_model,
-          ['Ramification Stages', advanced.ramification_stages],
-          ['Root Notes', advanced.root_notes],
-          ['Hormonal Model', advanced.hormonal_model],
-          ['Needle Control', advanced.needle_control],
-          ['Climate Notes', advanced.climate_notes],
-          ['Styling Biomechanics', advanced.styling_biomechanics],
-          ['Morphology Notes', advanced.morphology_notes],
-          ['Cambial Notes', advanced.cambial_notes],
-          ['Seasonal Physiology', advanced.seasonal_physiology],
-          ['Energy Model', advanced.energy_model],
-          ['Acquisition Raw Material', advanced.acquisition_raw_material],
-          ['Aesthetics & Exhibition', advanced.aesthetics_exhibition_philosophy],
-          ['Advanced Structural Engineering', advanced.advanced_structural_engineering],
-          ['Development Years 1-3', advanced.development_years_1_3],
-          ['Development Years 4-6', advanced.development_years_4_6],
-          ['Development Years 7-8', advanced.development_years_7_8],
-          ['Development Years 9-10', advanced.development_years_9_10],
+      backbudding_notes: advanced.backbudding_notes,
+      ramification_stages: advanced.ramification_stages,
+      root_notes: advanced.root_notes,
+      hormonal_model: advanced.hormonal_model,
+      needle_control: advanced.needle_control,
+      climate_notes: advanced.climate_notes,
+      styling_biomechanics: advanced.styling_biomechanics,
+      development_years_1_3: advanced.development_years_1_3,
+      development_years_4_6: advanced.development_years_4_6,
+      development_years_7_8: advanced.development_years_7_8,
+      development_years_9_10: advanced.development_years_9_10,
     }).eq('sp_no', spNo))
     if (regional) saves.push(supabase.from('regional_suitability').update({
       tropical_suitability: regional.tropical_suitability,
@@ -382,9 +359,7 @@ export default function SpeciesDetail() {
           reader.onerror = reject
           reader.readAsDataURL(blob)
         })
-      } catch (e) {
-        console.warn('Logo failed to load', e)
-      }
+      } catch (e) { console.warn('Logo failed to load', e) }
 
       const reportLabel = reportType === 'basic' ? 'Species Report' : 'Advanced Species Report'
 
@@ -427,10 +402,7 @@ export default function SpeciesDetail() {
       y += 18
 
       function checkPageBreak(needed: number) {
-        if (y + needed > doc.internal.pageSize.getHeight() - 40) {
-          doc.addPage()
-          y = 40
-        }
+        if (y + needed > doc.internal.pageSize.getHeight() - 40) { doc.addPage(); y = 40 }
       }
 
       function addSection(title: string, fields: [string, any][]) {
@@ -443,7 +415,6 @@ export default function SpeciesDetail() {
         y += 20
         doc.setFontSize(10)
         doc.setFont('helvetica', 'normal')
-
         fields.forEach(([label, value]) => {
           const formatted = formatVal(value)
           const isEmpty = formatted === '— not set —'
@@ -451,11 +422,7 @@ export default function SpeciesDetail() {
           checkPageBreak(14 * lines.length + 4)
           doc.setTextColor(60, 60, 60)
           doc.text(`${label}:`, margin + 5, y)
-          if (isEmpty) {
-            doc.setTextColor(180, 180, 180)
-          } else {
-            doc.setTextColor(20, 20, 20)
-          }
+          doc.setTextColor(isEmpty ? 180 : 20, isEmpty ? 180 : 20, isEmpty ? 180 : 20)
           doc.text(lines, margin + 170, y)
           y += 14 * lines.length
         })
@@ -477,7 +444,6 @@ export default function SpeciesDetail() {
           ['Species Notes', species.species_notes],
           ['Quick Notes', species.research_notes],
         ])
-
         if (suitability) addSection('Bonsai Suitability', [
           ['Suitability', suitability.bonsai_suitability],
           ['Difficulty', suitability.difficulty],
@@ -495,7 +461,6 @@ export default function SpeciesDetail() {
           ['Final Bonsai Score', suitability.final_bonsai_score],
           ['Tier', suitability.bonsai_tier],
         ])
-
         if (careGuide) addSection('Care Guide', [
           ['Growth Season', careGuide.growth_season],
           ['Growth Season Notes', careGuide.growth_season_notes],
@@ -511,7 +476,7 @@ export default function SpeciesDetail() {
           ['Style Options', careGuide.style_options],
           ['Styling Considerations', careGuide.styling_considerations],
           ['Technical Training & Styling', careGuide.technical_training_styling],
-          ['Pruning & Refinement Protocols', careGuide.pruning_refinement_protocols],
+          ['Pruning & Refinement', careGuide.pruning_refinement_protocols],
           ['Wiring', careGuide.wiring],
           ['Branch Direction After Wiring', careGuide.branch_direction_after_wiring],
           ['Repotting Guide', careGuide.repotting_guide],
@@ -536,16 +501,15 @@ export default function SpeciesDetail() {
           ['Recommended Products', fertilisation.recommended_products],
           ['Notes', fertilisation.notes_schema],
         ])
-
         if (pruning) addSection('Pruning Protocols', [
           ['Core Rules', pruning.pruning_core_rules],
           ['Structural Pruning Timing', pruning.structural_pruning_timing],
           ['Structural Pruning Method', pruning.structural_pruning_method],
           ['Structural Pruning Limits', pruning.structural_pruning_limits],
-          ['Post-Flowering Pruning Timing', pruning.post_flowering_pruning_timing],
-          ['Post-Flowering Pruning Method', pruning.post_flowering_pruning_method],
-          ['Maintenance Pruning Timing', pruning.maintenance_pruning_timing],
-          ['Maintenance Pruning Method', pruning.maintenance_pruning_method],
+          ['Post-Flowering Timing', pruning.post_flowering_pruning_timing],
+          ['Post-Flowering Method', pruning.post_flowering_pruning_method],
+          ['Maintenance Timing', pruning.maintenance_pruning_timing],
+          ['Maintenance Method', pruning.maintenance_pruning_method],
           ['Old Wood Management', pruning.old_wood_management],
           ['Seasonal Timing', pruning.seasonal_timing_seq],
           ['Recommended Techniques', pruning.recommended_techniques],
@@ -556,7 +520,6 @@ export default function SpeciesDetail() {
           ['Refinement Method', pruning.refinement_method],
           ['Notes', pruning.notes],
         ])
-
         if (nebari) addSection('Nebari and Root', [
           ['Root Architecture Type', nebari.root_architecture_type],
           ['Natural Nebari Form', nebari.natural_nebari_form],
@@ -572,7 +535,7 @@ export default function SpeciesDetail() {
           ['Fine Root Production', nebari.fine_root_production],
           ['Root Rot Susceptibility', nebari.root_rot_susceptibility],
           ['Ground Layering Suitability', nebari.ground_layering_suitability],
-          ['Tourniquet Method Suitability', nebari.tourniquet_method_suitability],
+          ['Tourniquet Method', nebari.tourniquet_method_suitability],
           ['Root Grafting Success Rate', nebari.root_grafting_success_rate],
           ['Nebari Fusion Potential', nebari.nebari_fusion_potential],
           ['Best Techniques', nebari.best_techniques_for_species],
@@ -584,34 +547,25 @@ export default function SpeciesDetail() {
           ['Surface Substrate Preference', nebari.surface_substrate_preference],
           ['Moisture Preference', nebari.moisture_preference],
           ['Heat Sensitivity at Root Base', nebari.heat_sensitivity_at_root_base],
-          ['Ultimate Nebari Quality Potential', nebari.ultimate_nebari_quality_potential],
+          ['Ultimate Nebari Quality', nebari.ultimate_nebari_quality_potential],
           ['Expected Mature Nebari Form', nebari.expected_mature_nebari_form],
           ['Maintenance Requirements', nebari.maintenance_requirements],
           ['Ageing Notes', nebari.ageing_notes],
           ['Notes for Future Development', nebari.notes_for_future_development],
         ])
-
         if (seasonal) addSection('Seasonal Maintenance', [
           ['Spring Guide', seasonal.spring_maintenance_guide],
           ['Summer Guide', seasonal.summer_maintenance_guide],
           ['Autumn Guide', seasonal.autumn_maintenance_guide],
           ['Winter Guide', seasonal.winter_maintenance_guide],
-          ['General Maintenance Notes', seasonal.general_maintenance_notes],
+          ['General Notes', seasonal.general_maintenance_notes],
           ['Spring Care', seasonal.spring_care],
           ['Summer Care', seasonal.summer_care],
           ['Autumn Care', seasonal.autumn_care],
           ['Winter Care', seasonal.winter_care],
         ])
-
         if (advanced) addSection('Advanced and Expert', [
           ['pH Target', advanced.ph_target],
-          ['Acquisition and Raw Material', advanced.acquisition_raw_material],
-          ['Aesthetics and Exhibition Philosophy', advanced.aesthetics_exhibition_philosophy],
-          ['Advanced Structural Engineering', advanced.advanced_structural_engineering],
-          ['Morphology Notes', advanced.morphology_notes],
-          ['Cambial Notes', advanced.cambial_notes],
-          ['Seasonal Physiology', advanced.seasonal_physiology],
-          ['Energy Model', advanced.energy_model],
           ['Back Budding Notes', advanced.backbudding_notes],
           ['Ramification Stages', advanced.ramification_stages],
           ['Root Notes', advanced.root_notes],
@@ -619,13 +573,19 @@ export default function SpeciesDetail() {
           ['Needle Control', advanced.needle_control],
           ['Climate Notes', advanced.climate_notes],
           ['Styling Biomechanics', advanced.styling_biomechanics],
+          ['Morphology Notes', advanced.morphology_notes],
+          ['Cambial Notes', advanced.cambial_notes],
+          ['Seasonal Physiology', advanced.seasonal_physiology],
+          ['Energy Model', advanced.energy_model],
+          ['Acquisition Raw Material', advanced.acquisition_raw_material],
+          ['Aesthetics & Exhibition', advanced.aesthetics_exhibition_philosophy],
+          ['Advanced Structural Engineering', advanced.advanced_structural_engineering],
           ['Development Years 1-3', advanced.development_years_1_3],
           ['Development Years 4-6', advanced.development_years_4_6],
           ['Development Years 7-8', advanced.development_years_7_8],
           ['Development Years 9-10', advanced.development_years_9_10],
         ])
-
-        if (advanced) addSection('Advanced Expert', [
+        if (regional) addSection('Regional Suitability', [
           ['Tropical Suitability', regional.tropical_suitability],
           ['Tropical Notes', regional.tropical_notes],
           ['Tropical Risk', regional.tropical_risk],
@@ -680,20 +640,10 @@ export default function SpeciesDetail() {
         </div>
       </div>
       <div className="flex gap-2 mb-4">
-        <button
-          type="button"
-          onClick={() => generatePDF('basic')}
-          disabled={generatingReport !== null}
-          className="text-xs bg-gray-800 text-white px-3 py-1.5 rounded disabled:opacity-50"
-        >
+        <button type="button" onClick={() => generatePDF('basic')} disabled={generatingReport !== null} className="text-xs bg-gray-800 text-white px-3 py-1.5 rounded disabled:opacity-50">
           {generatingReport === 'basic' ? 'Generating...' : '📄 Basic Report'}
         </button>
-        <button
-          type="button"
-          onClick={() => generatePDF('advanced')}
-          disabled={generatingReport !== null}
-          className="text-xs bg-gray-600 text-white px-3 py-1.5 rounded disabled:opacity-50"
-        >
+        <button type="button" onClick={() => generatePDF('advanced')} disabled={generatingReport !== null} className="text-xs bg-gray-600 text-white px-3 py-1.5 rounded disabled:opacity-50">
           {generatingReport === 'advanced' ? 'Generating...' : '📄 Advanced Report'}
         </button>
       </div>
@@ -702,22 +652,12 @@ export default function SpeciesDetail() {
       <SpeciesPhotoField value={species.reference_photo || ''} onChange={v => updateSpecies('reference_photo', v)} />
       <div className="mb-4">
         <label className="block text-sm font-medium mb-1">Quick Notes</label>
-        <textarea
-          value={species.research_notes || ''}
-          onChange={(e) => updateSpecies('research_notes', e.target.value)}
-          className="w-full border rounded-lg px-3 py-2 text-base"
-          rows={3}
-          placeholder="Voice-to-text notes go here..."
-        />
+        <textarea value={species.research_notes || ''} onChange={(e) => updateSpecies('research_notes', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-base" rows={3} placeholder="Voice-to-text notes go here..." />
       </div>
       <Section title="Species Info">
         <div>
           <label className="block text-sm font-medium mb-1">Research status</label>
-          <select
-            value={species.research_status || "Not Started"}
-            onChange={e => updateSpecies("research_status", e.target.value)}
-            className="w-full border rounded-lg px-3 py-2 text-base"
-          >
+          <select value={species.research_status || "Not Started"} onChange={e => updateSpecies("research_status", e.target.value)} className="w-full border rounded-lg px-3 py-2 text-base">
             <option value="Not Started">Not Started</option>
             <option value="In Progress">In Progress</option>
             <option value="Complete">Complete</option>
@@ -879,13 +819,6 @@ export default function SpeciesDetail() {
       {advanced && (
         <Section title="Advanced and Expert">
           <Field label="pH target" value={advanced.ph_target} onChange={v => updateAdvanced('ph_target', v)} />
-          <Field label="Acquisition and raw material" value={advanced.acquisition_raw_material} onChange={v => updateAdvanced('acquisition_raw_material', v)} type="textarea" />
-          <Field label="Aesthetics and exhibition philosophy" value={advanced.aesthetics_exhibition_philosophy} onChange={v => updateAdvanced('aesthetics_exhibition_philosophy', v)} type="textarea" />
-          <Field label="Advanced structural engineering" value={advanced.advanced_structural_engineering} onChange={v => updateAdvanced('advanced_structural_engineering', v)} type="textarea" />
-          <Field label="Morphology notes" value={advanced.morphology_notes} onChange={v => updateAdvanced('morphology_notes', v)} type="textarea" />
-          <Field label="Cambial notes" value={advanced.cambial_notes} onChange={v => updateAdvanced('cambial_notes', v)} type="textarea" />
-          <Field label="Seasonal physiology" value={advanced.seasonal_physiology} onChange={v => updateAdvanced('seasonal_physiology', v)} type="textarea" />
-          <Field label="Energy model" value={advanced.energy_model} onChange={v => updateAdvanced('energy_model', v)} type="textarea" />
           <Field label="Back budding notes" value={advanced.backbudding_notes} onChange={v => updateAdvanced('backbudding_notes', v)} type="textarea" />
           <Field label="Ramification stages" value={advanced.ramification_stages} onChange={v => updateAdvanced('ramification_stages', v)} type="textarea" />
           <Field label="Root notes" value={advanced.root_notes} onChange={v => updateAdvanced('root_notes', v)} type="textarea" />
@@ -893,13 +826,20 @@ export default function SpeciesDetail() {
           <Field label="Needle control" value={advanced.needle_control} onChange={v => updateAdvanced('needle_control', v)} type="textarea" />
           <Field label="Climate notes" value={advanced.climate_notes} onChange={v => updateAdvanced('climate_notes', v)} type="textarea" />
           <Field label="Styling biomechanics" value={advanced.styling_biomechanics} onChange={v => updateAdvanced('styling_biomechanics', v)} type="textarea" />
+          <Field label="Morphology notes" value={advanced.morphology_notes} onChange={v => updateAdvanced('morphology_notes', v)} type="textarea" />
+          <Field label="Cambial notes" value={advanced.cambial_notes} onChange={v => updateAdvanced('cambial_notes', v)} type="textarea" />
+          <Field label="Seasonal physiology" value={advanced.seasonal_physiology} onChange={v => updateAdvanced('seasonal_physiology', v)} type="textarea" />
+          <Field label="Energy model" value={advanced.energy_model} onChange={v => updateAdvanced('energy_model', v)} type="textarea" />
+          <Field label="Acquisition and raw material" value={advanced.acquisition_raw_material} onChange={v => updateAdvanced('acquisition_raw_material', v)} type="textarea" />
+          <Field label="Aesthetics and exhibition philosophy" value={advanced.aesthetics_exhibition_philosophy} onChange={v => updateAdvanced('aesthetics_exhibition_philosophy', v)} type="textarea" />
+          <Field label="Advanced structural engineering" value={advanced.advanced_structural_engineering} onChange={v => updateAdvanced('advanced_structural_engineering', v)} type="textarea" />
           <Field label="Development years 1-3" value={advanced.development_years_1_3} onChange={v => updateAdvanced('development_years_1_3', v)} type="textarea" />
           <Field label="Development years 4-6" value={advanced.development_years_4_6} onChange={v => updateAdvanced('development_years_4_6', v)} type="textarea" />
           <Field label="Development years 7-8" value={advanced.development_years_7_8} onChange={v => updateAdvanced('development_years_7_8', v)} type="textarea" />
           <Field label="Development years 9-10" value={advanced.development_years_9_10} onChange={v => updateAdvanced('development_years_9_10', v)} type="textarea" />
         </Section>
       )}
-<Section title="Variants">
+      <Section title="Variants">
         <VariantsSection spNo={spNo as string} />
       </Section>
       {regional && (
@@ -934,17 +874,12 @@ export default function SpeciesDetail() {
           <Field label="Wild collection status" value={regional.wild_collection_status} onChange={v => updateRegional('wild_collection_status', v)} />
         </Section>
       )}
-     <div className="mt-6 mb-10 flex justify-between items-center">
+      <div className="mt-6 mb-10 flex justify-between items-center">
         {saveMessage && <span className="text-sm">{saveMessage}</span>}
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="ml-auto bg-blue-600 text-white px-6 py-4 rounded-lg font-semibold w-full text-lg disabled:opacity-50"
-        >
+        <button onClick={handleSave} disabled={saving} className="ml-auto bg-blue-600 text-white px-6 py-4 rounded-lg font-semibold w-full text-lg disabled:opacity-50">
           {saving ? 'Saving...' : 'Save'}
         </button>
       </div>
-</div>
+    </div>
   )
 }
-
