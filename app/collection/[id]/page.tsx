@@ -152,7 +152,13 @@ function SpeciesAutocomplete({ value, onChange }: { value: number | null, onChan
   const [results, setResults] = useState<any[]>([])
   const [open, setOpen] = useState(false)
   const [loadedName, setLoadedName] = useState('')
-
+useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      setOpen(false)
+    }
+    if (open) document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [open])
   useEffect(() => {
     if (value && !loadedName) {
       supabase.from('species').select('sp_no, species, common_name')
@@ -225,7 +231,13 @@ function VariantAutocomplete({ spNo, value, onChange }: { spNo: number | null, v
   const [open, setOpen] = useState(false)
 
   useEffect(() => { setQuery(value || '') }, [value])
-
+useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      setOpen(false)
+    }
+    if (open) document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [open])
   useEffect(() => {
     if (!spNo || !query.trim()) {
       setResults([])
