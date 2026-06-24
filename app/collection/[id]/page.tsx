@@ -200,7 +200,7 @@ useEffect(() => {
         className={inputClass}
       />
       {open && results.length > 0 && (
-        <ul className="absolute z-10 bg-white border rounded mt-1 w-full max-h-48 overflow-y-auto shadow-lg">
+        <ul style={{position:'absolute',zIndex:999,background:'#fff',border:'1px solid #e2e8f0',borderRadius:'12px',marginTop:'4px',width:'100%',maxHeight:'260px',overflowY:'auto',boxShadow:'0 8px 32px rgba(0,0,0,0.15)',left:0}}>
           {results.map(r => (
             <li
               key={r.sp_no}
@@ -211,7 +211,7 @@ useEffect(() => {
                 setOpen(false)
                 setResults([])
               }}
-              className="px-4 py-3 hover:bg-blue-50 cursor-pointer text-base border-b last:border-0 min-h-[48px] flex items-center gap-2"
+              style={{padding:'14px 16px',borderBottom:'1px solid #f1f5f9',cursor:'pointer',fontSize:'15px',lineHeight:'1.4'}}
             >
               <span className="font-medium">{r.species}</span>
               {r.common_name && r.common_name !== 'Unknown' && (
@@ -267,12 +267,12 @@ useEffect(() => {
         className={inputClass}
       />
       {open && results.length > 0 && (
-        <ul className="absolute z-10 bg-white border rounded mt-1 w-full max-h-64 overflow-y-auto shadow-lg">
+      <ul style={{position:'absolute',zIndex:999,background:'#fff',border:'1px solid #e2e8f0',borderRadius:'12px',marginTop:'4px',width:'100%',maxHeight:'260px',overflowY:'auto',boxShadow:'0 8px 32px rgba(0,0,0,0.15)',left:0}}>
           {results.map((r, i) => (
             <li
               key={i}
               onClick={() => { onChange(r.variant_name); setQuery(r.variant_name); setOpen(false); setResults([]) }}
-              className="px-4 py-3 hover:bg-blue-50 cursor-pointer text-base border-b last:border-0 min-h-[48px] flex items-center"
+              style={{padding:'14px 16px',borderBottom:'1px solid #f1f5f9',cursor:'pointer',fontSize:'15px',lineHeight:'1.4'}}
             >
               {r.variant_name}
             </li>
