@@ -37,7 +37,7 @@ export default function Home() {
   }
 
   return (
-    <div style={{ maxWidth: '680px', margin: '0 auto', padding: '16px' }}>
+    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
         <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>Bonsai Australis</h1>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
