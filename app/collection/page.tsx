@@ -27,7 +27,7 @@ export default function CollectionPage() {
       .select()
       .single()
     if (error) { alert('Error: ' + error.message); return }
-    window.location.href = \`/collection/\${data.collection_id}\`
+    window.location.href = `/collection/${data.collection_id}`
   }
 
   function isOverdue(dateStr: string | null) {
