@@ -27,7 +27,7 @@ export default function CollectionPage() {
       .select()
       .single()
     if (error) { alert('Error: ' + error.message); return }
-    window.location.href = `/collection/${data.collection_id}`
+    window.location.href = \`/collection/\${data.collection_id}\`
   }
 
   function isOverdue(dateStr: string | null) {
@@ -89,7 +89,7 @@ export default function CollectionPage() {
         return (
           
             key={t.collection_id}
-            href={`/collection/${t.collection_id}`}
+            href={\`/collection/\${t.collection_id}\`}
             style={{display:'block',textDecoration:'none',color:'inherit',background:'#fff',border:'1px solid #e2e8f0',borderRadius:'12px',marginBottom:'10px',overflow:'hidden',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}
           >
             <div style={{display:'flex',gap:'12px',alignItems:'stretch'}}>
