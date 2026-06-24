@@ -31,7 +31,7 @@ function Field({ label, children }: { label: string, children: React.ReactNode }
   )
 }
 
-const inputClass = "w-full border rounded px-3 py-2 text-base"
+const inputClass = "w-full border rounded px-4 py-3 text-base min-h-[48px]"
 
 const STYLE_OPTIONS = ['Formal Upright', 'Informal Upright', 'Slanting', 'Cascade', 'Semi-Cascade', 'Windswept', 'Literati', 'Group/Forest', 'Raft', 'Root-over-rock', 'Multi-trunk', 'Broom', 'Driftwood']
 const SOURCE_OPTIONS = ['Nursery', 'Grown from Seed', 'Grown from Cutting', 'Air Layer', 'Collected (Yamadori)', 'Club Auction', 'Online Purchase', 'Private Sale', 'Gift', 'Other']
@@ -205,7 +205,7 @@ function SpeciesAutocomplete({ value, onChange }: { value: number | null, onChan
                 setOpen(false)
                 setResults([])
               }}
-              className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b last:border-0"
+              className="px-4 py-3 hover:bg-blue-50 cursor-pointer text-base border-b last:border-0 min-h-[48px] flex items-center gap-2"
             >
               <span className="font-medium">{r.species}</span>
               {r.common_name && r.common_name !== 'Unknown' && (
@@ -255,12 +255,12 @@ function VariantAutocomplete({ spNo, value, onChange }: { spNo: number | null, v
         className={inputClass}
       />
       {open && results.length > 0 && (
-        <ul className="absolute z-10 bg-white border rounded mt-1 w-full max-h-48 overflow-y-auto shadow-lg">
+        <ul className="absolute z-10 bg-white border rounded mt-1 w-full max-h-64 overflow-y-auto shadow-lg">
           {results.map((r, i) => (
             <li
               key={i}
               onClick={() => { onChange(r.variant_name); setQuery(r.variant_name); setOpen(false); setResults([]) }}
-              className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b last:border-0"
+              className="px-4 py-3 hover:bg-blue-50 cursor-pointer text-base border-b last:border-0 min-h-[48px] flex items-center"
             >
               {r.variant_name}
             </li>
