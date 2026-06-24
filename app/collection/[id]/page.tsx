@@ -237,7 +237,7 @@ function VariantAutocomplete({ spNo, value, onChange }: { spNo: number | null, v
         .select('variant_name')
         .eq('parent_sp_no', spNo)
         .ilike('variant_name', `%${query}%`)
-        .limit(10)
+        .limit(50)
       setResults(data || [])
     }, 250)
     return () => clearTimeout(timeout)
