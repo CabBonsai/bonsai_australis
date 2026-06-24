@@ -619,7 +619,7 @@ export default function SpeciesDetail() {
           ['Development Years 9-10', advanced.development_years_9_10],
         ])
 
-        if (regional) addSection('Regional Suitability', [
+        if (advanced) addSection('Advanced Expert', [
           ['Tropical Suitability', regional.tropical_suitability],
           ['Tropical Notes', regional.tropical_notes],
           ['Tropical Risk', regional.tropical_risk],
