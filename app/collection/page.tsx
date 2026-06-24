@@ -14,9 +14,25 @@ export default function CollectionPage() {
     setLoading(true)
     const { data } = await supabase
       .from('collection')
-      .select('*, species:sp_no(species, common_name)')
+      .select('*')
       .order('tree_number', { ascending: true })
-    setTrees(data || [])
+
+    const rows = data || []
+
+    const spNos = [...new Set(rows.map((t: any) => t.sp_no).filter(Boolean))]
+    let speciesMap: Record<number, string> = {}
+
+    if (spNos.length > 0) {
+      const { data: spData } = await supabase
+        .from('species')
+        .select('sp_no, species, common_name')
+        .in('sp_no', spNos)
+      ;(spData || []).forEach((s: any) => {
+        speciesMap[s.sp_no] = s.species + (s.common_name && s.common_name !== 'Unknown' ? ' — ' + s.common_name : '')
+      })
+    }
+
+    setTrees(rows.map((t: any) => ({ ...t, speciesLabel: speciesMap[t.sp_no] || '' })))
     setLoading(false)
   }
 
@@ -87,7 +103,7 @@ export default function CollectionPage() {
                 {overdue && <span style={{fontSize:'11px',background:'#fef2f2',color:'#dc2626',border:'1px solid #fecaca',borderRadius:'6px',padding:'2px 6px',flexShrink:0}}>⚠ Overdue</span>}
               </div>
               {t.tree_name && <p style={{fontSize:'13px',color:'#6b7280',margin:'2px 0',fontStyle:'italic'}}>"{t.tree_name}"</p>}
-              {t.species && <p style={{fontSize:'13px',color:'#374151',margin:'2px 0',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.species.species}{t.species.common_name && t.species.common_name !== 'Unknown' ? ' — ' + t.species.common_name : ''}</p>}
+             {t.speciesLabel && <p style={{fontSize:'13px',color:'#374151',margin:'2px 0',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.speciesLabel}</p>}
               <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginTop:'6px'}}>
                 {t.status && <span style={{fontSize:'11px',fontWeight:'600',padding:'2px 8px',borderRadius:'20px',background:(statusColor[t.status]||'#6b7280')+'22',color:statusColor[t.status]||'#6b7280'}}>{t.status}</span>}
                 {t.health_status && <span style={{fontSize:'11px',fontWeight:'600',padding:'2px 8px',borderRadius:'20px',background:(healthColor[t.health_status]||'#6b7280')+'22',color:healthColor[t.health_status]||'#6b7280'}}>{t.health_status}</span>}
