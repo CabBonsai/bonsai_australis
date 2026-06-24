@@ -15,4 +15,4 @@ content = content.replace(
 f = open('app/species/[sp_no]/page.tsx', 'w', encoding='utf-8')
 f.write(content)
 f.close()
-print('Done')
+print('Done')[print(i+1, l.rstrip()) for i, l in enumerate(f[85:98])] 
