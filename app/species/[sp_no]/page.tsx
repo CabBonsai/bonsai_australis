@@ -304,7 +304,6 @@ export default function SpeciesDetail() {
       cambial_notes: advanced.cambial_notes,
       seasonal_physiology: advanced.seasonal_physiology,
       energy_model: advanced.energy_model,
-      ['pH Target', advanced.ph_target],
           ['Backbudding Notes', advanced.backbudding_notes],
           ['Ramification Stages', advanced.ramification_stages],
           ['Root Notes', advanced.root_notes],
