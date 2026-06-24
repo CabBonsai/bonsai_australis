@@ -2,24 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-export const dynamic = 'force-dynamic'
 
 export default function CollectionPage() {
   const [trees, setTrees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
-  useEffect(() => {
-    fetchTrees()
-  }, [])
+  useEffect(() => { fetchTrees() }, [])
 
   async function fetchTrees() {
     setLoading(true)
     const { data } = await supabase
-      .from('collection_detail')
+      .from('collection')
       .select('*')
-      .order('tree_number', { ascending: false, nullsFirst: false })
-
+      .order('tree_number', { ascending: true })
     setTrees(data || [])
     setLoading(false)
   }
@@ -30,13 +26,13 @@ export default function CollectionPage() {
       .insert({ display_name: 'New Tree', in_collection: true })
       .select()
       .single()
-
-    if (error) {
-      alert('Error creating tree: ' + error.message)
-      return
-    }
-
+    if (error) { alert('Error: ' + error.message); return }
     window.location.href = `/collection/${data.collection_id}`
+  }
+
+  function isOverdue(dateStr: string | null) {
+    if (!dateStr) return false
+    return new Date(dateStr) < new Date()
   }
 
   const filtered = trees.filter(t =>
@@ -46,19 +42,31 @@ export default function CollectionPage() {
     (t.species || '').toLowerCase().includes(search.toLowerCase())
   )
 
-  function isOverdue(dateStr: string | null) {
-    if (!dateStr) return false
-    return new Date(dateStr) < new Date()
+  const healthColor: Record<string, string> = {
+    'Excellent': '#16a34a',
+    'Good': '#65a30d',
+    'Stressed': '#d97706',
+    'Recovering': '#9333ea',
+    'Critical': '#dc2626',
+  }
+
+  const statusColor: Record<string, string> = {
+    'Developing': '#3b82f6',
+    'Refining': '#8b5cf6',
+    'Show Ready': '#16a34a',
+    'Maintenance': '#6b7280',
   }
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8">
-      <a href="/" className="text-sm text-blue-600 block mb-4">&larr; Back to Admin Home</a>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">My Bonsai Collection</h1>
+    <main style={{maxWidth:'680px',margin:'0 auto',padding:'16px'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
+        <div>
+          <a href="/" style={{fontSize:'13px',color:'#6b7280',textDecoration:'none'}}>← Admin Home</a>
+          <h1 style={{fontSize:'24px',fontWeight:'700',margin:'4px 0 0'}}>My Bonsai Collection</h1>
+        </div>
         <button
           onClick={handleAddTree}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"
+          style={{background:'#16a34a',color:'#fff',border:'none',borderRadius:'8px',padding:'10px 16px',fontSize:'14px',fontWeight:'600',cursor:'pointer'}}
         >
           + Add Tree
         </button>
@@ -66,60 +74,64 @@ export default function CollectionPage() {
 
       <input
         type="text"
-        placeholder="Search your collection..."
+        placeholder="Search trees..."
         value={search}
         onChange={e => setSearch(e.target.value)}
-        className="w-full border rounded-lg px-4 py-3 mb-6 text-lg"
+        style={{width:'100%',border:'1px solid #e2e8f0',borderRadius:'8px',padding:'12px 16px',fontSize:'15px',marginBottom:'12px',boxSizing:'border-box'}}
       />
 
-      {loading && <p className="text-gray-400">Loading...</p>}
+      <p style={{fontSize:'13px',color:'#9ca3af',marginBottom:'12px'}}>{filtered.length} tree{filtered.length !== 1 ? 's' : ''}</p>
 
-      {!loading && (
-        <>
-          <p className="text-sm text-gray-400 mb-4">{filtered.length} trees</p>
+      {loading && <p style={{color:'#9ca3af',textAlign:'center',padding:'40px'}}>Loading...</p>}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {filtered.map(t => {
-              const overdueRepot = isOverdue(t.next_repot_due)
-              const overdueFert = isOverdue(t.next_fertilise_due)
-              const hasOverdue = overdueRepot || overdueFert
-
-              return (
-                <a
-                  key={t.collection_id}
-                  href={`/collection/${t.collection_id}`}
-                  className="border rounded-lg p-4 hover:shadow-md transition-shadow block relative"
-                >
-                  {hasOverdue && (
-                    <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full" title="Care overdue" />
-                  )}
-                  {t.image_url && (
-                    <img src={t.image_url} alt={t.display_name} className="w-full h-32 object-cover rounded mb-2" />
-                  )}
-                  <div className="flex items-center gap-2">
-                    {t.tree_number != null && <span className="text-xs bg-gray-200 px-1.5 py-0.5 rounded font-mono">#{t.tree_number}</span>}
-                    <h2 className="font-semibold">{t.display_name || 'Unnamed'}</h2>
+      {!loading && filtered.map(t => {
+        const overdue = isOverdue(t.next_repot_due) || isOverdue(t.next_fertilise_due) || isOverdue(t.due_prune_date) || isOverdue(t.date_check_wire)
+        return (
+          
+            key={t.collection_id}
+            href={`/collection/${t.collection_id}`}
+            style={{display:'block',textDecoration:'none',color:'inherit',background:'#fff',border:'1px solid #e2e8f0',borderRadius:'12px',marginBottom:'10px',overflow:'hidden',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}
+          >
+            <div style={{display:'flex',gap:'12px',alignItems:'stretch'}}>
+              {t.image_url ? (
+                <img
+                  src={t.image_url}
+                  alt={t.display_name}
+                  style={{width:'90px',height:'90px',objectFit:'cover',flexShrink:0}}
+                />
+              ) : (
+                <div style={{width:'90px',height:'90px',background:'#f1f5f9',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'28px'}}>
+                  🌿
+                </div>
+              )}
+              <div style={{flex:1,padding:'10px 12px 10px 0',minWidth:0}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                  <div>
+                    <span style={{fontWeight:'700',fontSize:'16px'}}>{t.display_name}</span>
+                    {t.tree_number && <span style={{fontSize:'12px',color:'#9ca3af',marginLeft:'8px'}}>#{t.tree_number}</span>}
                   </div>
-                  {t.tree_name && <p className="text-sm text-gray-600">"{t.tree_name}"</p>}
-                  {t.species && <p className="text-sm text-gray-500 italic">{t.species}{t.common_name && t.common_name !== 'Unknown' ? ` — ${t.common_name}` : ''}</p>}
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {t.status && (
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{t.status}</span>
-                    )}
-                    {t.health_status && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{t.health_status}</span>
-                    )}
-                  </div>
-                </a>
-              )
-            })}
-          </div>
-
-          {filtered.length === 0 && (
-            <p className="text-gray-400 text-center py-12">No trees found. Click "+ Add Tree" to get started.</p>
-          )}
-        </>
-      )}
+                  {overdue && <span style={{fontSize:'11px',background:'#fef2f2',color:'#dc2626',border:'1px solid #fecaca',borderRadius:'6px',padding:'2px 6px',flexShrink:0}}>⚠ Overdue</span>}
+                </div>
+                {t.tree_name && <p style={{fontSize:'13px',color:'#6b7280',margin:'2px 0',fontStyle:'italic'}}>"{t.tree_name}"</p>}
+                {t.species && <p style={{fontSize:'13px',color:'#374151',margin:'2px 0',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.species}</p>}
+                <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginTop:'6px'}}>
+                  {t.status && (
+                    <span style={{fontSize:'11px',fontWeight:'600',padding:'2px 8px',borderRadius:'20px',background:(statusColor[t.status] || '#6b7280')+'22',color:statusColor[t.status] || '#6b7280'}}>
+                      {t.status}
+                    </span>
+                  )}
+                  {t.health_status && (
+                    <span style={{fontSize:'11px',fontWeight:'600',padding:'2px 8px',borderRadius:'20px',background:(healthColor[t.health_status] || '#6b7280')+'22',color:healthColor[t.health_status] || '#6b7280'}}>
+                      {t.health_status}
+                    </span>
+                  )}
+                  {t.is_favourite && <span style={{fontSize:'12px'}}>⭐</span>}
+                </div>
+              </div>
+            </div>
+          </a>
+        )
+      })}
     </main>
   )
 }
