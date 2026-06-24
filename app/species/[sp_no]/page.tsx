@@ -59,7 +59,7 @@ function SpeciesPhotoField({ value, onChange }: { value: string, onChange: (v: s
   return (
     <div className="mb-4">
       <label className="block text-sm font-medium mb-1">Reference Photo</label>
-      {value && <img src={value} alt="Reference" className="w-full max-h-56 object-cover rounded mb-2 border" />}
+      {value && <img src={value} alt="Reference" style={{width:'100%',maxHeight:'300px',objectFit:'cover',borderRadius:'8px',marginBottom:'8px',border:'1px solid #e2e8f0'}} />}
       <div className="flex gap-2">
         <label htmlFor="species-ref-photo" className="flex-1 text-center bg-gray-100 border rounded px-3 py-2 text-sm cursor-pointer">
           {uploading ? 'Uploading...' : value ? '📷 Replace Photo' : '📷 Add Reference Photo'}
