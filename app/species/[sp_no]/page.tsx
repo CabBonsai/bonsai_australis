@@ -631,7 +631,7 @@ export default function SpeciesDetail() {
   if (!species) return <div className="p-4">Species not found.</div>
 
   return (
-    <div className="max-w-5xl mx-auto p-4 pb-24">
+    <div style={{maxWidth:'1100px',margin:'0 auto',padding:'16px 16px 96px'}}>
       <div className="flex justify-between items-center mb-2">
         <Link href="/" className="text-blue-600 text-sm">&larr; Back to list</Link>
         <div className="flex gap-3">
