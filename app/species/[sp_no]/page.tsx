@@ -29,7 +29,7 @@ function Field({ label, value, onChange, type = 'text' }: {
     <div>
       <label className="block text-sm font-medium mb-1">{label}</label>
       {type === 'textarea'
-        ? <textarea value={value || ''} onChange={e => onChange(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-base" rows={3} />
+        ? <textarea value={value || ''} onChange={e => onChange(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-base font-sans" rows={4} />
         : <input type="text" value={value || ''} onChange={e => onChange(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-base" />
       }
     </div>
@@ -304,17 +304,25 @@ export default function SpeciesDetail() {
       cambial_notes: advanced.cambial_notes,
       seasonal_physiology: advanced.seasonal_physiology,
       energy_model: advanced.energy_model,
-      backbudding_notes: advanced.backbudding_notes,
-      ramification_stages: advanced.ramification_stages,
-      root_notes: advanced.root_notes,
-      hormonal_model: advanced.hormonal_model,
-      needle_control: advanced.needle_control,
-      climate_notes: advanced.climate_notes,
-      styling_biomechanics: advanced.styling_biomechanics,
-      development_years_1_3: advanced.development_years_1_3,
-      development_years_4_6: advanced.development_years_4_6,
-      development_years_7_8: advanced.development_years_7_8,
-      development_years_9_10: advanced.development_years_9_10,
+      ['pH Target', advanced.ph_target],
+          ['Backbudding Notes', advanced.backbudding_notes],
+          ['Ramification Stages', advanced.ramification_stages],
+          ['Root Notes', advanced.root_notes],
+          ['Hormonal Model', advanced.hormonal_model],
+          ['Needle Control', advanced.needle_control],
+          ['Climate Notes', advanced.climate_notes],
+          ['Styling Biomechanics', advanced.styling_biomechanics],
+          ['Morphology Notes', advanced.morphology_notes],
+          ['Cambial Notes', advanced.cambial_notes],
+          ['Seasonal Physiology', advanced.seasonal_physiology],
+          ['Energy Model', advanced.energy_model],
+          ['Acquisition Raw Material', advanced.acquisition_raw_material],
+          ['Aesthetics & Exhibition', advanced.aesthetics_exhibition_philosophy],
+          ['Advanced Structural Engineering', advanced.advanced_structural_engineering],
+          ['Development Years 1-3', advanced.development_years_1_3],
+          ['Development Years 4-6', advanced.development_years_4_6],
+          ['Development Years 7-8', advanced.development_years_7_8],
+          ['Development Years 9-10', advanced.development_years_9_10],
     }).eq('sp_no', spNo))
     if (regional) saves.push(supabase.from('regional_suitability').update({
       tropical_suitability: regional.tropical_suitability,
@@ -665,7 +673,7 @@ export default function SpeciesDetail() {
   if (!species) return <div className="p-4">Species not found.</div>
 
   return (
-    <div className="max-w-2xl mx-auto p-4 pb-24">
+    <div className="max-w-5xl mx-auto p-4 pb-24">
       <div className="flex justify-between items-center mb-2">
         <Link href="/" className="text-blue-600 text-sm">&larr; Back to list</Link>
         <div className="flex gap-3">
