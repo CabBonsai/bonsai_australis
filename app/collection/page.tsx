@@ -52,7 +52,7 @@ export default function CollectionPage() {
     const { data } = await supabase
       .from('collection')
       .select('*')
-      .order('tree_number', { ascending: true })
+      .eq('in_collection', true).order('tree_number', { ascending: true })
 
     const rows = data || []
     const spNos = [...new Set(rows.map((t: any) => t.sp_no).filter(Boolean))]
@@ -74,7 +74,7 @@ export default function CollectionPage() {
 
   async function handleAddTree() {
     setAdding(true)
-    const insertData: any = { display_name: selectedSpecies ? selectedSpecies.species : 'New Tree', in_collection: true }
+    const insertData: any = { display_name: selectedSpecies ? selectedSpecies.species : 'New Tree', in_collection: false }
     if (selectedSpecies) insertData.sp_no = selectedSpecies.sp_no
     const { data, error } = await supabase
       .from('collection')

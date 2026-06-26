@@ -330,7 +330,8 @@ export default function CollectionDetailPage() {
 
   async function handleSave() {
     setSaving(true)
-    const { collection_id, created_at, updated_at, ...updateData } = tree
+   const { collection_id, created_at, updated_at, ...updateData } = tree
+updateData.in_collection = true
 
     const { error } = await supabase
       .from('collection')
