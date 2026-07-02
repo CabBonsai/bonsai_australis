@@ -225,7 +225,7 @@ useEffect(() => {
   )
 }
 
-function VariantAutocomplete({ spNo, value, onChange }: { spNo: number | null, value: string, onChange: (name: string) => void }) {
+function VariantAutocomplete({ spNo, value, onChange }: { spNo: number | null, value: string, onChange: (name: string, variantSpNo: number | null) => void }) {
   const [query, setQuery] = useState(value || '')
   const [results, setResults] = useState<any[]>([])
   const [open, setOpen] = useState(false)
@@ -246,7 +246,7 @@ useEffect(() => {
     const timeout = setTimeout(async () => {
       const { data } = await supabase
         .from('variants')
-        .select('variant_name')
+        .select('sp_no, variant_name')
         .eq('parent_sp_no', spNo)
         .ilike('variant_name', `%${query}%`)
         .limit(50)
@@ -260,7 +260,7 @@ useEffect(() => {
       <input
         type="text"
         value={query}
-        onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true) }}
+        onChange={e => { setQuery(e.target.value); onChange(e.target.value, null); setOpen(true) }}
         onFocus={() => setOpen(true)}
         placeholder={spNo ? "Type to search known variants..." : "Select a species first"}
         disabled={!spNo}
@@ -271,7 +271,7 @@ useEffect(() => {
           {results.map((r, i) => (
             <li
               key={i}
-              onClick={() => { onChange(r.variant_name); setQuery(r.variant_name); setOpen(false); setResults([]) }}
+              onClick={() => { onChange(r.variant_name, r.sp_no); setQuery(r.variant_name); setOpen(false); setResults([]) }}
               style={{padding:'14px 16px',borderBottom:'1px solid #f1f5f9',cursor:'pointer',fontSize:'15px',lineHeight:'1.4'}}
             >
               {r.variant_name}
@@ -279,6 +279,38 @@ useEffect(() => {
           ))}
         </ul>
       )}
+    </div>
+  )
+}
+
+function VariantCareInfo({ variantSpNo }: { variantSpNo: number | null | undefined }) {
+  const [care, setCare] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!variantSpNo) { setCare(null); return }
+    setLoading(true)
+    supabase
+      .from('variant_effective_care')
+      .select('effective_watering, effective_soil_mix, effective_repotting, effective_fertilising, effective_winter_care, effective_species_notes')
+      .eq('sp_no', variantSpNo)
+      .single()
+      .then(({ data }) => { setCare(data); setLoading(false) })
+  }, [variantSpNo])
+
+  if (!variantSpNo) return null
+  if (loading) return <p className="text-xs text-gray-400 mt-1">Loading variant care info...</p>
+  if (!care) return <p className="text-xs text-amber-600 mt-1">No specific care data recorded for this variant yet — using species-level defaults.</p>
+
+  return (
+    <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs space-y-1">
+      <p className="font-semibold text-amber-800 mb-1">Variant-specific care</p>
+      {care.effective_watering && <p><span className="text-gray-500">Watering: </span>{care.effective_watering}</p>}
+      {care.effective_soil_mix && <p><span className="text-gray-500">Soil mix: </span>{care.effective_soil_mix}</p>}
+      {care.effective_repotting && <p><span className="text-gray-500">Repotting cycle: </span>{care.effective_repotting}</p>}
+      {care.effective_fertilising && <p><span className="text-gray-500">Fertilising: </span>{care.effective_fertilising}</p>}
+      {care.effective_winter_care && <p><span className="text-gray-500">Winter care: </span>{care.effective_winter_care}</p>}
+      {care.effective_species_notes && <p><span className="text-gray-500">Notes: </span>{care.effective_species_notes}</p>}
     </div>
   )
 }
@@ -631,7 +663,15 @@ updateData.in_collection = true
             <SpeciesAutocomplete value={tree.sp_no} onChange={(spNo, name) => { set('sp_no', spNo); setSpeciesName(name) }} />
           </Field>
           <Field label="Variation / Cultivar">
-            <VariantAutocomplete spNo={tree.sp_no} value={tree.variation_or_cultivar || ''} onChange={val => set('variation_or_cultivar', val)} />
+            <VariantAutocomplete
+              spNo={tree.sp_no}
+              value={tree.variation_or_cultivar || ''}
+              onChange={(val, variantSpNo) => {
+                set('variation_or_cultivar', val)
+                set('variant_sp_no', variantSpNo)
+              }}
+            />
+            <VariantCareInfo variantSpNo={tree.variant_sp_no} />
           </Field>
           <Field label="Style"><Dropdown value={tree.style} onChange={v => set('style', v)} options={STYLE_OPTIONS} category="style" /></Field>
           <Field label="Development Stage"><Dropdown value={tree.development_stage} onChange={v => set('development_stage', v)} options={DEV_STAGE_OPTIONS} category="development_stage" /></Field>
