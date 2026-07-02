@@ -466,6 +466,16 @@ updateData.in_collection = true
       }
       y += 10
 
+      let variantCare: any = null
+      if (tree.variant_sp_no) {
+        const { data: vc } = await supabase
+          .from('variant_effective_care')
+          .select('effective_watering, effective_soil_mix, effective_repotting, effective_fertilising, effective_winter_care, effective_species_notes')
+          .eq('sp_no', tree.variant_sp_no)
+          .single()
+        variantCare = vc
+      }
+
       function checkPageBreak(needed: number) {
         if (y + needed > doc.internal.pageSize.getHeight() - 40) {
           doc.addPage()
@@ -501,6 +511,17 @@ updateData.in_collection = true
         })
         doc.setTextColor(0, 0, 0)
         y += 8
+      }
+
+      if (variantCare) {
+        addSection('Variant-Specific Care', [
+          ['Watering', variantCare.effective_watering],
+          ['Soil Mix', variantCare.effective_soil_mix],
+          ['Repotting Cycle', variantCare.effective_repotting],
+          ['Fertilising', variantCare.effective_fertilising],
+          ['Winter Care', variantCare.effective_winter_care],
+          ['Notes', variantCare.effective_species_notes],
+        ])
       }
 
       addSection('Development & Styling', [
