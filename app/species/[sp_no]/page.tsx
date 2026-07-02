@@ -9,15 +9,36 @@ import VariantsSection from '@/components/VariantsSection'
 function Section({ title, children }: { title: string, children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="border rounded-lg mb-3">
+    <div style={{
+      border: '1px solid #ded4bd',
+      borderRadius: '14px',
+      marginBottom: '14px',
+      background: '#fffdf9',
+      overflow: 'hidden',
+      boxShadow: open ? '0 2px 10px rgba(63,82,40,0.06)' : 'none',
+    }}>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full text-left px-4 py-3 font-semibold flex justify-between items-center"
+        style={{
+          width: '100%',
+          textAlign: 'left',
+          padding: '16px 20px',
+          fontWeight: 600,
+          fontSize: '15px',
+          letterSpacing: '0.02em',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          background: open ? '#f3efe2' : 'transparent',
+          color: '#3f5228',
+          border: 'none',
+          cursor: 'pointer',
+        }}
       >
         {title}
-        <span>{open ? '▲' : '▼'}</span>
+        <span style={{ color: '#8a9a6d', fontSize: '12px' }}>{open ? '▲ collapse' : '▼ expand'}</span>
       </button>
-      {open && <div className="px-4 pb-4 space-y-3">{children}</div>}
+      {open && <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>{children}</div>}
     </div>
   )
 }
@@ -25,12 +46,63 @@ function Section({ title, children }: { title: string, children: React.ReactNode
 function Field({ label, value, onChange, type = 'text' }: {
   label: string, value: any, onChange: (v: string) => void, type?: string
 }) {
+  const [focused, setFocused] = useState(false)
+  const baseBorder = focused ? '1.5px solid #7a9c42' : '1.5px solid #e2dac2'
+  const boxShadow = focused ? '0 0 0 3px rgba(122,156,66,0.15)' : 'none'
   return (
     <div>
-      <label className="block text-sm font-medium mb-1">{label}</label>
+      <label style={{
+        display: 'block',
+        fontSize: '12px',
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.06em',
+        color: '#8a7f5f',
+        marginBottom: '6px',
+      }}>{label}</label>
       {type === 'textarea'
-        ? <textarea value={value || ''} onChange={e => onChange(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-base font-sans" rows={4} />
-        : <input type="text" value={value || ''} onChange={e => onChange(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-base" />
+        ? <textarea
+            value={value || ''}
+            onChange={e => onChange(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            style={{
+              width: '100%',
+              minHeight: '190px',
+              border: baseBorder,
+              boxShadow,
+              borderRadius: '10px',
+              padding: '14px 16px',
+              fontSize: '15px',
+              lineHeight: 1.65,
+              fontFamily: 'inherit',
+              color: '#2b2620',
+              background: '#fffefb',
+              resize: 'vertical',
+              outline: 'none',
+              transition: 'border-color 0.15s, box-shadow 0.15s',
+            }}
+            rows={8}
+          />
+        : <input
+            type="text"
+            value={value || ''}
+            onChange={e => onChange(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            style={{
+              width: '100%',
+              border: baseBorder,
+              boxShadow,
+              borderRadius: '10px',
+              padding: '11px 16px',
+              fontSize: '15px',
+              color: '#2b2620',
+              background: '#fffefb',
+              outline: 'none',
+              transition: 'border-color 0.15s, box-shadow 0.15s',
+            }}
+          />
       }
     </div>
   )
@@ -633,28 +705,28 @@ export default function SpeciesDetail() {
   if (!species) return <div className="p-4">Species not found.</div>
 
   return (
-    <div style={{maxWidth:'1100px',margin:'0 auto',padding:'16px 16px 96px'}}>
-      <div className="flex justify-between items-center mb-2">
-        <Link href="/" className="text-blue-600 text-sm">&larr; Back to list</Link>
+    <div style={{maxWidth:'1500px',margin:'0 auto',padding:'24px 24px 96px',background:'#faf7f1',minHeight:'100vh'}}>
+      <div className="flex justify-between items-center mb-3">
+        <Link href="/" style={{color:'#5c7a2a',fontSize:'13px',fontWeight:600,textDecoration:'none'}}>&larr; Back to list</Link>
         <div className="flex gap-3">
-          {prevNext.prev && <Link href={`/species/${prevNext.prev}`} className="text-blue-600 text-sm">&#8592; Prev</Link>}
-          {prevNext.next && <Link href={`/species/${prevNext.next}`} className="text-blue-600 text-sm">Next &#8594;</Link>}
+          {prevNext.prev && <Link href={`/species/${prevNext.prev}`} style={{color:'#5c7a2a',fontSize:'13px',fontWeight:600,textDecoration:'none'}}>&#8592; Prev</Link>}
+          {prevNext.next && <Link href={`/species/${prevNext.next}`} style={{color:'#5c7a2a',fontSize:'13px',fontWeight:600,textDecoration:'none'}}>Next &#8594;</Link>}
         </div>
       </div>
-      <div className="flex gap-2 mb-4">
-        <button type="button" onClick={() => generatePDF('basic')} disabled={generatingReport !== null} className="text-xs bg-gray-800 text-white px-3 py-1.5 rounded disabled:opacity-50">
+      <div className="flex gap-2 mb-5">
+        <button type="button" onClick={() => generatePDF('basic')} disabled={generatingReport !== null} style={{fontSize:'12px',background:'#3f5228',color:'#fdfaf3',padding:'8px 14px',borderRadius:'8px',border:'none',cursor:'pointer',opacity:generatingReport!==null?0.5:1,fontWeight:600}}>
           {generatingReport === 'basic' ? 'Generating...' : '📄 Basic Report'}
         </button>
-        <button type="button" onClick={() => generatePDF('advanced')} disabled={generatingReport !== null} className="text-xs bg-gray-600 text-white px-3 py-1.5 rounded disabled:opacity-50">
+        <button type="button" onClick={() => generatePDF('advanced')} disabled={generatingReport !== null} style={{fontSize:'12px',background:'#7a9c42',color:'#1e2b12',padding:'8px 14px',borderRadius:'8px',border:'none',cursor:'pointer',opacity:generatingReport!==null?0.5:1,fontWeight:600}}>
           {generatingReport === 'advanced' ? 'Generating...' : '📄 Advanced Report'}
         </button>
       </div>
-      <h1 className="text-2xl font-bold">{species.species}</h1>
-      <p className="text-sm text-gray-400 mb-4">sp_no: {species.sp_no}</p>
+      <h1 style={{fontSize:'28px',fontWeight:700,color:'#2b2620',letterSpacing:'-0.01em'}}>{species.species}</h1>
+      <p style={{fontSize:'13px',color:'#a89e7a',marginBottom:'18px'}}>sp_no: {species.sp_no}</p>
       <SpeciesPhotoField value={species.reference_photo || ''} onChange={v => updateSpecies('reference_photo', v)} />
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Quick Notes</label>
-        <textarea value={species.research_notes || ''} onChange={(e) => updateSpecies('research_notes', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-base" rows={3} placeholder="Voice-to-text notes go here..." />
+      <div style={{marginBottom:'20px'}}>
+        <label style={{display:'block',fontSize:'12px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'6px'}}>Quick Notes</label>
+        <textarea value={species.research_notes || ''} onChange={(e) => updateSpecies('research_notes', e.target.value)} style={{width:'100%',minHeight:'110px',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'14px 16px',fontSize:'15px',lineHeight:1.6,fontFamily:'inherit',color:'#2b2620',background:'#fffefb',resize:'vertical',outline:'none'}} rows={4} placeholder="Voice-to-text notes go here..." />
       </div>
       <Section title="Species Info">
         <div>
@@ -878,8 +950,8 @@ export default function SpeciesDetail() {
         </Section>
       )}
       <div className="mt-6 mb-10 flex justify-between items-center">
-        {saveMessage && <span className="text-sm">{saveMessage}</span>}
-        <button onClick={handleSave} disabled={saving} className="ml-auto bg-blue-600 text-white px-6 py-4 rounded-lg font-semibold w-full text-lg disabled:opacity-50">
+        {saveMessage && <span style={{fontSize:'13px',color:'#5c7a2a',fontWeight:600}}>{saveMessage}</span>}
+        <button onClick={handleSave} disabled={saving} style={{marginLeft:'auto',background:'#3f5228',color:'#fdfaf3',padding:'16px 24px',borderRadius:'12px',fontWeight:700,width:'100%',fontSize:'17px',border:'none',cursor:'pointer',opacity:saving?0.5:1,boxShadow:'0 2px 10px rgba(63,82,40,0.2)'}}>
           {saving ? 'Saving...' : 'Save'}
         </button>
       </div>
