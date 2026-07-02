@@ -293,6 +293,7 @@ export default function SpeciesDetail() {
       hormonal_model: advanced.hormonal_model,
       needle_control: advanced.needle_control,
       climate_notes: advanced.climate_notes,
+      repotting_season_notes: advanced.repotting_season_notes,
       styling_biomechanics: advanced.styling_biomechanics,
       development_years_1_3: advanced.development_years_1_3,
       development_years_4_6: advanced.development_years_4_6,
@@ -572,6 +573,7 @@ export default function SpeciesDetail() {
           ['Hormonal Model', advanced.hormonal_model],
           ['Needle Control', advanced.needle_control],
           ['Climate Notes', advanced.climate_notes],
+          ['Repotting Season Notes', advanced.repotting_season_notes],
           ['Styling Biomechanics', advanced.styling_biomechanics],
           ['Morphology Notes', advanced.morphology_notes],
           ['Cambial Notes', advanced.cambial_notes],
@@ -825,6 +827,7 @@ export default function SpeciesDetail() {
           <Field label="Hormonal model" value={advanced.hormonal_model} onChange={v => updateAdvanced('hormonal_model', v)} type="textarea" />
           <Field label="Needle control" value={advanced.needle_control} onChange={v => updateAdvanced('needle_control', v)} type="textarea" />
           <Field label="Climate notes" value={advanced.climate_notes} onChange={v => updateAdvanced('climate_notes', v)} type="textarea" />
+          <Field label="Repotting season notes" value={advanced.repotting_season_notes} onChange={v => updateAdvanced('repotting_season_notes', v)} type="textarea" />
           <Field label="Styling biomechanics" value={advanced.styling_biomechanics} onChange={v => updateAdvanced('styling_biomechanics', v)} type="textarea" />
           <Field label="Morphology notes" value={advanced.morphology_notes} onChange={v => updateAdvanced('morphology_notes', v)} type="textarea" />
           <Field label="Cambial notes" value={advanced.cambial_notes} onChange={v => updateAdvanced('cambial_notes', v)} type="textarea" />
