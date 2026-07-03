@@ -99,6 +99,7 @@ function Dropdown({ value, onChange, options, category }: { value: string, onCha
 
 function PhotoField({ label, value, onChange }: { label: string, value: string, onChange: (v: string) => void }) {
   const [uploading, setUploading] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const inputId = `photo-${label.replace(/\s+/g, '-')}`
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -125,7 +126,24 @@ function PhotoField({ label, value, onChange }: { label: string, value: string, 
     <div>
       <span className="text-gray-500 block mb-1 text-sm">{label}</span>
       {value && (
-        <img src={value} alt={label} style={{ width: '128px', height: '128px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px', border: '1px solid #e2e8f0' }} />
+        <img
+          src={value}
+          alt={label}
+          onClick={() => setLightboxOpen(true)}
+          style={{ width: '128px', height: '128px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px', border: '1px solid #e2e8f0', cursor: 'pointer' }}
+        />
+      )}
+      {lightboxOpen && value && (
+        <div
+          onClick={() => setLightboxOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', cursor: 'zoom-out' }}
+        >
+          <img
+            src={value}
+            alt={label}
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px' }}
+          />
+        </div>
       )}
       <div className="flex gap-2">
         <label htmlFor={inputId} className="flex-1 text-center bg-gray-100 border rounded px-3 py-2 text-sm cursor-pointer">
@@ -146,7 +164,6 @@ function PhotoField({ label, value, onChange }: { label: string, value: string, 
     </div>
   )
 }
-
 function SpeciesAutocomplete({ value, onChange }: { value: number | null, onChange: (spNo: number | null, name: string) => void }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<any[]>([])
