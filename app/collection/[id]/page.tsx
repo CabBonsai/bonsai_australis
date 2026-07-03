@@ -348,7 +348,10 @@ export default function CollectionDetailPage() {
     }
     setTree(data)
 
-    if (data?.sp_no) {
+    if (data?.variant_sp_no) {
+      const { data: v } = await supabase.from('variants').select('variant_name, common_name').eq('sp_no', data.variant_sp_no).single()
+      if (v) setSpeciesName(`${v.variant_name}${v.common_name && v.common_name !== 'Unknown' ? ' — ' + v.common_name : ''}`)
+    } else if (data?.sp_no) {
       const { data: sp } = await supabase.from('species').select('species, common_name').eq('sp_no', data.sp_no).single()
       if (sp) setSpeciesName(`${sp.species}${sp.common_name && sp.common_name !== 'Unknown' ? ' — ' + sp.common_name : ''}`)
     }
