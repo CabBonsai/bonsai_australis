@@ -229,6 +229,8 @@ export default function SpeciesDetail() {
         research_notes: species.research_notes,
         research_status: species.research_status,
         reference_photo: species.reference_photo,
+        review_status: species.review_status,
+        review_notes: species.review_notes,
       }).eq('sp_no', spNo),
     ]
     if (suitability) saves.push(supabase.from('bonsai_suitability').update({
@@ -754,6 +756,20 @@ export default function SpeciesDetail() {
             <input type="checkbox" checked={species.australian_native || false} onChange={e => updateSpecies('australian_native', e.target.checked)} className="w-4 h-4" />
             AU Native
           </label>
+        </div>
+        <div style={{ background: species.review_status === 'needs_review' ? '#fffbeb' : 'transparent', border: species.review_status === 'needs_review' ? '1px solid #fde68a' : 'none', borderRadius: '10px', padding: species.review_status === 'needs_review' ? '12px 14px' : '0', marginTop: '4px' }}>
+          <label className="flex items-center gap-2 text-sm" style={{ marginBottom: species.review_status === 'needs_review' ? '10px' : '0' }}>
+            <input
+              type="checkbox"
+              checked={species.review_status === 'needs_review'}
+              onChange={e => updateSpecies('review_status', e.target.checked ? 'needs_review' : 'confirmed')}
+              className="w-4 h-4"
+            />
+            Flag for review
+          </label>
+          {species.review_status === 'needs_review' && (
+            <Field label="Review notes" value={species.review_notes} onChange={v => updateSpecies('review_notes', v)} type="textarea" />
+          )}
         </div>
         <Field label="Origin" value={species.species_origin} onChange={v => updateSpecies('species_origin', v)} />
         <Field label="Natural habitat" value={species.natural_habitat} onChange={v => updateSpecies('natural_habitat', v)} />
