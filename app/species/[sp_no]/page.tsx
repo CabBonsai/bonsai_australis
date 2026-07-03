@@ -780,7 +780,7 @@ export default function SpeciesDetail() {
       )}
       {careGuide && (
         <Section title="Care Guide">
-          <Field label="Growth season" value={careGuide.growth_season} onChange={v => updateCareGuide('growth_season', v)} />
+          <Field label="Growth season" value={careGuide.growth_season} onChange={v => updateCareGuide('growth_season', v)} type="textarea" />
           <Field label="Growth season notes" value={careGuide.growth_season_notes} onChange={v => updateCareGuide('growth_season_notes', v)} type="textarea" />
           <Field label="Growth plan" value={careGuide.growth_plan} onChange={v => updateCareGuide('growth_plan', v)} type="textarea" />
           <Field label="Watering" value={careGuide.watering} onChange={v => updateCareGuide('watering', v)} type="textarea" />
