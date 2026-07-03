@@ -125,7 +125,7 @@ function PhotoField({ label, value, onChange }: { label: string, value: string, 
     <div>
       <span className="text-gray-500 block mb-1 text-sm">{label}</span>
       {value && (
-        <img src={value} alt={label} className="w-full max-h-48 object-cover rounded mb-2 border" />
+        <img src={value} alt={label} className="w-32 h-32 object-cover rounded mb-2 border" />
       )}
       <div className="flex gap-2">
         <label htmlFor={inputId} className="flex-1 text-center bg-gray-100 border rounded px-3 py-2 text-sm cursor-pointer">
