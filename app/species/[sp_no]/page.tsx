@@ -784,11 +784,11 @@ export default function SpeciesDetail() {
           <Field label="Growth season notes" value={careGuide.growth_season_notes} onChange={v => updateCareGuide('growth_season_notes', v)} type="textarea" />
           <Field label="Growth plan" value={careGuide.growth_plan} onChange={v => updateCareGuide('growth_plan', v)} type="textarea" />
           <Field label="Watering" value={careGuide.watering} onChange={v => updateCareGuide('watering', v)} type="textarea" />
-          <Field label="Watering frequency" value={careGuide.watering_frequency} onChange={v => updateCareGuide('watering_frequency', v)} />
-          <Field label="Sun exposure" value={careGuide.sun_exposure} onChange={v => updateCareGuide('sun_exposure', v)} />
+          <Field label="Watering frequency" value={careGuide.watering_frequency} onChange={v => updateCareGuide('watering_frequency', v)} type="textarea" />
+          <Field label="Sun exposure" value={careGuide.sun_exposure} onChange={v => updateCareGuide('sun_exposure', v)} type="textarea" />
           <Field label="Light requirements" value={careGuide.light_requirements} onChange={v => updateCareGuide('light_requirements', v)} type="textarea" />
           <Field label="Fertilizing" value={careGuide.fertilizing} onChange={v => updateCareGuide('fertilizing', v)} type="textarea" />
-          <Field label="Best fertiliser (Australia)" value={careGuide.best_fertiliser_australia} onChange={v => updateCareGuide('best_fertiliser_australia', v)} />
+          <Field label="Best fertiliser (Australia)" value={careGuide.best_fertiliser_australia} onChange={v => updateCareGuide('best_fertiliser_australia', v)} type="textarea" />
           <Field label="Promote growth" value={careGuide.promote_growth} onChange={v => updateCareGuide('promote_growth', v)} type="textarea" />
           <Field label="Promote back budding" value={careGuide.promote_back_budding} onChange={v => updateCareGuide('promote_back_budding', v)} type="textarea" />
           <Field label="Style options" value={careGuide.style_options} onChange={v => updateCareGuide('style_options', v)} type="textarea" />
@@ -800,21 +800,21 @@ export default function SpeciesDetail() {
           <Field label="Repotting guide" value={careGuide.repotting_guide} onChange={v => updateCareGuide('repotting_guide', v)} type="textarea" />
           <Field label="Best soil mix" value={careGuide.best_soil_mix} onChange={v => updateCareGuide('best_soil_mix', v)} type="textarea" />
           <Field label="Pests & diseases" value={careGuide.pests_and_diseases} onChange={v => updateCareGuide('pests_and_diseases', v)} type="textarea" />
-          <Field label="Climate zone" value={careGuide.climate_zone} onChange={v => updateCareGuide('climate_zone', v)} />
+          <Field label="Climate zone" value={careGuide.climate_zone} onChange={v => updateCareGuide('climate_zone', v)} type="textarea" />
           <Field label="Watering (summer)" value={careGuide.watering_summer_notes} onChange={v => updateCareGuide('watering_summer_notes', v)} type="textarea" />
           <Field label="Watering (winter)" value={careGuide.watering_winter_notes} onChange={v => updateCareGuide('watering_winter_notes', v)} type="textarea" />
           <Field label="Summer sun protection" value={careGuide.summer_sun_protection} onChange={v => updateCareGuide('summer_sun_protection', v)} type="textarea" />
-          <Field label="Frost risk" value={careGuide.frost_risk} onChange={v => updateCareGuide('frost_risk', v)} />
+          <Field label="Frost risk" value={careGuide.frost_risk} onChange={v => updateCareGuide('frost_risk', v)} type="textarea" />
           <Field label="Min temp (C)" value={careGuide.min_temp_c} onChange={v => updateCareGuide('min_temp_c', v)} />
-          <Field label="Pruning season" value={careGuide.pruning_season} onChange={v => updateCareGuide('pruning_season', v)} />
-          <Field label="Repotting season" value={careGuide.repotting_season} onChange={v => updateCareGuide('repotting_season', v)} />
+          <Field label="Pruning season" value={careGuide.pruning_season} onChange={v => updateCareGuide('pruning_season', v)} type="textarea" />
+          <Field label="Repotting season" value={careGuide.repotting_season} onChange={v => updateCareGuide('repotting_season', v)} type="textarea" />
           <Field label="Repotting frequency (yrs)" value={careGuide.repotting_freq_yrs} onChange={v => updateCareGuide('repotting_freq_yrs', v)} />
         </Section>
       )}
       {fertilisation && (
         <Section title="Fertilisation">
-          <Field label="P tolerance" value={fertilisation.p_tolerance} onChange={v => updateFertilisation('p_tolerance', v)} />
-          <Field label="N requirement" value={fertilisation.n_requirement} onChange={v => updateFertilisation('n_requirement', v)} />
+          <Field label="P tolerance" value={fertilisation.p_tolerance} onChange={v => updateFertilisation('p_tolerance', v)} type="textarea" />
+          <Field label="N requirement" value={fertilisation.n_requirement} onChange={v => updateFertilisation('n_requirement', v)} type="textarea" />
           <Field label="Preferred fertiliser types" value={fertilisation.preferred_fertiliser_types} onChange={v => updateFertilisation('preferred_fertiliser_types', v)} type="textarea" />
           <Field label="Avoid fertilisers" value={fertilisation.avoid_fertilisers} onChange={v => updateFertilisation('avoid_fertilisers', v)} type="textarea" />
           <Field label="Recommended products" value={fertilisation.recommended_products} onChange={v => updateFertilisation('recommended_products', v)} type="textarea" />
@@ -824,15 +824,15 @@ export default function SpeciesDetail() {
       {pruning && (
         <Section title="Pruning Protocols">
           <Field label="Core rules" value={pruning.pruning_core_rules} onChange={v => updatePruning('pruning_core_rules', v)} type="textarea" />
-          <Field label="Structural pruning timing" value={pruning.structural_pruning_timing} onChange={v => updatePruning('structural_pruning_timing', v)} />
+          <Field label="Structural pruning timing" value={pruning.structural_pruning_timing} onChange={v => updatePruning('structural_pruning_timing', v)} type="textarea" />
           <Field label="Structural pruning method" value={pruning.structural_pruning_method} onChange={v => updatePruning('structural_pruning_method', v)} type="textarea" />
           <Field label="Structural pruning limits" value={pruning.structural_pruning_limits} onChange={v => updatePruning('structural_pruning_limits', v)} type="textarea" />
-          <Field label="Post-flowering pruning timing" value={pruning.post_flowering_pruning_timing} onChange={v => updatePruning('post_flowering_pruning_timing', v)} />
+          <Field label="Post-flowering pruning timing" value={pruning.post_flowering_pruning_timing} onChange={v => updatePruning('post_flowering_pruning_timing', v)} type="textarea" />
           <Field label="Post-flowering pruning method" value={pruning.post_flowering_pruning_method} onChange={v => updatePruning('post_flowering_pruning_method', v)} type="textarea" />
-          <Field label="Maintenance pruning timing" value={pruning.maintenance_pruning_timing} onChange={v => updatePruning('maintenance_pruning_timing', v)} />
+          <Field label="Maintenance pruning timing" value={pruning.maintenance_pruning_timing} onChange={v => updatePruning('maintenance_pruning_timing', v)} type="textarea" />
           <Field label="Maintenance pruning method" value={pruning.maintenance_pruning_method} onChange={v => updatePruning('maintenance_pruning_method', v)} type="textarea" />
           <Field label="Old wood management" value={pruning.old_wood_management} onChange={v => updatePruning('old_wood_management', v)} type="textarea" />
-          <Field label="Seasonal timing" value={pruning.seasonal_timing_seq} onChange={v => updatePruning('seasonal_timing_seq', v)} />
+          <Field label="Seasonal timing" value={pruning.seasonal_timing_seq} onChange={v => updatePruning('seasonal_timing_seq', v)} type="textarea" />
           <Field label="Recommended techniques" value={pruning.recommended_techniques} onChange={v => updatePruning('recommended_techniques', v)} type="textarea" />
           <Field label="Common mistakes" value={pruning.common_mistakes} onChange={v => updatePruning('common_mistakes', v)} type="textarea" />
           <Field label="Apical management" value={pruning.apical_management_strategy} onChange={v => updatePruning('apical_management_strategy', v)} type="textarea" />
