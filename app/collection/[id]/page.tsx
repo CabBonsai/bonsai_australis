@@ -363,6 +363,15 @@ export default function CollectionDetailPage() {
     setTree((prev: any) => ({ ...prev, [field]: value }))
   }
 
+  useEffect(() => {
+    if (!tree) return
+    const baseSpecies = (speciesName || '').split(' — ')[0]
+    const computed = [baseSpecies, tree.tree_number].filter(Boolean).join(' ')
+    if (computed && computed !== tree.display_name) {
+      setTree((prev: any) => prev ? { ...prev, display_name: computed } : prev)
+    }
+  }, [speciesName, tree?.tree_number])
+
   async function handleSave() {
     setSaving(true)
    const { collection_id, created_at, updated_at, ...updateData } = tree
@@ -620,13 +629,9 @@ updateData.in_collection = true
 
       {/* Identity header - always visible */}
       <div className="mb-4">
-        <input
-          type="text"
-          value={tree.display_name || ''}
-          onChange={e => set('display_name', e.target.value)}
-          placeholder="Display name"
-          className="w-full text-2xl font-bold border-b pb-2 mb-2"
-        />
+        <h1 className="w-full text-2xl font-bold border-b pb-2 mb-2">
+          {tree.display_name || 'Unnamed Tree'}
+        </h1>
         <input
           type="text"
           value={tree.tree_name || ''}
