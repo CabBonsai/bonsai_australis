@@ -56,7 +56,9 @@ export default function CollectionPage() {
 
     const rows = data || []
     const spNos = [...new Set(rows.map((t: any) => t.sp_no).filter(Boolean))]
+    const variantSpNos = [...new Set(rows.map((t: any) => t.variant_sp_no).filter(Boolean))]
     let speciesMap: Record<number, string> = {}
+    let variantMap: Record<number, string> = {}
 
     if (spNos.length > 0) {
       const { data: spData } = await supabase
@@ -68,7 +70,20 @@ export default function CollectionPage() {
       })
     }
 
-    setTrees(rows.map((t: any) => ({ ...t, speciesLabel: speciesMap[t.sp_no] || '' })))
+    if (variantSpNos.length > 0) {
+      const { data: varData } = await supabase
+        .from('variants')
+        .select('sp_no, variant_name, common_name')
+        .in('sp_no', variantSpNos)
+      ;(varData || []).forEach((v: any) => {
+        variantMap[v.sp_no] = v.variant_name + (v.common_name && v.common_name !== 'Unknown' ? ' \u2014 ' + v.common_name : '')
+      })
+    }
+
+    setTrees(rows.map((t: any) => ({
+      ...t,
+      speciesLabel: (t.variant_sp_no && variantMap[t.variant_sp_no]) || speciesMap[t.sp_no] || ''
+    })))
     setLoading(false)
   }
 
