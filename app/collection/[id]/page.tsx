@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-export const dynamic = 'force-dynamic'
 
 function Section({ title, defaultOpen, children }: { title: string, defaultOpen?: boolean, children: React.ReactNode }) {
   const [open, setOpen] = useState(!!defaultOpen)
@@ -164,6 +163,97 @@ function PhotoField({ label, value, onChange }: { label: string, value: string, 
     </div>
   )
 }
+
+function HeroPhotoField({ value, onChange }: { value: string, onChange: (v: string) => void }) {
+  const [uploading, setUploading] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop() || 'jpg'
+      const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('tree-photos').upload(path, file)
+      if (error) {
+        alert('Upload failed: ' + error.message)
+        return
+      }
+      const { data } = supabase.storage.from('tree-photos').getPublicUrl(path)
+      onChange(data.publicUrl)
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  return (
+    <div style={{ marginBottom: '16px' }}>
+      {value ? (
+        <img
+          src={value}
+          alt="Primary photo"
+          onClick={() => setLightboxOpen(true)}
+          style={{
+            width: '100%',
+            maxHeight: '360px',
+            objectFit: 'cover',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            cursor: 'pointer',
+            display: 'block',
+          }}
+        />
+      ) : (
+        <div style={{
+          width: '100%',
+          height: '220px',
+          background: '#f1f5f9',
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '13px',
+          color: '#9ca3af',
+        }}>
+          No primary photo yet
+        </div>
+      )}
+
+      {lightboxOpen && value && (
+        <div
+          onClick={() => setLightboxOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', cursor: 'zoom-out' }}
+        >
+          <img
+            src={value}
+            alt="Primary photo"
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px' }}
+          />
+        </div>
+      )}
+
+      <div className="flex gap-2" style={{ marginTop: '8px' }}>
+        <label htmlFor="hero-primary-photo" className="flex-1 text-center bg-gray-100 border rounded px-3 py-2 text-sm cursor-pointer">
+          {uploading ? 'Uploading...' : value ? '📷 Replace Primary Photo' : '📷 Add Primary Photo'}
+        </label>
+        <input
+          id="hero-primary-photo"
+          type="file"
+          accept="image/*"
+          onChange={handleFile}
+          className="hidden"
+          disabled={uploading}
+        />
+        {value && (
+          <button type="button" onClick={() => onChange('')} className="text-red-500 text-sm px-2">✕</button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SpeciesAutocomplete({ value, onChange }: { value: number | null, onChange: (spNo: number | null, name: string) => void }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<any[]>([])
@@ -644,6 +734,8 @@ updateData.in_collection = true
         </button>
       </div>
 
+      <HeroPhotoField value={tree.image_url || ''} onChange={v => set('image_url', v)} />
+
       {/* Identity header - always visible */}
       <div className="mb-4">
         <h1 className="w-full text-2xl font-bold border-b pb-2 mb-2">
@@ -768,7 +860,6 @@ updateData.in_collection = true
         </Section>
 
         <Section title="Media & Notes">
-          <PhotoField label="Primary Photo" value={tree.image_url || ''} onChange={v => set('image_url', v)} />
           <PhotoField label="Photo 2" value={tree.photo_1 || ''} onChange={v => set('photo_1', v)} />
           <PhotoField label="Photo 3" value={tree.photo_2 || ''} onChange={v => set('photo_2', v)} />
           <PhotoField label="Photo 4" value={tree.photo_3 || ''} onChange={v => set('photo_3', v)} />
