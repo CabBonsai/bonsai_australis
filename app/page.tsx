@@ -112,6 +112,9 @@ export default function Home() {
           <Link href="/collection" style={{ fontSize: '13px', background: '#2563eb', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             My Collection
           </Link>
+          <Link href="/bulk-edit" style={{ fontSize: '13px', background: '#7c3aed', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Bulk Edit
+          </Link>
           <button
             onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login' }}
             style={{ fontSize: '13px', background: '#e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
