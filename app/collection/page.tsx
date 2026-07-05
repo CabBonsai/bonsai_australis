@@ -123,7 +123,7 @@ export default function CollectionPage() {
   }
 
   return (
-    <main style={{ maxWidth: '680px', margin: '0 auto', padding: '16px' }}>
+    <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px' }}>
 
       {/* Add Species Modal */}
       {showAddModal && (
@@ -239,10 +239,11 @@ export default function CollectionPage() {
 
       {loading && <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px' }}>Loading...</p>}
 
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '10px' }}>
       {!loading && filtered.map(t => {
         const overdue = isOverdue(t.next_repot_due) || isOverdue(t.next_fertilise_due) || isOverdue(t.due_prune_date) || isOverdue(t.date_check_wire)
         return (
-          <a key={t.collection_id} href={`/collection/${t.collection_id}`} style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '10px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+          <a key={t.collection_id} href={`/collection/${t.collection_id}`} style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'stretch' }}>
               {t.image_url ? (
                 <img src={t.image_url} alt={t.display_name} style={{ width: '90px', height: '90px', objectFit: 'cover', flexShrink: 0 }} />
@@ -266,9 +267,10 @@ export default function CollectionPage() {
                 </div>
               </div>
             </div>
-          </a>
+         </a>
         )
       })}
+      </div>
     </main>
   )
 }

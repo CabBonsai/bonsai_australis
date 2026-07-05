@@ -721,7 +721,7 @@ updateData.in_collection = true
   }
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-6 pb-28">
+   <main className="mx-auto px-4 py-6 pb-28" style={{ maxWidth: 'clamp(400px, 90vw, 960px)' }}>
       <div className="flex justify-between items-center mb-4">
         <a href="/collection" className="text-sm text-blue-600">&larr; Back to Collection</a>
         <button
