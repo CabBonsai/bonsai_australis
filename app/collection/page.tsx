@@ -123,7 +123,7 @@ export default function CollectionPage() {
   }
 
   return (
-    <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px' }}>
+    <main style={{ maxWidth: '1100px', width: '100%', margin: '0 auto', padding: '16px', boxSizing: 'border-box' }}>
 
       {/* Add Species Modal */}
       {showAddModal && (
