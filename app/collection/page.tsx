@@ -52,8 +52,7 @@ export default function CollectionPage() {
     const { data } = await supabase
       .from('collection')
       .select('*')
-      .eq('in_collection', true).order('tree_number', { ascending: true })
-
+     .eq('in_collection', true).order('tree_number', { ascending: false })
     const rows = data || []
     const spNos = [...new Set(rows.map((t: any) => t.sp_no).filter(Boolean))]
     const variantSpNos = [...new Set(rows.map((t: any) => t.variant_sp_no).filter(Boolean))]
