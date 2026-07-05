@@ -17,6 +17,12 @@ function VariantField({ label, value, onChange, type = 'text' }: {
   )
 }
 
+function formatVal(v: any): string {
+  if (v === null || v === undefined || v === '') return '— not set —'
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No'
+  return String(v)
+}
+
 function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
   variant: any
   scoring: any
@@ -30,6 +36,7 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
   const [expanded, setExpanded] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [generatingReport, setGeneratingReport] = useState<string | null>(null)
 
   function updateV(field: string, value: any) { setV({ ...v, [field]: value }) }
   function updateS(field: string, value: any) { setS({ ...s, [field]: value }) }
@@ -102,6 +109,172 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
     onDelete(v.sp_no)
   }
 
+  async function generatePDF(reportType: 'basic' | 'advanced') {
+    setGeneratingReport(reportType)
+    try {
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const margin = 40
+      let y = 40
+
+      let logoDataUrl: string | null = null
+      try {
+        const res = await fetch('/logo.png')
+        const blob = await res.blob()
+        logoDataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+      } catch (e) { console.warn('Logo failed to load', e) }
+
+      const reportLabel = reportType === 'basic' ? 'Variant Report' : 'Advanced Variant Report'
+
+      if (logoDataUrl) {
+        const logoSize = 60
+        doc.addImage(logoDataUrl, 'PNG', margin, y, logoSize, logoSize)
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Bonsai Australis', margin + logoSize + 15, y + 28)
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'normal')
+        doc.text(reportLabel, margin + logoSize + 15, y + 46)
+        y += logoSize + 25
+      } else {
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.text(`Bonsai Australis — ${reportLabel}`, margin, y + 10)
+        y += 35
+      }
+
+      doc.setDrawColor(180)
+      doc.line(margin, y, pageWidth - margin, y)
+      y += 20
+
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.text(v.variant_name || 'Unnamed Variant', margin, y)
+      y += 18
+
+      if (v.common_name && v.common_name !== 'Unknown') {
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'italic')
+        doc.text(v.common_name, margin, y)
+        y += 16
+      }
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`sp_no: ${v.sp_no}  |  Parent sp_no: ${v.parent_sp_no}`, margin, y)
+      y += 18
+
+      function checkPageBreak(needed: number) {
+        if (y + needed > doc.internal.pageSize.getHeight() - 40) { doc.addPage(); y = 40 }
+      }
+
+      function addSection(title: string, fields: [string, any][]) {
+        checkPageBreak(30)
+        doc.setFontSize(13)
+        doc.setFont('helvetica', 'bold')
+        doc.setFillColor(245, 245, 245)
+        doc.rect(margin, y - 12, pageWidth - margin * 2, 18, 'F')
+        doc.text(title, margin + 5, y)
+        y += 20
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        fields.forEach(([label, value]) => {
+          const formatted = formatVal(value)
+          const isEmpty = formatted === '— not set —'
+          const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 170)
+          checkPageBreak(14 * lines.length + 4)
+          doc.setTextColor(60, 60, 60)
+          doc.text(`${label}:`, margin + 5, y)
+          doc.setTextColor(isEmpty ? 180 : 20, isEmpty ? 180 : 20, isEmpty ? 180 : 20)
+          doc.text(lines, margin + 170, y)
+          y += 14 * lines.length
+        })
+        doc.setTextColor(0, 0, 0)
+        y += 8
+      }
+
+      addSection('Variant Info', [
+        ['Botanical Rank', v.botanical_rank],
+        ['Variant Type', v.variant_type],
+        ['Is Hybrid', v.is_hybrid],
+        ['Hybrid Parent 1', v.hybrid_parent_1],
+        ['Hybrid Parent 2', v.hybrid_parent_2],
+        ['Species Origin', v.species_origin],
+        ['Natural Habitat', v.natural_habitat],
+        ['Notes', v.notes],
+      ])
+
+      addSection('Scoring', [
+        ['Rating', v.rating],
+        ['Base Score', s.base_score],
+        ['Final Score', s.final_score],
+        ['Class', s.class],
+      ])
+
+      if (reportType === 'basic') {
+        addSection('Care Overrides', [
+          ['Watering Times', o.override_watering_times],
+          ['Winter Protection', o.override_winter_protection],
+          ['Detailed Overview', o.override_detailed_general_overview],
+        ])
+      } else {
+        addSection('Scoring Breakdown', [
+          ['\u0394 Vigor', s.delta_vigor],
+          ['\u0394 Back Budding', s.delta_back_budding],
+          ['\u0394 Ramification', s.delta_ramification],
+          ['\u0394 Leaf', s.delta_leaf],
+          ['\u0394 Root', s.delta_root],
+          ['Refine', s.refine],
+        ])
+
+        addSection('Care Overrides (Full)', [
+          ['Repotting Cycles', o.override_repotting_cycles],
+          ['Soil Preferences', o.override_soil_preferences],
+          ['Fertilisation Patterns', o.override_fertilisation_patterns],
+          ['Watering Times', o.override_watering_times],
+          ['Watering Notes', o.override_watering_notes],
+          ['Winter Protection', o.override_winter_protection],
+          ['Important Species Info', o.override_important_species_info],
+          ['Detailed Overview', o.override_detailed_general_overview],
+        ])
+
+        const { data: effectiveCare } = await supabase
+          .from('variant_effective_care')
+          .select('effective_watering, effective_soil_mix, effective_repotting, effective_fertilising, effective_winter_care, effective_species_notes')
+          .eq('sp_no', v.sp_no)
+          .single()
+
+        if (effectiveCare) {
+          addSection('Effective Care (Merged with Parent Species)', [
+            ['Watering', effectiveCare.effective_watering],
+            ['Soil Mix', effectiveCare.effective_soil_mix],
+            ['Repotting', effectiveCare.effective_repotting],
+            ['Fertilising', effectiveCare.effective_fertilising],
+            ['Winter Care', effectiveCare.effective_winter_care],
+            ['Species Notes', effectiveCare.effective_species_notes],
+          ])
+        }
+
+        addSection('Species Notes', [
+          ['Species Notes', v.species_notes],
+        ])
+      }
+
+      const fileName = (v.variant_name || 'variant').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
+      doc.save(`${fileName}_${reportType}_report.pdf`)
+    } catch (e: any) {
+      alert('Error generating report: ' + e.message)
+    } finally {
+      setGeneratingReport(null)
+    }
+  }
+
   return (
     <div className="border rounded-lg p-3 mb-2 bg-gray-50">
       <div className="flex justify-between items-start mb-2">
@@ -115,6 +288,27 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
           <div className="flex-1"><VariantField label="Rating" value={v.rating} onChange={val => updateV('rating', val)} /></div>
           <div className="flex-1"><VariantField label="Type" value={v.variant_type} onChange={val => updateV('variant_type', val)} /></div>
         </div>
+      </div>
+
+      <div className="flex gap-2 mt-2">
+        <button
+          type="button"
+          onClick={() => generatePDF('basic')}
+          disabled={generatingReport !== null}
+          className="text-xs px-2 py-1 rounded disabled:opacity-50"
+          style={{ background: '#3f5228', color: '#fdfaf3', border: 'none', cursor: 'pointer' }}
+        >
+          {generatingReport === 'basic' ? 'Generating...' : '📄 Basic Report'}
+        </button>
+        <button
+          type="button"
+          onClick={() => generatePDF('advanced')}
+          disabled={generatingReport !== null}
+          className="text-xs px-2 py-1 rounded disabled:opacity-50"
+          style={{ background: '#7a9c42', color: '#1e2b12', border: 'none', cursor: 'pointer' }}
+        >
+          {generatingReport === 'advanced' ? 'Generating...' : '📄 Advanced Report'}
+        </button>
       </div>
 
       <button
