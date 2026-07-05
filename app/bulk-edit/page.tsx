@@ -17,23 +17,23 @@ const TABLES: Record<string, TableConfig> = {
   species: {
     label: 'Species',
     table: 'species',
-    columns: ['sp_no', 'species', 'pure_species', 'species_epithet', 'cultivar', 'species_genus', 'common_name', 'species_family', 'tree_type', 'australian_native', 'species_origin', 'species_notes', 'natural_habitat', 'image_url'],
+    columns: ['sp_no', 'species', 'pure_species', 'species_epithet', 'cultivar', 'species_genus', 'common_name', 'species_family', 'tree_type', 'australian_native', 'species_origin', 'species_notes', 'natural_habitat'],
     types: {
       sp_no: 'number', species: 'text', pure_species: 'bool', species_epithet: 'text',
       cultivar: 'text', species_genus: 'text', common_name: 'text', species_family: 'text',
       tree_type: 'text', australian_native: 'bool', species_origin: 'text',
-      species_notes: 'text', natural_habitat: 'text', image_url: 'text',
+      species_notes: 'text', natural_habitat: 'text',
     },
   },
   variants: {
     label: 'Variants',
     table: 'variants',
-    columns: ['sp_no', 'parent_sp_no', 'variant_name', 'common_name', 'rating', 'variant_type', 'botanical_rank', 'is_hybrid', 'hybrid_parent_1', 'hybrid_parent_2', 'notes', 'species_origin', 'natural_habitat', 'species_notes', 'image_url'],
+    columns: ['sp_no', 'parent_sp_no', 'variant_name', 'common_name', 'rating', 'variant_type', 'botanical_rank', 'is_hybrid', 'hybrid_parent_1', 'hybrid_parent_2', 'notes', 'species_origin', 'natural_habitat', 'species_notes'],
     types: {
       sp_no: 'number', parent_sp_no: 'number', variant_name: 'text', common_name: 'text',
       rating: 'text', variant_type: 'text', botanical_rank: 'text', is_hybrid: 'bool',
       hybrid_parent_1: 'text', hybrid_parent_2: 'text', notes: 'text',
-      species_origin: 'text', natural_habitat: 'text', species_notes: 'text', image_url: 'text',
+      species_origin: 'text', natural_habitat: 'text', species_notes: 'text',
     },
   },
 }
