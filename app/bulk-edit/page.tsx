@@ -14,6 +14,73 @@ interface TableConfig {
 }
 
 const TABLES: Record<string, TableConfig> = {
+  seasonal: {
+    label: 'Seasonal',
+    table: 'seasonal_maintenance',
+    columns: ['sp_no', 'spring_maintenance_guide', 'summer_maintenance_guide', 'autumn_maintenance_guide', 'winter_maintenance_guide', 'general_maintenance_notes', 'spring_care', 'summer_care', 'autumn_care', 'winter_care', 'research_status', 'data_source', 'research_notes'],
+    types: {
+      sp_no: 'number', spring_maintenance_guide: 'text', summer_maintenance_guide: 'text',
+      autumn_maintenance_guide: 'text', winter_maintenance_guide: 'text', general_maintenance_notes: 'text',
+      spring_care: 'text', summer_care: 'text', autumn_care: 'text', winter_care: 'text',
+      research_status: 'text', data_source: 'text', research_notes: 'text',
+    },
+  },
+  fertiliser: {
+    label: 'Fertiliser',
+    table: 'fertilisation',
+    columns: ['sp_no', 'p_tolerance', 'n_requirement', 'preferred_fertiliser_types', 'avoid_fertilisers', 'recommended_products', 'notes_schema', 'research_status', 'data_source', 'research_notes'],
+    types: {
+      sp_no: 'number', p_tolerance: 'text', n_requirement: 'text', preferred_fertiliser_types: 'text',
+      avoid_fertilisers: 'text', recommended_products: 'text', notes_schema: 'text',
+      research_status: 'text', data_source: 'text', research_notes: 'text',
+    },
+  },
+  pruning: {
+    label: 'Pruning',
+    table: 'pruning_protocols',
+    columns: ['sp_no', 'pruning_core_rules', 'structural_pruning_timing', 'structural_pruning_method', 'structural_pruning_limits', 'post_flowering_pruning_timing', 'post_flowering_pruning_method', 'maintenance_pruning_timing', 'maintenance_pruning_method', 'old_wood_management', 'seasonal_timing_seq', 'recommended_techniques', 'common_mistakes', 'apical_management_strategy', 'branch_selection_rules', 'light_penetration_strategy', 'refinement_method', 'notes', 'research_status', 'data_source', 'research_notes'],
+    types: {
+      sp_no: 'number', pruning_core_rules: 'text', structural_pruning_timing: 'text', structural_pruning_method: 'text',
+      structural_pruning_limits: 'text', post_flowering_pruning_timing: 'text', post_flowering_pruning_method: 'text',
+      maintenance_pruning_timing: 'text', maintenance_pruning_method: 'text', old_wood_management: 'text',
+      seasonal_timing_seq: 'text', recommended_techniques: 'text', common_mistakes: 'text',
+      apical_management_strategy: 'text', branch_selection_rules: 'text', light_penetration_strategy: 'text',
+      refinement_method: 'text', notes: 'text', research_status: 'text', data_source: 'text', research_notes: 'text',
+    },
+  },
+  nebari: {
+    label: 'Nebari',
+    table: 'nebari_root',
+    columns: ['sp_no', 'root_architecture_type', 'natural_nebari_form', 'root_depth_tendency', 'root_spread_behaviour', 'development_speed', 'years_to_initial_nebari', 'years_to_mature_nebari', 'climate_influence_seq', 'taproot_removal_tolerance', 'radial_root_pruning_response', 'root_reduction_tolerance', 'fine_root_production', 'root_rot_susceptibility', 'ground_layering_suitability', 'tourniquet_method_suitability', 'root_grafting_success_rate', 'nebari_fusion_potential', 'best_techniques_for_species', 'typical_nebari_faults', 'underlying_causes', 'corrective_strategies', 'preferred_pot_depth', 'preferred_pot_width', 'surface_substrate_preference', 'moisture_preference', 'heat_sensitivity_at_root_base', 'ultimate_nebari_quality_potential', 'expected_mature_nebari_form', 'maintenance_requirements', 'ageing_notes', 'notes_for_future_development', 'research_status', 'data_source', 'research_notes'],
+    types: {
+      sp_no: 'number', root_architecture_type: 'text', natural_nebari_form: 'text', root_depth_tendency: 'text',
+      root_spread_behaviour: 'text', development_speed: 'text', years_to_initial_nebari: 'text', years_to_mature_nebari: 'text',
+      climate_influence_seq: 'text', taproot_removal_tolerance: 'text', radial_root_pruning_response: 'text',
+      root_reduction_tolerance: 'text', fine_root_production: 'text', root_rot_susceptibility: 'text',
+      ground_layering_suitability: 'text', tourniquet_method_suitability: 'text', root_grafting_success_rate: 'text',
+      nebari_fusion_potential: 'text', best_techniques_for_species: 'text', typical_nebari_faults: 'text',
+      underlying_causes: 'text', corrective_strategies: 'text', preferred_pot_depth: 'text', preferred_pot_width: 'text',
+      surface_substrate_preference: 'text', moisture_preference: 'text', heat_sensitivity_at_root_base: 'text',
+      ultimate_nebari_quality_potential: 'text', expected_mature_nebari_form: 'text', maintenance_requirements: 'text',
+      ageing_notes: 'text', notes_for_future_development: 'text', research_status: 'text', data_source: 'text', research_notes: 'text',
+    },
+  },
+  regional: {
+    label: 'Regional',
+    table: 'regional_suitability',
+    columns: ['sp_no', 'tropical_suitability', 'tropical_notes', 'tropical_risk', 'tropical_training_adjustments', 'tropical_soil_modifier', 'tropical_watering_modifier', 'subtropical_suitability', 'subtropical_notes', 'subtropical_risk', 'subtropical_training_adjustments', 'subtropical_soil_modifier', 'subtropical_watering_modifier', 'temperate_suitability', 'temperate_notes', 'temperate_risk', 'temperate_training_adjustments', 'temperate_soil_modifier', 'temperate_watering_modifier', 'cold_suitability', 'cold_notes', 'cold_risk', 'cold_training_adjustments', 'cold_soil_modifier', 'cold_watering_modifier', 'availability_australia', 'availability_notes', 'nursery_availability'],
+    types: {
+      sp_no: 'number', tropical_suitability: 'text', tropical_notes: 'text', tropical_risk: 'text',
+      tropical_training_adjustments: 'text', tropical_soil_modifier: 'text', tropical_watering_modifier: 'text',
+      subtropical_suitability: 'text', subtropical_notes: 'text', subtropical_risk: 'text',
+      subtropical_training_adjustments: 'text', subtropical_soil_modifier: 'text', subtropical_watering_modifier: 'text',
+      temperate_suitability: 'text', temperate_notes: 'text', temperate_risk: 'text',
+      temperate_training_adjustments: 'text', temperate_soil_modifier: 'text', temperate_watering_modifier: 'text',
+      cold_suitability: 'text', cold_notes: 'text', cold_risk: 'text', cold_training_adjustments: 'text',
+      cold_soil_modifier: 'text', cold_watering_modifier: 'text', availability_australia: 'text',
+      availability_notes: 'text', nursery_availability: 'text',
+    },
+  },
   species: {
     label: 'Species',
     table: 'species',
