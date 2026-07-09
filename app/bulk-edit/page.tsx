@@ -94,6 +94,17 @@ const TABLES: Record<string, TableConfig> = {
       research_notes: 'text', needs_verification: 'bool',
     },
   },
+scoring: {
+    label: 'Scoring',
+    table: 'bonsai_scoring',
+    columns: ['sp_no', 'variant_name', 'cultivar', 'species_ref', 'base_score', 'delta_vigor', 'delta_back_budding', 'delta_ramification', 'delta_leaf', 'delta_root', 'refine', 'final_score', 'class', 'research_notes'],
+    types: {
+      sp_no: 'number', variant_name: 'text', cultivar: 'text', species_ref: 'text',
+      base_score: 'number', delta_vigor: 'number', delta_back_budding: 'number',
+      delta_ramification: 'number', delta_leaf: 'number', delta_root: 'number',
+      refine: 'number', final_score: 'number', class: 'text', research_notes: 'text',
+    },
+  },
   species: {
     label: 'Species',
     table: 'species',
