@@ -82,7 +82,7 @@ const TABLES: Record<string, TableConfig> = {
     },
   },
   suitability: {
-    label: 'Suitability',
+    label: 'Species Scoring',
     table: 'bonsai_suitability',
     columns: ['sp_no', 'bonsai_suitability', 'difficulty', 'recommended_bonsai_styles', 'vigor', 'vigor_notes', 'back_budding_ability', 'back_budding_notes', 'ramification_potential', 'ramification_notes', 'leaf_reduction_potential', 'leaf_reduction_notes', 'root_tolerance_score', 'root_tolerance_notes', 'final_bonsai_score', 'bonsai_tier', 'research_status', 'data_source', 'research_notes', 'needs_verification'],
     types: {
@@ -95,7 +95,7 @@ const TABLES: Record<string, TableConfig> = {
     },
   },
 scoring: {
-    label: 'Scoring',
+    label: 'Variant Scoring',
     table: 'bonsai_scoring',
     columns: ['sp_no', 'variant_name', 'cultivar', 'species_ref', 'base_score', 'delta_vigor', 'delta_back_budding', 'delta_ramification', 'delta_leaf', 'delta_root', 'refine', 'final_score', 'class', 'research_notes'],
     types: {
