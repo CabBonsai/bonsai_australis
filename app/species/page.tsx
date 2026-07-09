@@ -24,7 +24,7 @@ export default function SpeciesList() {
       .order('species', { ascending: true })
       .limit(50)
     if (term.trim()) {
-      query = query.or(`species.ilike.%${term}%,common_name.ilike.%${term}%,species_genus.ilike.%${term}%`)
+      query = query.or(`species.ilike.%${term}%,common_name.ilike.%${term}%,species_genus.ilike.%${term}%,sp_no::text.ilike.%${term}%`)
     }
     const { data, error } = await query
     if (error) {
@@ -63,7 +63,7 @@ export default function SpeciesList() {
 
       <input
         type="text"
-        placeholder="Search species, common name, or genus..."
+        placeholder="Search species, common name, genus, or sp_no..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: '8px', padding: '10px 14px', fontSize: '15px', marginBottom: '16px', boxSizing: 'border-box' }}
