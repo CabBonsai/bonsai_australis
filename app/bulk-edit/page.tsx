@@ -81,6 +81,19 @@ const TABLES: Record<string, TableConfig> = {
       availability_notes: 'text', nursery_availability: 'text',
     },
   },
+  suitability: {
+    label: 'Suitability',
+    table: 'bonsai_suitability',
+    columns: ['sp_no', 'bonsai_suitability', 'difficulty', 'recommended_bonsai_styles', 'vigor', 'vigor_notes', 'back_budding_ability', 'back_budding_notes', 'ramification_potential', 'ramification_notes', 'leaf_reduction_potential', 'leaf_reduction_notes', 'root_tolerance_score', 'root_tolerance_notes', 'final_bonsai_score', 'bonsai_tier', 'research_status', 'data_source', 'research_notes', 'needs_verification'],
+    types: {
+      sp_no: 'number', bonsai_suitability: 'text', difficulty: 'text', recommended_bonsai_styles: 'text',
+      vigor: 'number', vigor_notes: 'text', back_budding_ability: 'number', back_budding_notes: 'text',
+      ramification_potential: 'number', ramification_notes: 'text', leaf_reduction_potential: 'number',
+      leaf_reduction_notes: 'text', root_tolerance_score: 'number', root_tolerance_notes: 'text',
+      final_bonsai_score: 'number', bonsai_tier: 'text', research_status: 'text', data_source: 'text',
+      research_notes: 'text', needs_verification: 'bool',
+    },
+  },
   species: {
     label: 'Species',
     table: 'species',
