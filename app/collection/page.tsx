@@ -19,7 +19,6 @@ export default function CollectionPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [filterGenus, setFilterGenus] = useState('')
   const [filterOrigin, setFilterOrigin] = useState<'all' | 'native' | 'exotic'>('all')
-  // Frost protection filter is stubbed — not wired to real data yet.
   const [filterFrost, setFilterFrost] = useState<'all' | 'required'>('all')
 
   useEffect(() => { fetchTrees() }, [])
@@ -86,8 +85,6 @@ export default function CollectionPage() {
         variantMap[v.sp_no] = v
       })
 
-      // Variants don't carry their own genus/origin — pull it from the parent species
-      // for any parent not already fetched above.
       const parentSpNos = [...new Set(
         Object.values(variantMap).map((v: any) => v.parent_sp_no).filter(Boolean)
       )]
@@ -101,10 +98,31 @@ export default function CollectionPage() {
       }
     }
 
+    // Collect the "reference" sp_no (species itself, or the variant's parent) for every tree,
+    // so we can pull frost data from regional_suitability in one batched query.
+    const referenceSpNos = [...new Set(
+      rows.map((t: any) => {
+        if (t.variant_sp_no && variantMap[t.variant_sp_no]) {
+          return variantMap[t.variant_sp_no].parent_sp_no
+        }
+        return t.sp_no
+      }).filter(Boolean)
+    )]
+
+    let regionalMap: Record<number, any> = {}
+    if (referenceSpNos.length > 0) {
+      const { data: regionalData } = await supabase
+        .from('regional_suitability')
+        .select('sp_no, cold_risk, cold_suitability')
+        .in('sp_no', referenceSpNos)
+      ;(regionalData || []).forEach((r: any) => { regionalMap[r.sp_no] = r })
+    }
+
     setTrees(rows.map((t: any) => {
       let speciesLabel = ''
       let genus = ''
       let origin = ''
+      let referenceSpNo: number | null = null
 
       if (t.variant_sp_no && variantMap[t.variant_sp_no]) {
         const v = variantMap[t.variant_sp_no]
@@ -112,14 +130,19 @@ export default function CollectionPage() {
         const parent = v.parent_sp_no ? speciesMap[v.parent_sp_no] : null
         genus = parent?.species_genus || ''
         origin = parent?.species_origin || ''
+        referenceSpNo = v.parent_sp_no || null
       } else if (t.sp_no && speciesMap[t.sp_no]) {
         const s = speciesMap[t.sp_no]
         speciesLabel = s.species + (s.common_name && s.common_name !== 'Unknown' ? ' \u2014 ' + s.common_name : '')
         genus = s.species_genus || ''
         origin = s.species_origin || ''
+        referenceSpNo = t.sp_no
       }
 
-      return { ...t, speciesLabel, genus, origin }
+      const regional = referenceSpNo ? regionalMap[referenceSpNo] : null
+      const frostProtectionRequired = !!(regional?.cold_risk || '').includes('Requires frost protection')
+
+      return { ...t, speciesLabel, genus, origin, frostProtectionRequired }
     }))
     setLoading(false)
   }
@@ -143,7 +166,6 @@ export default function CollectionPage() {
     return new Date(dateStr) < new Date()
   }
 
-  // Genus list built dynamically from the trees actually in the collection
   const genusOptions = useMemo(() => {
     const set = new Set<string>()
     trees.forEach(t => { if (t.genus) set.add(t.genus) })
@@ -167,8 +189,7 @@ export default function CollectionPage() {
       (filterOrigin === 'native' && isNative(t.origin)) ||
       (filterOrigin === 'exotic' && !isNative(t.origin))
 
-    // Frost filter not wired to real data yet — passes everything through for now.
-    const matchesFrost = filterFrost === 'all' || true
+    const matchesFrost = filterFrost === 'all' || (filterFrost === 'required' && t.frostProtectionRequired)
 
     return matchesSearch && matchesGenus && matchesOrigin && matchesFrost
   })
@@ -350,18 +371,17 @@ export default function CollectionPage() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#6b7280', marginBottom: '6px' }}>
-              Frost Protection <span style={{ fontWeight: '400', color: '#9ca3af' }}>(pending data hookup)</span>
-            </label>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#6b7280', marginBottom: '6px' }}>Frost Protection</label>
             <div style={{ display: 'flex', gap: '6px' }}>
               {(['all', 'required'] as const).map(opt => (
                 <button
                   key={opt}
-                  disabled
                   onClick={() => setFilterFrost(opt)}
                   style={{
-                    border: '1px solid #e2e8f0', background: '#f1f5f9', color: '#9ca3af',
-                    borderRadius: '6px', padding: '6px 12px', fontSize: '13px', cursor: 'not-allowed', textTransform: 'capitalize'
+                    border: '1px solid ' + (filterFrost === opt ? '#16a34a' : '#e2e8f0'),
+                    background: filterFrost === opt ? '#16a34a' : '#fff',
+                    color: filterFrost === opt ? '#fff' : '#374151',
+                    borderRadius: '6px', padding: '6px 12px', fontSize: '13px', cursor: 'pointer', textTransform: 'capitalize'
                   }}
                 >
                   {opt === 'all' ? 'All' : 'Required'}
@@ -409,6 +429,7 @@ export default function CollectionPage() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
                   {t.status && <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: (statusColor[t.status] || '#6b7280') + '22', color: statusColor[t.status] || '#6b7280' }}>{t.status}</span>}
                   {t.health_status && <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: (healthColor[t.health_status] || '#6b7280') + '22', color: healthColor[t.health_status] || '#6b7280' }}>{t.health_status}</span>}
+                  {t.frostProtectionRequired && <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: '#eff6ff', color: '#2563eb' }}>&#10052; Frost Protection</span>}
                   {t.is_favourite && <span style={{ fontSize: '12px' }}>&#10084;</span>}
                 </div>
               </div>
