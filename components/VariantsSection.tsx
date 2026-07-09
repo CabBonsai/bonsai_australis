@@ -334,6 +334,15 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
             <div className="flex-1"><VariantField label="Final score" value={s.final_score} onChange={val => updateS('final_score', val)} /></div>
           </div>
           <div className="flex gap-2">
+            <div className="flex-1"><VariantField label="Vigor delta" value={s.delta_vigor} onChange={val => updateS('delta_vigor', val)} /></div>
+            <div className="flex-1"><VariantField label="Back budding delta" value={s.delta_back_budding} onChange={val => updateS('delta_back_budding', val)} /></div>
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1"><VariantField label="Ramification delta" value={s.delta_ramification} onChange={val => updateS('delta_ramification', val)} /></div>
+            <div className="flex-1"><VariantField label="Leaf delta" value={s.delta_leaf} onChange={val => updateS('delta_leaf', val)} /></div>
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1"><VariantField label="Root delta" value={s.delta_root} onChange={val => updateS('delta_root', val)} /></div>
             <div className="flex-1"><VariantField label="Refine" value={s.refine} onChange={val => updateS('refine', val)} /></div>
           </div>
           <VariantField label="Class" value={s.class} onChange={val => updateS('class', val)} />
