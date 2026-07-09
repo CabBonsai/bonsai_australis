@@ -18,19 +18,35 @@ export default function SpeciesList() {
 
   async function fetchSpecies(term: string) {
     setLoading(true)
-    let query = supabase
-      .from('species')
-      .select('sp_no, species, common_name, species_family, australian_native, research_status, reference_photo')
-      .order('species', { ascending: true })
-      .limit(50)
-    if (term.trim()) {
-      query = query.or(`species.ilike.%${term}%,common_name.ilike.%${term}%,species_genus.ilike.%${term}%,sp_no::text.ilike.%${term}%`)
+    const trimmed = term.trim()
+    const cols = 'sp_no, species, common_name, species_family, australian_native, research_status, reference_photo'
+
+    // PostgREST's or() combinator can't parse a ::text cast inside a nested logic tree
+    // (it works as a standalone filter, but not as one branch of an OR group), so a
+    // numeric search term needs its own exact-match query, merged with the text search.
+    const isNumeric = trimmed !== '' && /^\d+$/.test(trimmed)
+
+    let textQuery = supabase.from('species').select(cols).order('species', { ascending: true }).limit(50)
+    if (trimmed) {
+      textQuery = textQuery.or(`species.ilike.%${trimmed}%,common_name.ilike.%${trimmed}%,species_genus.ilike.%${trimmed}%`)
     }
-    const { data, error } = await query
-    if (error) {
-      setError(error.message)
+
+    const [textRes, spNoRes] = await Promise.all([
+      textQuery,
+      isNumeric
+        ? supabase.from('species').select(cols).eq('sp_no', Number(trimmed)).limit(50)
+        : Promise.resolve({ data: [] as any[], error: null }),
+    ])
+
+    if (textRes.error) {
+      setError(textRes.error.message)
+    } else if (spNoRes.error) {
+      setError(spNoRes.error.message)
     } else {
-      setSpecies(data || [])
+      const merged = [...(spNoRes.data || []), ...(textRes.data || [])]
+      const seen = new Set<number>()
+      const deduped = merged.filter(s => (seen.has(s.sp_no) ? false : (seen.add(s.sp_no), true)))
+      setSpecies(deduped)
       setError(null)
     }
     setLoading(false)
