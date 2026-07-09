@@ -163,6 +163,8 @@ export default function SpeciesDetail() {
   const [seasonal, setSeasonal] = useState<any>(null)
   const [advanced, setAdvanced] = useState<any>(null)
   const [regional, setRegional] = useState<any>(null)
+  const [placement, setPlacement] = useState<any>(null)
+  const [toxicity, setToxicity] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -171,7 +173,7 @@ export default function SpeciesDetail() {
 
   useEffect(() => {
     async function fetchAll() {
-      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes, prevRes, nextRes] = await Promise.all([
+      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes, placeRes, toxRes, prevRes, nextRes] = await Promise.all([
         supabase.from('species').select('*').eq('sp_no', spNo).single(),
         supabase.from('bonsai_suitability').select('*').eq('sp_no', spNo).single(),
         supabase.from('care_guide').select('*').eq('sp_no', spNo).single(),
@@ -181,6 +183,8 @@ export default function SpeciesDetail() {
         supabase.from('seasonal_maintenance').select('*').eq('sp_no', spNo).single(),
         supabase.from('advanced_expert').select('*').eq('sp_no', spNo).single(),
         supabase.from('regional_suitability').select('*').eq('sp_no', spNo).single(),
+        supabase.from('placement_matrix').select('*').eq('sp_no', spNo).single(),
+        supabase.from('toxicity').select('*').eq('sp_no', spNo).single(),
         supabase.from('species').select('sp_no').lt('sp_no', spNo).order('sp_no', { ascending: false }).limit(1).single(),
         supabase.from('species').select('sp_no').gt('sp_no', spNo).order('sp_no', { ascending: true }).limit(1).single(),
       ])
@@ -194,6 +198,8 @@ export default function SpeciesDetail() {
       if (!seasRes.error) setSeasonal(seasRes.data)
       if (!advRes.error) setAdvanced(advRes.data)
       if (!regRes.error) setRegional(regRes.data)
+      if (!placeRes.error) setPlacement(placeRes.data)
+      if (!toxRes.error) setToxicity(toxRes.data)
       setPrevNext({ prev: prevRes.data?.sp_no ?? null, next: nextRes.data?.sp_no ?? null })
       setLoading(false)
     }
@@ -209,6 +215,8 @@ export default function SpeciesDetail() {
   function updateSeasonal(field: string, value: any) { setSeasonal({ ...seasonal, [field]: value }) }
   function updateAdvanced(field: string, value: any) { setAdvanced({ ...advanced, [field]: value }) }
   function updateRegional(field: string, value: any) { setRegional({ ...regional, [field]: value }) }
+  function updatePlacement(field: string, value: any) { setPlacement({ ...placement, [field]: value }) }
+  function updateToxicity(field: string, value: any) { setToxicity({ ...toxicity, [field]: value }) }
 
   async function handleSave() {
     setSaving(true)
@@ -404,6 +412,29 @@ export default function SpeciesDetail() {
       nursery_availability: regional.nursery_availability,
       wild_collection_status: regional.wild_collection_status,
     }).eq('sp_no', spNo))
+    if (placement) saves.push(supabase.from('placement_matrix').update({
+      species: placement.species,
+      exposure_full_sun: placement.exposure_full_sun,
+      exposure_morning_sun: placement.exposure_morning_sun,
+      exposure_dappled_shade: placement.exposure_dappled_shade,
+      exposure_full_shade: placement.exposure_full_shade,
+      exposure_variable_e: placement.exposure_variable_e,
+      exposure_variable_f: placement.exposure_variable_f,
+      seq_notes: placement.seq_notes,
+      national_notes: placement.national_notes,
+    }).eq('sp_no', spNo))
+    if (toxicity) saves.push(supabase.from('toxicity').update({
+      species: toxicity.species,
+      toxicity_level: toxicity.toxicity_level,
+      toxic_to_humans: toxicity.toxic_to_humans,
+      toxic_to_pets: toxicity.toxic_to_pets,
+      toxic_to_livestock: toxicity.toxic_to_livestock,
+      toxic_parts: toxicity.toxic_parts,
+      toxic_principle: toxicity.toxic_principle,
+      symptoms: toxicity.symptoms,
+      severity_notes: toxicity.severity_notes,
+      first_aid_notes: toxicity.first_aid_notes,
+    }).eq('sp_no', spNo))
     const results = await Promise.all(saves)
     const errors = results.filter((r: any) => r.error).map((r: any) => r.error.message)
     if (errors.length > 0) {
@@ -567,6 +598,17 @@ export default function SpeciesDetail() {
           ['Repotting Season', careGuide.repotting_season],
           ['Repotting Frequency (yrs)', careGuide.repotting_freq_yrs],
         ])
+        if (toxicity) addSection('Toxicity', [
+          ['Toxicity Level', toxicity.toxicity_level],
+          ['Toxic to Humans', toxicity.toxic_to_humans],
+          ['Toxic to Pets', toxicity.toxic_to_pets],
+          ['Toxic to Livestock', toxicity.toxic_to_livestock],
+          ['Toxic Parts', toxicity.toxic_parts],
+          ['Toxic Principle', toxicity.toxic_principle],
+          ['Symptoms', toxicity.symptoms],
+          ['Severity Notes', toxicity.severity_notes],
+          ['First Aid Notes', toxicity.first_aid_notes],
+        ])
       } else {
         if (fertilisation) addSection('Fertilisation', [
           ['P Tolerance', fertilisation.p_tolerance],
@@ -690,6 +732,16 @@ export default function SpeciesDetail() {
           ['Availability Notes', regional.availability_notes],
           ['Nursery Availability', regional.nursery_availability],
           ['Wild Collection Status', regional.wild_collection_status],
+        ])
+        if (placement) addSection('Placement Matrix', [
+          ['Full Sun', placement.exposure_full_sun],
+          ['Morning Sun', placement.exposure_morning_sun],
+          ['Dappled Shade', placement.exposure_dappled_shade],
+          ['Full Shade', placement.exposure_full_shade],
+          ['Variable E', placement.exposure_variable_e],
+          ['Variable F', placement.exposure_variable_f],
+          ['SEQ Notes', placement.seq_notes],
+          ['National Notes', placement.national_notes],
         ])
       }
 
@@ -963,6 +1015,42 @@ export default function SpeciesDetail() {
           <Field label="Availability notes" value={regional.availability_notes} onChange={v => updateRegional('availability_notes', v)} type="textarea" />
           <Field label="Nursery availability" value={regional.nursery_availability} onChange={v => updateRegional('nursery_availability', v)} />
           <Field label="Wild collection status" value={regional.wild_collection_status} onChange={v => updateRegional('wild_collection_status', v)} />
+        </Section>
+      )}
+      {placement && (
+        <Section title="Placement Matrix">
+          <Field label="Full sun" value={placement.exposure_full_sun} onChange={v => updatePlacement('exposure_full_sun', v)} />
+          <Field label="Morning sun" value={placement.exposure_morning_sun} onChange={v => updatePlacement('exposure_morning_sun', v)} />
+          <Field label="Dappled shade" value={placement.exposure_dappled_shade} onChange={v => updatePlacement('exposure_dappled_shade', v)} />
+          <Field label="Full shade" value={placement.exposure_full_shade} onChange={v => updatePlacement('exposure_full_shade', v)} />
+          <Field label="Variable E" value={placement.exposure_variable_e} onChange={v => updatePlacement('exposure_variable_e', v)} />
+          <Field label="Variable F" value={placement.exposure_variable_f} onChange={v => updatePlacement('exposure_variable_f', v)} />
+          <Field label="SEQ notes" value={placement.seq_notes} onChange={v => updatePlacement('seq_notes', v)} type="textarea" />
+          <Field label="National notes" value={placement.national_notes} onChange={v => updatePlacement('national_notes', v)} type="textarea" />
+        </Section>
+      )}
+      {toxicity && (
+        <Section title="Toxicity">
+          <Field label="Toxicity level" value={toxicity.toxicity_level} onChange={v => updateToxicity('toxicity_level', v)} />
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={toxicity.toxic_to_humans || false} onChange={e => updateToxicity('toxic_to_humans', e.target.checked)} className="w-4 h-4" />
+              Toxic to humans
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={toxicity.toxic_to_pets || false} onChange={e => updateToxicity('toxic_to_pets', e.target.checked)} className="w-4 h-4" />
+              Toxic to pets
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={toxicity.toxic_to_livestock || false} onChange={e => updateToxicity('toxic_to_livestock', e.target.checked)} className="w-4 h-4" />
+              Toxic to livestock
+            </label>
+          </div>
+          <Field label="Toxic parts" value={toxicity.toxic_parts} onChange={v => updateToxicity('toxic_parts', v)} type="textarea" />
+          <Field label="Toxic principle" value={toxicity.toxic_principle} onChange={v => updateToxicity('toxic_principle', v)} />
+          <Field label="Symptoms" value={toxicity.symptoms} onChange={v => updateToxicity('symptoms', v)} type="textarea" />
+          <Field label="Severity notes" value={toxicity.severity_notes} onChange={v => updateToxicity('severity_notes', v)} type="textarea" />
+          <Field label="First aid notes" value={toxicity.first_aid_notes} onChange={v => updateToxicity('first_aid_notes', v)} type="textarea" />
         </Section>
       )}
       <div className="mt-6 mb-10 flex justify-between items-center">
