@@ -220,8 +220,10 @@ toxicity: {
 
 function coerce(raw: string, type: FieldType): any {
   const trimmed = (raw ?? '').trim()
+  // '.' is the universal "leave blank / skip" placeholder used in TSV batches,
+  // so it must resolve to null the same way an empty cell does, for every column type.
+  if (trimmed === '' || trimmed === '.') return null
   if (type === 'number') {
-    if (trimmed === '') return null
     const n = Number(trimmed)
     return isNaN(n) ? null : n
   }
@@ -231,7 +233,7 @@ function coerce(raw: string, type: FieldType): any {
     if (upper === 'FALSE' || upper === '0') return false
     return null
   }
-  return trimmed === '' ? null : trimmed
+  return trimmed
 }
 
 function formatCell(v: any): string {
