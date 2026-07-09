@@ -153,6 +153,47 @@ advcare: {
       data_source: 'text', research_notes: 'text', reference_urls: 'text', needs_verification: 'bool',
     },
   },
+toxicity: {
+    label: 'Toxicity',
+    table: 'toxicity',
+    columns: ['sp_no', 'species', 'toxicity_level', 'toxic_to_humans', 'toxic_to_pets', 'toxic_to_livestock', 'toxic_parts', 'toxic_principle', 'symptoms', 'severity_notes', 'first_aid_notes', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification'],
+    types: {
+      sp_no: 'number', species: 'text', toxicity_level: 'text', toxic_to_humans: 'bool',
+      toxic_to_pets: 'bool', toxic_to_livestock: 'bool', toxic_parts: 'text', toxic_principle: 'text',
+      symptoms: 'text', severity_notes: 'text', first_aid_notes: 'text', research_status: 'text',
+      data_source: 'text', research_notes: 'text', reference_urls: 'text', needs_verification: 'bool',
+    },
+  },
+  placement: {
+    label: 'Placement',
+    table: 'placement_matrix',
+    columns: ['sp_no', 'species', 'exposure_full_sun', 'exposure_morning_sun', 'exposure_dappled_shade', 'exposure_full_shade', 'exposure_variable_e', 'exposure_variable_f', 'seq_notes', 'national_notes', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification'],
+    types: {
+      sp_no: 'number', species: 'text', exposure_full_sun: 'text', exposure_morning_sun: 'text',
+      exposure_dappled_shade: 'text', exposure_full_shade: 'text', exposure_variable_e: 'text',
+      exposure_variable_f: 'text', seq_notes: 'text', national_notes: 'text', research_status: 'text',
+      data_source: 'text', research_notes: 'text', reference_urls: 'text', needs_verification: 'bool',
+    },
+  },
+  varcare: {
+    label: 'Var Effective Care',
+    table: 'variant_effective_care',
+    columns: ['sp_no', 'variant_name', 'parent_sp_no', 'effective_watering', 'effective_soil_mix', 'effective_repotting', 'effective_fertilising', 'effective_winter_care', 'effective_species_notes'],
+    types: {
+      sp_no: 'number', variant_name: 'text', parent_sp_no: 'number', effective_watering: 'text',
+      effective_soil_mix: 'text', effective_repotting: 'text', effective_fertilising: 'text',
+      effective_winter_care: 'text', effective_species_notes: 'text',
+    },
+  },
+  varoverrides: {
+    label: 'Var Overrides',
+    table: 'variant_overrides',
+    columns: ['sp_no', 'variant_name', 'override_repotting_cycles', 'override_soil_preferences', 'override_fertilisation_patterns'],
+    types: {
+      sp_no: 'number', variant_name: 'text', override_repotting_cycles: 'text',
+      override_soil_preferences: 'text', override_fertilisation_patterns: 'text',
+    },
+  },
   species: {
     label: 'Species',
     table: 'species',
