@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export default function CollectionPage() {
@@ -14,6 +14,13 @@ export default function CollectionPage() {
   const [selectedSpecies, setSelectedSpecies] = useState<any>(null)
   const [adding, setAdding] = useState(false)
   const searchRef = useRef<any>(null)
+
+  // --- Filter state ---
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterGenus, setFilterGenus] = useState('')
+  const [filterOrigin, setFilterOrigin] = useState<'all' | 'native' | 'exotic'>('all')
+  // Frost protection filter is stubbed — not wired to real data yet.
+  const [filterFrost, setFilterFrost] = useState<'all' | 'required'>('all')
 
   useEffect(() => { fetchTrees() }, [])
 
@@ -57,33 +64,63 @@ export default function CollectionPage() {
     const rows = data || []
     const spNos = [...new Set(rows.map((t: any) => t.sp_no).filter(Boolean))]
     const variantSpNos = [...new Set(rows.map((t: any) => t.variant_sp_no).filter(Boolean))]
-    let speciesMap: Record<number, string> = {}
-    let variantMap: Record<number, string> = {}
+    let speciesMap: Record<number, any> = {}
+    let variantMap: Record<number, any> = {}
 
     if (spNos.length > 0) {
       const { data: spData } = await supabase
         .from('species')
-        .select('sp_no, species, common_name')
+        .select('sp_no, species, common_name, species_genus, species_origin')
         .in('sp_no', spNos)
       ;(spData || []).forEach((s: any) => {
-        speciesMap[s.sp_no] = s.species + (s.common_name && s.common_name !== 'Unknown' ? ' \u2014 ' + s.common_name : '')
+        speciesMap[s.sp_no] = s
       })
     }
 
     if (variantSpNos.length > 0) {
       const { data: varData } = await supabase
         .from('variants')
-        .select('sp_no, variant_name, common_name')
+        .select('sp_no, variant_name, common_name, parent_sp_no')
         .in('sp_no', variantSpNos)
       ;(varData || []).forEach((v: any) => {
-        variantMap[v.sp_no] = v.variant_name + (v.common_name && v.common_name !== 'Unknown' ? ' \u2014 ' + v.common_name : '')
+        variantMap[v.sp_no] = v
       })
+
+      // Variants don't carry their own genus/origin — pull it from the parent species
+      // for any parent not already fetched above.
+      const parentSpNos = [...new Set(
+        Object.values(variantMap).map((v: any) => v.parent_sp_no).filter(Boolean)
+      )]
+      const missingParents = parentSpNos.filter((id: any) => !speciesMap[id])
+      if (missingParents.length > 0) {
+        const { data: parentData } = await supabase
+          .from('species')
+          .select('sp_no, species, common_name, species_genus, species_origin')
+          .in('sp_no', missingParents)
+        ;(parentData || []).forEach((s: any) => { speciesMap[s.sp_no] = s })
+      }
     }
 
-    setTrees(rows.map((t: any) => ({
-      ...t,
-      speciesLabel: (t.variant_sp_no && variantMap[t.variant_sp_no]) || speciesMap[t.sp_no] || ''
-    })))
+    setTrees(rows.map((t: any) => {
+      let speciesLabel = ''
+      let genus = ''
+      let origin = ''
+
+      if (t.variant_sp_no && variantMap[t.variant_sp_no]) {
+        const v = variantMap[t.variant_sp_no]
+        speciesLabel = v.variant_name + (v.common_name && v.common_name !== 'Unknown' ? ' \u2014 ' + v.common_name : '')
+        const parent = v.parent_sp_no ? speciesMap[v.parent_sp_no] : null
+        genus = parent?.species_genus || ''
+        origin = parent?.species_origin || ''
+      } else if (t.sp_no && speciesMap[t.sp_no]) {
+        const s = speciesMap[t.sp_no]
+        speciesLabel = s.species + (s.common_name && s.common_name !== 'Unknown' ? ' \u2014 ' + s.common_name : '')
+        genus = s.species_genus || ''
+        origin = s.species_origin || ''
+      }
+
+      return { ...t, speciesLabel, genus, origin }
+    }))
     setLoading(false)
   }
 
@@ -106,12 +143,37 @@ export default function CollectionPage() {
     return new Date(dateStr) < new Date()
   }
 
-  const filtered = trees.filter(t =>
-    !search.trim() ||
-    (t.display_name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (t.tree_name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (t.species || '').toLowerCase().includes(search.toLowerCase())
-  )
+  // Genus list built dynamically from the trees actually in the collection
+  const genusOptions = useMemo(() => {
+    const set = new Set<string>()
+    trees.forEach(t => { if (t.genus) set.add(t.genus) })
+    return Array.from(set).sort()
+  }, [trees])
+
+  function isNative(origin: string) {
+    return (origin || '').toLowerCase().includes('australia')
+  }
+
+  const filtered = trees.filter(t => {
+    const matchesSearch = !search.trim() ||
+      (t.display_name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (t.tree_name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (t.species || '').toLowerCase().includes(search.toLowerCase())
+
+    const matchesGenus = !filterGenus || t.genus === filterGenus
+
+    const matchesOrigin =
+      filterOrigin === 'all' ||
+      (filterOrigin === 'native' && isNative(t.origin)) ||
+      (filterOrigin === 'exotic' && !isNative(t.origin))
+
+    // Frost filter not wired to real data yet — passes everything through for now.
+    const matchesFrost = filterFrost === 'all' || true
+
+    return matchesSearch && matchesGenus && matchesOrigin && matchesFrost
+  })
+
+  const activeFilterCount = (filterGenus ? 1 : 0) + (filterOrigin !== 'all' ? 1 : 0) + (filterFrost !== 'all' ? 1 : 0)
 
   const healthColor: Record<string, string> = {
     'Excellent': '#16a34a', 'Good': '#65a30d', 'Stressed': '#d97706',
@@ -228,13 +290,97 @@ export default function CollectionPage() {
         </button>
       </div>
 
-      <input
-        type="text"
-        placeholder="Search trees..."
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 16px', fontSize: '15px', marginBottom: '12px', boxSizing: 'border-box' }}
-      />
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        <input
+          type="text"
+          placeholder="Search trees..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 16px', fontSize: '15px', boxSizing: 'border-box' }}
+        />
+        <button
+          onClick={() => setShowFilters(v => !v)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            border: '1px solid ' + (activeFilterCount > 0 ? '#16a34a' : '#e2e8f0'),
+            background: activeFilterCount > 0 ? '#f0fdf4' : '#fff',
+            color: activeFilterCount > 0 ? '#16a34a' : '#374151',
+            borderRadius: '8px', padding: '0 16px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap'
+          }}
+        >
+          &#9881; Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+        </button>
+      </div>
+
+      {showFilters && (
+        <div style={{
+          background: '#f9fafb', border: '1px solid #e2e8f0', borderRadius: '10px',
+          padding: '16px', marginBottom: '12px', display: 'flex', flexWrap: 'wrap', gap: '20px'
+        }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#6b7280', marginBottom: '6px' }}>Genus</label>
+            <select
+              value={filterGenus}
+              onChange={e => setFilterGenus(e.target.value)}
+              style={{ border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', minWidth: '160px' }}
+            >
+              <option value="">All genera</option>
+              {genusOptions.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#6b7280', marginBottom: '6px' }}>Origin</label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {(['all', 'native', 'exotic'] as const).map(opt => (
+                <button
+                  key={opt}
+                  onClick={() => setFilterOrigin(opt)}
+                  style={{
+                    border: '1px solid ' + (filterOrigin === opt ? '#16a34a' : '#e2e8f0'),
+                    background: filterOrigin === opt ? '#16a34a' : '#fff',
+                    color: filterOrigin === opt ? '#fff' : '#374151',
+                    borderRadius: '6px', padding: '6px 12px', fontSize: '13px', cursor: 'pointer', textTransform: 'capitalize'
+                  }}
+                >
+                  {opt === 'all' ? 'All' : opt === 'native' ? 'AU Native' : 'Exotic'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#6b7280', marginBottom: '6px' }}>
+              Frost Protection <span style={{ fontWeight: '400', color: '#9ca3af' }}>(pending data hookup)</span>
+            </label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {(['all', 'required'] as const).map(opt => (
+                <button
+                  key={opt}
+                  disabled
+                  onClick={() => setFilterFrost(opt)}
+                  style={{
+                    border: '1px solid #e2e8f0', background: '#f1f5f9', color: '#9ca3af',
+                    borderRadius: '6px', padding: '6px 12px', fontSize: '13px', cursor: 'not-allowed', textTransform: 'capitalize'
+                  }}
+                >
+                  {opt === 'all' ? 'All' : 'Required'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => { setFilterGenus(''); setFilterOrigin('all'); setFilterFrost('all') }}
+              style={{ alignSelf: 'flex-end', background: 'none', border: 'none', color: '#dc2626', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
+
       <p style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '12px' }}>{filtered.length} tree{filtered.length !== 1 ? 's' : ''}</p>
 
       {loading && <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px' }}>Loading...</p>}
