@@ -31,6 +31,7 @@ function sanitizeForPDF(s: string): string {
     .replace(/→/g, '->')
     .replace(/←/g, '<-')
     .replace(/⇒/g, '=>')
+    .replace(/[\u2010\u2011\u2012\u2015]/g, '-')  // non-breaking/figure/horizontal-bar hyphens -> plain hyphen
     .replace(/[^\x20-\x7E\u00A0-\u00FF\u2018\u2019\u201C\u201D\u2013\u2014\u2022]/g, '') // keep ASCII + WinAnsi/Latin-1 range (covers °, ×, etc.) + common typographic extras
 }
 
