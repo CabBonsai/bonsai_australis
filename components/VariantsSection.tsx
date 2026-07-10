@@ -17,10 +17,27 @@ function VariantField({ label, value, onChange, type = 'text' }: {
   )
 }
 
+// jsPDF's built-in 'helvetica' font only supports WinAnsiEncoding (~Windows-1252,
+// which covers standard ASCII plus common extras like °, ×, em/en-dash, curly
+// quotes, and bullet). Characters outside that table - Greek letters (Δ),
+// arrows (→), and similar - have no glyph mapping and render as garbage, or
+// throw off splitTextToSize's width calculation for the rest of the line.
+// Convert known problem characters to a plain-text equivalent, and strip
+// anything else outside the WinAnsi-safe range as a last resort.
+function sanitizeForPDF(s: string): string {
+  return s
+    .replace(/Δ/g, 'Delta ')
+    .replace(/[ΩαβγθλμπσφωΣ]/g, '')        // strip other stray Greek letters if present
+    .replace(/→/g, '->')
+    .replace(/←/g, '<-')
+    .replace(/⇒/g, '=>')
+    .replace(/[^\x20-\x7E\u00A0-\u00FF\u2018\u2019\u201C\u201D\u2013\u2014\u2022]/g, '') // keep ASCII + WinAnsi/Latin-1 range (covers °, ×, etc.) + common typographic extras
+}
+
 function formatVal(v: any): string {
   if (v === null || v === undefined || v === '') return '— not set —'
   if (typeof v === 'boolean') return v ? 'Yes' : 'No'
-  return String(v)
+  return sanitizeForPDF(String(v))
 }
 
 function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
