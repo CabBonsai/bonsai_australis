@@ -422,10 +422,28 @@ function VariantCareInfo({ variantSpNo }: { variantSpNo: number | null | undefin
   )
 }
 
+// jsPDF's built-in 'helvetica' font only supports WinAnsiEncoding (~Windows-1252,
+// which covers standard ASCII plus common extras like °, ×, em/en-dash, curly
+// quotes, and bullet). Characters outside that table - Greek letters (Δ),
+// arrows (→), and similar - have no glyph mapping and render as garbage, or
+// throw off splitTextToSize's width calculation for the rest of the line.
+// Convert known problem characters to a plain-text equivalent, and strip
+// anything else outside the WinAnsi-safe range as a last resort.
+function sanitizeForPDF(s: string): string {
+  return s
+    .replace(/Δ/g, 'Delta ')
+    .replace(/[ΩαβγθλμπσφωΣ]/g, '')        // strip other stray Greek letters if present
+    .replace(/→/g, '->')
+    .replace(/←/g, '<-')
+    .replace(/⇒/g, '=>')
+    .replace(/[\u2010\u2011\u2012\u2015]/g, '-')  // non-breaking/figure/horizontal-bar hyphens -> plain hyphen
+    .replace(/[^\x20-\x7E\u00A0-\u00FF\u2018\u2019\u201C\u201D\u2013\u2014\u2022]/g, '') // keep ASCII + WinAnsi/Latin-1 range (covers °, ×, etc.) + common typographic extras
+}
+
 function formatVal(v: any): string {
   if (v === null || v === undefined || v === '') return '— not set —'
   if (typeof v === 'boolean') return v ? 'Yes' : 'No'
-  return String(v)
+  return sanitizeForPDF(String(v))
 }
 
 export default function CollectionDetailPage() {
@@ -616,7 +634,14 @@ updateData.in_collection = true
         fields.forEach(([label, value]) => {
           const formatted = formatVal(value)
           const isEmpty = formatted === '— not set —'
-          const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 160)
+          // Subtract an extra safety margin here: jsPDF calculates wrapping using its
+          // own internal assumed widths for the built-in 'helvetica' font, but doesn't
+          // embed that font in the file - actual rendering relies on whatever font each
+          // PDF viewer substitutes for it. On long lines, small per-character width
+          // differences between viewers can compound enough to push text past the edge
+          // even though jsPDF's own math said it would fit. Wrapping noticeably earlier
+          // leaves headroom so that drift doesn't reach the true page edge in practice.
+          const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 160 - 30)
           checkPageBreak(14 * lines.length + 4)
           doc.setTextColor(60, 60, 60)
           doc.text(`${label}:`, margin + 5, y)
