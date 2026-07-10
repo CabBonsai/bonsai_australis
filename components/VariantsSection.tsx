@@ -205,7 +205,14 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
         fields.forEach(([label, value]) => {
           const formatted = formatVal(value)
           const isEmpty = formatted === '— not set —'
-          const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 170)
+          // Subtract an extra safety margin here: jsPDF calculates wrapping using its
+          // own internal assumed widths for the built-in 'helvetica' font, but doesn't
+          // embed that font in the file - actual rendering relies on whatever font each
+          // PDF viewer substitutes for it. On long lines, small per-character width
+          // differences between viewers can compound enough to push text past the edge
+          // even though jsPDF's own math said it would fit. Wrapping noticeably earlier
+          // leaves headroom so that drift doesn't reach the true page edge in practice.
+          const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 170 - 30)
           checkPageBreak(14 * lines.length + 4)
           doc.setTextColor(60, 60, 60)
           doc.text(`${label}:`, margin + 5, y)
