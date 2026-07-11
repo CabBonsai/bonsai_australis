@@ -779,23 +779,38 @@ export default function SpeciesDetail() {
           ['Wild Collection Status', regional.wild_collection_status],
         ])
         if (placement) {
-          checkPageBreak(14)
-          doc.setFontSize(8)
-          doc.setFont('helvetica', 'italic')
-          doc.setTextColor(120, 120, 120)
-          doc.text('Each exposure category is rated: Ideal / Tolerable / Unsuitable for this species.', margin, y)
-          doc.setTextColor(0, 0, 0)
-          y += 14
           addSection('Placement Matrix', [
-            ['Full Sun', placement.exposure_full_sun],
-            ['Morning Sun', placement.exposure_morning_sun],
-            ['Dappled Shade', placement.exposure_dappled_shade],
-            ['Full Shade', placement.exposure_full_shade],
-            ['Variable E', placement.exposure_variable_e],
-            ['Variable F', placement.exposure_variable_f],
+            ['Full Sun (A)', placement.exposure_full_sun],
+            ['Morning Sun (B)', placement.exposure_morning_sun],
+            ['Dappled Shade (C)', placement.exposure_dappled_shade],
+            ['Full Sun, Windy (D)', placement.exposure_full_shade],
+            ['Variable, Cold Drainage (E)', placement.exposure_variable_e],
+            ['Variable, Sheltered (F)', placement.exposure_variable_f],
             ['SEQ Notes', placement.seq_notes],
             ['National Notes', placement.national_notes],
           ])
+          checkPageBreak(80)
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(100, 100, 100)
+          doc.text('Zone reference (each rated Ideal / Tolerable / Unsuitable above):', margin, y)
+          y += 12
+          doc.setFont('helvetica', 'normal')
+          const zoneDefs = [
+            ['A', 'Full sun, 8-10hrs — hot westerlies, turbulent gusts'],
+            ['B', 'Morning sun, 4-6hrs — gentle airflow, occasional gusts'],
+            ['C', 'Dappled shade, 2-4hrs — soft airflow, sheltered'],
+            ['D', 'Full sun, 6-8hrs — consistent strong airflow, wind tunnel'],
+            ['E', 'Variable, 3-5hrs — cold air drainage, stagnant air (frost pocket)'],
+            ['F', 'Variable, 2-6hrs — sheltered, minimal airflow'],
+          ]
+          zoneDefs.forEach(([letter, desc]) => {
+            checkPageBreak(11)
+            doc.text(`${letter}:  ${desc}`, margin + 5, y)
+            y += 11
+          })
+          doc.setTextColor(0, 0, 0)
+          y += 8
         }
       }
       const fileName = (species.species || 'species').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
