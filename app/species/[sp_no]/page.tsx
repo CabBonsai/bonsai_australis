@@ -525,6 +525,17 @@ export default function SpeciesDetail() {
       doc.text(`sp_no: ${spNo}`, margin, y)
       y += 18
 
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'italic')
+      doc.setTextColor(120, 120, 120)
+      const disclaimerLines = doc.splitTextToSize(
+        '\u00A9 Bonsai Australis. This information is provided for discussion and research purposes only and does not constitute professional horticultural, arboricultural, or bonsai advice. Always verify against multiple sources before acting.',
+        pageWidth - margin * 2
+      )
+      doc.text(disclaimerLines, margin, y)
+      y += 12 * disclaimerLines.length + 10
+      doc.setTextColor(0, 0, 0)
+
       function checkPageBreak(needed: number) {
         if (y + needed > doc.internal.pageSize.getHeight() - 40) { doc.addPage(); y = 40 }
       }
@@ -575,23 +586,32 @@ export default function SpeciesDetail() {
           ['Species Notes', species.species_notes],
           ['Quick Notes', species.research_notes],
         ])
-        if (suitability) addSection('Bonsai Suitability', [
-          ['Suitability', suitability.bonsai_suitability],
-          ['Difficulty', suitability.difficulty],
-          ['Recommended Styles', suitability.recommended_bonsai_styles],
-          ['Vigor', suitability.vigor],
-          ['Vigor Notes', suitability.vigor_notes],
-          ['Back Budding Ability', suitability.back_budding_ability],
-          ['Back Budding Notes', suitability.back_budding_notes],
-          ['Ramification Potential', suitability.ramification_potential],
-          ['Ramification Notes', suitability.ramification_notes],
-          ['Leaf Reduction Potential', suitability.leaf_reduction_potential],
-          ['Leaf Reduction Notes', suitability.leaf_reduction_notes],
-          ['Root Tolerance Score', suitability.root_tolerance_score],
-          ['Root Tolerance Notes', suitability.root_tolerance_notes],
-          ['Final Bonsai Score', suitability.final_bonsai_score],
-          ['Tier', suitability.bonsai_tier],
-        ])
+        if (suitability) {
+          addSection('Bonsai Suitability', [
+            ['Suitability', suitability.bonsai_suitability],
+            ['Difficulty', suitability.difficulty],
+            ['Recommended Styles', suitability.recommended_bonsai_styles],
+            ['Vigor', suitability.vigor],
+            ['Vigor Notes', suitability.vigor_notes],
+            ['Back Budding Ability', suitability.back_budding_ability],
+            ['Back Budding Notes', suitability.back_budding_notes],
+            ['Ramification Potential', suitability.ramification_potential],
+            ['Ramification Notes', suitability.ramification_notes],
+            ['Leaf Reduction Potential', suitability.leaf_reduction_potential],
+            ['Leaf Reduction Notes', suitability.leaf_reduction_notes],
+            ['Root Tolerance Score', suitability.root_tolerance_score],
+            ['Root Tolerance Notes', suitability.root_tolerance_notes],
+            ['Final Bonsai Score', suitability.final_bonsai_score],
+            ['Tier', suitability.bonsai_tier],
+          ])
+          checkPageBreak(14)
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'italic')
+          doc.setTextColor(120, 120, 120)
+          doc.text('Note: all suitability ratings are expressed on a scale of 1-100.', margin + 5, y)
+          doc.setTextColor(0, 0, 0)
+          y += 16
+        }
         if (careGuide) addSection('Care Guide', [
           ['Growth Season', careGuide.growth_season],
           ['Growth Season Notes', careGuide.growth_season_notes],
@@ -758,17 +778,25 @@ export default function SpeciesDetail() {
           ['Nursery Availability', regional.nursery_availability],
           ['Wild Collection Status', regional.wild_collection_status],
         ])
-        if (placement) addSection('Placement Matrix', [
-          ['Full Sun', placement.exposure_full_sun],
-          ['Morning Sun', placement.exposure_morning_sun],
-          ['Dappled Shade', placement.exposure_dappled_shade],
-          ['Full Shade', placement.exposure_full_shade],
-          ['Variable E', placement.exposure_variable_e],
-          ['Variable F', placement.exposure_variable_f],
-          ['SEQ Notes', placement.seq_notes],
-          ['National Notes', placement.national_notes],
-        ])
-      }
+        if (placement) {
+          checkPageBreak(14)
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'italic')
+          doc.setTextColor(120, 120, 120)
+          doc.text('Each exposure category is rated: Ideal / Tolerable / Unsuitable for this species.', margin, y)
+          doc.setTextColor(0, 0, 0)
+          y += 14
+          addSection('Placement Matrix', [
+            ['Full Sun', placement.exposure_full_sun],
+            ['Morning Sun', placement.exposure_morning_sun],
+            ['Dappled Shade', placement.exposure_dappled_shade],
+            ['Full Shade', placement.exposure_full_shade],
+            ['Variable E', placement.exposure_variable_e],
+            ['Variable F', placement.exposure_variable_f],
+            ['SEQ Notes', placement.seq_notes],
+            ['National Notes', placement.national_notes],
+          ])
+        }
 
       const fileName = (species.species || 'species').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
       doc.save(`${fileName}_${reportType}_report.pdf`)
