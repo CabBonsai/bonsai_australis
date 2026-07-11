@@ -797,7 +797,7 @@ export default function SpeciesDetail() {
             ['National Notes', placement.national_notes],
           ])
         }
-
+      }
       const fileName = (species.species || 'species').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
       doc.save(`${fileName}_${reportType}_report.pdf`)
     } catch (e: any) {
