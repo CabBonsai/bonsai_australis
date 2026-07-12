@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import JournalSection from '@/components/JournalSection'
 
 function Section({ title, defaultOpen, children }: { title: string, defaultOpen?: boolean, children: React.ReactNode }) {
   const [open, setOpen] = useState(!!defaultOpen)
@@ -157,10 +158,18 @@ function PhotoField({ label, value, onChange }: { label: string, value: string, 
           disabled={uploading}
         />
         {value && (
-          <button type="button" onClick={() => onChange('')} className="text-red-500 text-sm px-2">✕</button>
-        )}
+          <Section title="Journal">
+          <JournalSection collectionId={id} spNo={tree.sp_no} />
+        </Section>
+
+        <button
+          type="button"
+          onClick={handleDelete}
+          className="text-red-500 text-sm mt-2"
+        >
+          Delete this tree
+        </button>
       </div>
-    </div>
   )
 }
 
