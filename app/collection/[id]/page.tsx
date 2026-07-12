@@ -423,28 +423,10 @@ function VariantCareInfo({ variantSpNo }: { variantSpNo: number | null | undefin
   )
 }
 
-// jsPDF's built-in 'helvetica' font only supports WinAnsiEncoding (~Windows-1252,
-// which covers standard ASCII plus common extras like °, ×, em/en-dash, curly
-// quotes, and bullet). Characters outside that table - Greek letters (Δ),
-// arrows (→), and similar - have no glyph mapping and render as garbage, or
-// throw off splitTextToSize's width calculation for the rest of the line.
-// Convert known problem characters to a plain-text equivalent, and strip
-// anything else outside the WinAnsi-safe range as a last resort.
-function sanitizeForPDF(s: string): string {
-  return s
-    .replace(/Δ/g, 'Delta ')
-    .replace(/[ΩαβγθλμπσφωΣ]/g, '')        // strip other stray Greek letters if present
-    .replace(/→/g, '->')
-    .replace(/←/g, '<-')
-    .replace(/⇒/g, '=>')
-    .replace(/[\u2010\u2011\u2012\u2015]/g, '-')  // non-breaking/figure/horizontal-bar hyphens -> plain hyphen
-    .replace(/[^\x20-\x7E\u00A0-\u00FF\u2018\u2019\u201C\u201D\u2013\u2014\u2022]/g, '') // keep ASCII + WinAnsi/Latin-1 range (covers °, ×, etc.) + common typographic extras
-}
-
 function formatVal(v: any): string {
   if (v === null || v === undefined || v === '') return '— not set —'
   if (typeof v === 'boolean') return v ? 'Yes' : 'No'
-  return sanitizeForPDF(String(v))
+  return String(v)
 }
 
 export default function CollectionDetailPage() {
@@ -635,14 +617,7 @@ updateData.in_collection = true
         fields.forEach(([label, value]) => {
           const formatted = formatVal(value)
           const isEmpty = formatted === '— not set —'
-          // Subtract an extra safety margin here: jsPDF calculates wrapping using its
-          // own internal assumed widths for the built-in 'helvetica' font, but doesn't
-          // embed that font in the file - actual rendering relies on whatever font each
-          // PDF viewer substitutes for it. On long lines, small per-character width
-          // differences between viewers can compound enough to push text past the edge
-          // even though jsPDF's own math said it would fit. Wrapping noticeably earlier
-          // leaves headroom so that drift doesn't reach the true page edge in practice.
-          const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 160 - 30)
+          const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 160)
           checkPageBreak(14 * lines.length + 4)
           doc.setTextColor(60, 60, 60)
           doc.text(`${label}:`, margin + 5, y)
@@ -747,7 +722,7 @@ updateData.in_collection = true
   }
 
   return (
-   <main className="mx-auto px-4 py-6 pb-28" style={{ maxWidth: 'clamp(400px, 90vw, 960px)' }}>
+    <main className="mx-auto px-4 py-6 pb-28" style={{ maxWidth: 'clamp(400px, 90vw, 960px)' }}>
       <div className="flex justify-between items-center mb-4">
         <a href="/collection" className="text-sm text-blue-600">&larr; Back to Collection</a>
         <button
@@ -931,7 +906,7 @@ updateData.in_collection = true
           <Field label="Trunk Thickness (mm)"><input type="number" value={tree.trunk_thickness_mm || ''} onChange={e => set('trunk_thickness_mm', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
           <Field label="Canopy Width (mm)"><input type="number" value={tree.canopy_width_mm || ''} onChange={e => set('canopy_width_mm', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
           <Field label="Weight (kg)"><input type="number" value={tree.weight_kg || ''} onChange={e => set('weight_kg', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-     </Section>
+        </Section>
 
         <Section title="Journal">
           <JournalSection collectionId={id} spNo={tree.sp_no} />
