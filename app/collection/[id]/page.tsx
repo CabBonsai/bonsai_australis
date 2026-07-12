@@ -158,18 +158,10 @@ function PhotoField({ label, value, onChange }: { label: string, value: string, 
           disabled={uploading}
         />
         {value && (
-          <Section title="Journal">
-          <JournalSection collectionId={id} spNo={tree.sp_no} />
-        </Section>
-
-        <button
-          type="button"
-          onClick={handleDelete}
-          className="text-red-500 text-sm mt-2"
-        >
-          Delete this tree
-        </button>
+          <button type="button" onClick={() => onChange('')} className="text-red-500 text-sm px-2">✕</button>
+        )}
       </div>
+    </div>
   )
 }
 
@@ -939,6 +931,10 @@ updateData.in_collection = true
           <Field label="Trunk Thickness (mm)"><input type="number" value={tree.trunk_thickness_mm || ''} onChange={e => set('trunk_thickness_mm', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
           <Field label="Canopy Width (mm)"><input type="number" value={tree.canopy_width_mm || ''} onChange={e => set('canopy_width_mm', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
           <Field label="Weight (kg)"><input type="number" value={tree.weight_kg || ''} onChange={e => set('weight_kg', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
+     </Section>
+
+        <Section title="Journal">
+          <JournalSection collectionId={id} spNo={tree.sp_no} />
         </Section>
 
         <button
