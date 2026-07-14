@@ -6,8 +6,10 @@ import { supabase } from '@/lib/supabase'
 const inputClass = "w-full border rounded px-4 py-3 text-base min-h-[48px]"
 
 type Tree = {
-  id: number
+  collection_id: string
   sp_no: number | null
+  display_name: string | null
+  tree_name: string | null
   variation_or_cultivar: string | null
   image_url: string | null
   photo_1: string | null
@@ -26,25 +28,28 @@ type GalleryEntry = {
   photos: string[]
   sort_order: number
   is_published: boolean
-  source_collection_id: number | null
+  source_collection_id: string | null
 }
 
 export default function GalleryAdmin() {
   const [trees, setTrees] = useState<Tree[]>([])
   const [speciesMap, setSpeciesMap] = useState<Record<number, string>>({})
-  const [galleryByCollectionId, setGalleryByCollectionId] = useState<Record<number, GalleryEntry>>({})
+  const [galleryByCollectionId, setGalleryByCollectionId] = useState<Record<string, GalleryEntry>>({})
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
-  const [editingTreeId, setEditingTreeId] = useState<number | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [editingTreeId, setEditingTreeId] = useState<string | null>(null)
+
   useEffect(() => { fetchAll() }, [])
 
- async function fetchAll() {
+  async function fetchAll() {
     setLoading(true)
+    setFetchError(null)
+
     const { data: treeData, error: treeError } = await supabase
       .from('collection')
-      .select('id, sp_no, variation_or_cultivar, image_url, photo_1, photo_2, photo_3, inspiration_photo, location')
-      .order('id', { ascending: false })
+      .select('collection_id, sp_no, display_name, tree_name, variation_or_cultivar, image_url, photo_1, photo_2, photo_3, inspiration_photo, location')
+      .order('created_at', { ascending: false })
 
     if (treeError) {
       setFetchError(treeError.message)
@@ -64,7 +69,7 @@ export default function GalleryAdmin() {
     }
 
     const { data: galleryData } = await supabase.from('public_gallery').select('*')
-    const gMap: Record<number, GalleryEntry> = {}
+    const gMap: Record<string, GalleryEntry> = {}
     for (const g of galleryData || []) {
       if (g.source_collection_id) gMap[g.source_collection_id] = g
     }
@@ -73,24 +78,34 @@ export default function GalleryAdmin() {
     setLoading(false)
   }
 
+  function label(t: Tree) {
+    return t.display_name || t.tree_name || speciesMap[t.sp_no || -1] || 'Unnamed tree'
+  }
+
   const filtered = trees.filter(t => {
     if (!search.trim()) return true
     const name = speciesMap[t.sp_no || -1] || ''
     const q = search.toLowerCase()
-    return name.toLowerCase().includes(q) || (t.variation_or_cultivar || '').toLowerCase().includes(q)
+    return (
+      name.toLowerCase().includes(q) ||
+      (t.variation_or_cultivar || '').toLowerCase().includes(q) ||
+      (t.display_name || '').toLowerCase().includes(q) ||
+      (t.tree_name || '').toLowerCase().includes(q)
+    )
   })
 
   if (fetchError) return <main className="max-w-2xl mx-auto p-4"><p style={{ color: 'red' }}>Error: {fetchError}</p></main>
   if (loading) return <main className="max-w-2xl mx-auto p-4"><p>Loading...</p></main>
 
   if (editingTreeId !== null) {
-    const tree = trees.find(t => t.id === editingTreeId)
+    const tree = trees.find(t => t.collection_id === editingTreeId)
     if (!tree) return null
     return (
       <GalleryEditor
         tree={tree}
         speciesName={speciesMap[tree.sp_no || -1] || ''}
-        existing={galleryByCollectionId[tree.id] || null}
+        displayLabel={label(tree)}
+        existing={galleryByCollectionId[tree.collection_id] || null}
         onDone={() => { setEditingTreeId(null); fetchAll() }}
       />
     )
@@ -108,12 +123,12 @@ export default function GalleryAdmin() {
       />
       <div className="space-y-2">
         {filtered.map(tree => {
-          const published = galleryByCollectionId[tree.id]
+          const published = galleryByCollectionId[tree.collection_id]
           const thumb = tree.image_url || tree.photo_1 || tree.photo_2 || tree.photo_3 || tree.inspiration_photo
           return (
             <button
-              key={tree.id}
-              onClick={() => setEditingTreeId(tree.id)}
+              key={tree.collection_id}
+              onClick={() => setEditingTreeId(tree.collection_id)}
               className="w-full flex items-center gap-3 border rounded-lg p-3 text-left"
             >
               {thumb ? (
@@ -122,7 +137,8 @@ export default function GalleryAdmin() {
                 <div style={{ width: 56, height: 56, background: '#f1f5f9', borderRadius: 8 }} />
               )}
               <div className="flex-1">
-                <p className="font-medium text-sm">{speciesMap[tree.sp_no || -1] || 'Unknown species'}</p>
+                <p className="font-medium text-sm">{label(tree)}</p>
+                {speciesMap[tree.sp_no || -1] && <p className="text-xs text-gray-500">{speciesMap[tree.sp_no || -1]}</p>}
                 {tree.variation_or_cultivar && <p className="text-xs text-gray-500">{tree.variation_or_cultivar}</p>}
                 {tree.location && <p className="text-xs text-gray-400">{tree.location}</p>}
               </div>
@@ -134,17 +150,18 @@ export default function GalleryAdmin() {
             </button>
           )
         })}
+        {filtered.length === 0 && <p className="text-sm text-gray-400">No trees match.</p>}
       </div>
     </main>
   )
 }
 
-function GalleryEditor({ tree, speciesName, existing, onDone }: {
-  tree: Tree, speciesName: string, existing: GalleryEntry | null, onDone: () => void
+function GalleryEditor({ tree, speciesName, displayLabel, existing, onDone }: {
+  tree: Tree, speciesName: string, displayLabel: string, existing: GalleryEntry | null, onDone: () => void
 }) {
   const availablePhotos = [tree.image_url, tree.photo_1, tree.photo_2, tree.photo_3, tree.inspiration_photo].filter(Boolean) as string[]
 
-  const [title, setTitle] = useState(existing?.title || speciesName)
+  const [title, setTitle] = useState(existing?.title || displayLabel)
   const [caption, setCaption] = useState(existing?.caption || '')
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>(existing?.photos || availablePhotos)
   const [sortOrder, setSortOrder] = useState(existing?.sort_order ?? 0)
@@ -165,7 +182,7 @@ function GalleryEditor({ tree, speciesName, existing, onDone }: {
       photos: selectedPhotos,
       sort_order: sortOrder,
       is_published: isPublished,
-      source_collection_id: tree.id,
+      source_collection_id: tree.collection_id,
       updated_at: new Date().toISOString(),
     }
     if (existing) {
@@ -187,7 +204,7 @@ function GalleryEditor({ tree, speciesName, existing, onDone }: {
   return (
     <main className="max-w-2xl mx-auto p-4">
       <button onClick={onDone} className="text-sm text-gray-500 mb-4">&larr; Back to list</button>
-      <h1 className="text-xl font-semibold mb-4">{speciesName}</h1>
+      <h1 className="text-xl font-semibold mb-4">{displayLabel}</h1>
 
       <label className="block text-sm mb-3">
         <span className="text-gray-500 block mb-1">Title (shown publicly)</span>
