@@ -36,15 +36,21 @@ export default function GalleryAdmin() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [editingTreeId, setEditingTreeId] = useState<number | null>(null)
-
+  const [fetchError, setFetchError] = useState<string | null>(null)
   useEffect(() => { fetchAll() }, [])
 
-  async function fetchAll() {
+ async function fetchAll() {
     setLoading(true)
-    const { data: treeData } = await supabase
+    const { data: treeData, error: treeError } = await supabase
       .from('collection')
       .select('id, sp_no, variation_or_cultivar, image_url, photo_1, photo_2, photo_3, inspiration_photo, location')
       .order('id', { ascending: false })
+
+    if (treeError) {
+      setFetchError(treeError.message)
+      setLoading(false)
+      return
+    }
 
     const rows = treeData || []
     setTrees(rows)
@@ -74,6 +80,7 @@ export default function GalleryAdmin() {
     return name.toLowerCase().includes(q) || (t.variation_or_cultivar || '').toLowerCase().includes(q)
   })
 
+  if (fetchError) return <main className="max-w-2xl mx-auto p-4"><p style={{ color: 'red' }}>Error: {fetchError}</p></main>
   if (loading) return <main className="max-w-2xl mx-auto p-4"><p>Loading...</p></main>
 
   if (editingTreeId !== null) {
