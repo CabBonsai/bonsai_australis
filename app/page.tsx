@@ -118,6 +118,12 @@ export default function Home() {
           <Link href="/grower-notes" style={{ fontSize: '13px', background: '#ea580c', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Grower Notes
           </Link>
+          <Link href="/gallery-admin" style={{ fontSize: '13px', background: '#0d9488', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Gallery Admin
+          </Link>
+          <Link href="/blog-admin" style={{ fontSize: '13px', background: '#c026d3', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Blog Admin
+          </Link>
           <button
             onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login' }}
             style={{ fontSize: '13px', background: '#e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
