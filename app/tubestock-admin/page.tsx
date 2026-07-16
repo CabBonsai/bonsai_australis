@@ -128,6 +128,7 @@ export default function TubestockAdmin() {
 
   return (
     <main className="max-w-2xl mx-auto p-4">
+      <a href="/" className="text-sm text-gray-500 mb-2 inline-block">&larr; Admin Home</a>
       <h1 className="text-xl font-semibold mb-4">Tubestock</h1>
       <input
         type="text"
