@@ -7,6 +7,7 @@ const inputClass = "w-full border rounded px-4 py-3 text-base min-h-[48px]"
 
 type Tubestock = {
   id: number
+  tubestock_number: string | null
   sp_no: number | null
   species_name_text: string | null
   quantity: number
@@ -27,15 +28,26 @@ type SpeciesInfo = {
   common_name: string | null
 }
 
+type Project = {
+  id: number
+  title: string
+  status: string
+}
+
 const statusStyles: Record<string, string> = {
   growing_on: 'bg-blue-100 text-blue-700',
   promoted: 'bg-green-100 text-green-700',
   culled: 'bg-gray-200 text-gray-500',
 }
 
+function padTag(n: number) {
+  return String(n).padStart(3, '0')
+}
+
 export default function TubestockAdmin() {
   const [rows, setRows] = useState<Tubestock[]>([])
   const [speciesMap, setSpeciesMap] = useState<Record<number, SpeciesInfo>>({})
+  const [projects, setProjects] = useState<Project[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
@@ -69,6 +81,13 @@ export default function TubestockAdmin() {
       setSpeciesMap(map)
     }
 
+    const { data: projectData } = await supabase
+      .from('research_projects')
+      .select('id, title, status')
+      .eq('status', 'active')
+      .order('title', { ascending: true })
+    setProjects(projectData || [])
+
     setLoading(false)
   }
 
@@ -85,7 +104,8 @@ export default function TubestockAdmin() {
     return (
       name.toLowerCase().includes(q) ||
       common.toLowerCase().includes(q) ||
-      (r.source || '').toLowerCase().includes(q)
+      (r.source || '').toLowerCase().includes(q) ||
+      (r.tubestock_number || '').toLowerCase().includes(q)
     )
   })
 
@@ -100,6 +120,7 @@ export default function TubestockAdmin() {
         row={row}
         speciesInfo={row.sp_no ? speciesMap[row.sp_no] : undefined}
         displayLabel={label(row)}
+        projects={projects}
         onDone={() => { setEditingId(null); fetchAll() }}
       />
     )
@@ -125,7 +146,10 @@ export default function TubestockAdmin() {
               className="w-full flex items-center gap-3 border rounded-lg p-3 text-left"
             >
               <div className="flex-1">
-                <p className="font-medium text-sm">{label(row)}</p>
+                <p className="font-medium text-sm">
+                  {row.tubestock_number && <span className="text-gray-400 font-mono mr-2">{row.tubestock_number}</span>}
+                  {label(row)}
+                </p>
                 {info?.common_name && <p className="text-xs text-gray-500">{info.common_name}</p>}
                 <p className="text-xs text-gray-400">
                   Qty {row.quantity}{row.source ? ` \u00b7 ${row.source}` : ''}{row.acquisition_date ? ` \u00b7 ${row.acquisition_date}` : ''}
@@ -143,8 +167,8 @@ export default function TubestockAdmin() {
   )
 }
 
-function TubestockEditor({ row, speciesInfo, displayLabel, onDone }: {
-  row: Tubestock, speciesInfo: SpeciesInfo | undefined, displayLabel: string, onDone: () => void
+function TubestockEditor({ row, speciesInfo, displayLabel, projects, onDone }: {
+  row: Tubestock, speciesInfo: SpeciesInfo | undefined, displayLabel: string, projects: Project[], onDone: () => void
 }) {
   const [quantity, setQuantity] = useState(row.quantity)
   const [healthNotes, setHealthNotes] = useState(row.health_notes || '')
@@ -152,6 +176,50 @@ function TubestockEditor({ row, speciesInfo, displayLabel, onDone }: {
   const [targetCriteria, setTargetCriteria] = useState(row.target_criteria || '')
   const [saving, setSaving] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [showProjectPicker, setShowProjectPicker] = useState(false)
+  const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('')
+
+  const batchCode = row.tubestock_number || `TS${String(row.id).padStart(4, '0')}`
+  const plantTags = Array.from({ length: row.quantity }, (_, i) => `${batchCode}/${padTag(row.quantity - i)}`)
+  // Highest-numbered tag is next to leave the batch by convention.
+  const nextTag = row.quantity > 0 ? `${batchCode}/${padTag(row.quantity)}` : null
+
+  async function createCollectionRow(tag: string | null) {
+    const placeholderName = speciesInfo?.species || row.species_name_text || 'Unnamed'
+    return supabase
+      .from('collection')
+      .insert({
+        sp_no: row.sp_no,
+        display_name: placeholderName,
+        tree_name: `${placeholderName} (from tubestock)`,
+        acquired_date: new Date().toISOString().slice(0, 10),
+        source: row.source,
+        development_stage: 'Pre-bonsai',
+        in_collection: true,
+        notes: `Promoted from tubestock batch ${tag || batchCode}.`,
+      })
+      .select('collection_id')
+      .single()
+  }
+
+  async function decrementTubestock(collectionId: string) {
+    const newQuantity = row.quantity - 1
+    const today = new Date().toISOString().slice(0, 10)
+    await supabase
+      .from('tubestock')
+      .update({
+        quantity: newQuantity,
+        status: newQuantity <= 0 ? 'promoted' : 'growing_on',
+        promoted_to_collection_id: collectionId,
+        promoted_date: today,
+      })
+      .eq('id', row.id)
+  }
+
+  function promptForTag(): string | null {
+    const input = prompt(`Which tag is leaving the batch? (its number gets replaced by a Collection tree number)`, nextTag || '')
+    return input
+  }
 
   async function handleSaveNotes() {
     setSaving(true)
@@ -168,28 +236,14 @@ function TubestockEditor({ row, speciesInfo, displayLabel, onDone }: {
     onDone()
   }
 
-  async function handlePromote() {
+  async function handlePromoteToCollection() {
     if (row.quantity < 1) return
-    if (!confirm(`Promote 1 ${displayLabel} to your Collection? A placeholder record will be created — edit it in Collection afterward.`)) return
+    const tag = promptForTag()
+    if (tag === null) return
+    if (!confirm(`Promote ${tag} to your Collection? A placeholder record will be created \u2014 edit it in Collection afterward.`)) return
 
     setBusy(true)
-
-    const placeholderName = speciesInfo?.species || row.species_name_text || 'Unnamed'
-
-    const { data: inserted, error: insertError } = await supabase
-      .from('collection')
-      .insert({
-        sp_no: row.sp_no,
-        display_name: placeholderName,
-        tree_name: `${placeholderName} (from tubestock)`,
-        acquired_date: new Date().toISOString().slice(0, 10),
-        source: row.source,
-        development_stage: 'Pre-bonsai',
-        in_collection: true,
-        notes: `Promoted from tubestock batch #${row.id}.`,
-      })
-      .select('collection_id')
-      .single()
+    const { data: inserted, error: insertError } = await createCollectionRow(tag)
 
     if (insertError || !inserted) {
       alert(`Promote failed: ${insertError?.message}`)
@@ -197,19 +251,45 @@ function TubestockEditor({ row, speciesInfo, displayLabel, onDone }: {
       return
     }
 
-    const newQuantity = row.quantity - 1
-    const today = new Date().toISOString().slice(0, 10)
+    await decrementTubestock(inserted.collection_id)
+    setBusy(false)
+    onDone()
+  }
 
-    await supabase
-      .from('tubestock')
-      .update({
-        quantity: newQuantity,
-        status: newQuantity <= 0 ? 'promoted' : 'growing_on',
-        promoted_to_collection_id: inserted.collection_id,
-        promoted_date: today,
+  async function handlePromoteToResearchPod() {
+    if (!selectedProjectId) {
+      alert('Pick a research project first.')
+      return
+    }
+    if (row.quantity < 1) return
+    const tag = promptForTag()
+    if (tag === null) return
+
+    setBusy(true)
+    const { data: inserted, error: insertError } = await createCollectionRow(tag)
+
+    if (insertError || !inserted) {
+      alert(`Promote failed: ${insertError?.message}`)
+      setBusy(false)
+      return
+    }
+
+    const { error: linkError } = await supabase
+      .from('research_project_trees')
+      .insert({
+        project_id: selectedProjectId,
+        collection_id: inserted.collection_id,
       })
-      .eq('id', row.id)
 
+    if (linkError) {
+      alert(`Created the Collection tree, but linking to the research project failed: ${linkError.message}. You can link it manually from the research project page.`)
+      setBusy(false)
+      await decrementTubestock(inserted.collection_id)
+      onDone()
+      return
+    }
+
+    await decrementTubestock(inserted.collection_id)
     setBusy(false)
     onDone()
   }
@@ -222,7 +302,9 @@ function TubestockEditor({ row, speciesInfo, displayLabel, onDone }: {
       alert('Enter a number between 1 and the current quantity.')
       return
     }
+    const tagsInput = prompt(`Which tag numbers were culled? (e.g. ${plantTags.slice(0, cullQty).join(', ')})`, plantTags.slice(0, cullQty).join(', ')) || ''
     const reason = prompt('Reason for culling (optional):') || null
+    const fullReason = [tagsInput ? `Tags: ${tagsInput}.` : null, reason].filter(Boolean).join(' ')
 
     setBusy(true)
     const newQuantity = row.quantity - cullQty
@@ -234,7 +316,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, onDone }: {
         quantity: newQuantity,
         status: newQuantity <= 0 ? 'culled' : 'growing_on',
         culled_date: today,
-        culled_reason: reason,
+        culled_reason: fullReason || null,
       })
       .eq('id', row.id)
 
@@ -245,12 +327,24 @@ function TubestockEditor({ row, speciesInfo, displayLabel, onDone }: {
   return (
     <main className="max-w-2xl mx-auto p-4">
       <button onClick={onDone} className="text-sm text-gray-500 mb-4">&larr; Back to list</button>
+      <p className="text-xs text-gray-400 font-mono mb-1">{batchCode}</p>
       <h1 className="text-xl font-semibold mb-1">{displayLabel}</h1>
       {speciesInfo?.common_name && <p className="text-sm text-gray-500 mb-4">{speciesInfo.common_name}</p>}
 
       <span className={`inline-block text-xs px-2 py-1 rounded-full mb-4 ${statusStyles[row.status] || 'bg-gray-100 text-gray-600'}`}>
         {row.status.replace('_', ' ')}
       </span>
+
+      {row.quantity > 0 && (
+        <div className="mb-4">
+          <p className="text-xs text-gray-500 mb-1">Plant tags (for pot labels)</p>
+          <div className="flex flex-wrap gap-1">
+            {plantTags.map(tag => (
+              <span key={tag} className="text-xs font-mono bg-gray-100 rounded px-2 py-1">{tag}</span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <label className="block text-sm mb-3">
         <span className="text-gray-500 block mb-1">Quantity</span>
@@ -280,17 +374,59 @@ function TubestockEditor({ row, speciesInfo, displayLabel, onDone }: {
         {saving ? 'Saving...' : 'Save changes'}
       </button>
 
-      {row.status === 'growing_on' && row.quantity > 0 && (
-        <button
-          onClick={handlePromote}
-          disabled={busy}
-          className="bg-green-600 text-white px-6 py-4 rounded-lg font-semibold w-full text-lg disabled:opacity-50 mb-3"
-        >
-          {busy ? 'Working...' : 'Promote 1 to Collection'}
-        </button>
+      {row.status === 'growing_on' && row.quantity > 0 && !showProjectPicker && (
+        <>
+          <button
+            onClick={handlePromoteToCollection}
+            disabled={busy}
+            className="bg-green-600 text-white px-6 py-4 rounded-lg font-semibold w-full text-lg disabled:opacity-50 mb-3"
+          >
+            {busy ? 'Working...' : 'Promote 1 to Collection'}
+          </button>
+
+          <button
+            onClick={() => setShowProjectPicker(true)}
+            disabled={busy || projects.length === 0}
+            className="bg-teal-600 text-white px-6 py-4 rounded-lg font-semibold w-full text-lg disabled:opacity-50 mb-3"
+          >
+            {projects.length === 0 ? 'No active research projects' : 'Promote 1 to Research Pod'}
+          </button>
+        </>
       )}
 
-      {row.status === 'growing_on' && row.quantity > 0 && (
+      {showProjectPicker && (
+        <div className="border rounded-lg p-4 mb-3">
+          <label className="block text-sm mb-3">
+            <span className="text-gray-500 block mb-1">Which research project?</span>
+            <select
+              value={selectedProjectId}
+              onChange={e => setSelectedProjectId(e.target.value ? parseInt(e.target.value, 10) : '')}
+              className={inputClass}
+            >
+              <option value="">Select a project...</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+          </label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setShowProjectPicker(false); setSelectedProjectId('') }}
+              disabled={busy}
+              className="flex-1 border rounded-lg px-4 py-3 text-sm text-gray-600"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handlePromoteToResearchPod}
+              disabled={busy || !selectedProjectId}
+              className="flex-1 bg-teal-600 text-white rounded-lg px-4 py-3 text-sm font-semibold disabled:opacity-50"
+            >
+              {busy ? 'Working...' : 'Confirm'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {row.status === 'growing_on' && row.quantity > 0 && !showProjectPicker && (
         <button
           onClick={handleCull}
           disabled={busy}
