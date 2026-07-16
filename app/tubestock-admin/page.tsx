@@ -197,6 +197,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, onDone }: {
         development_stage: 'Pre-bonsai',
         in_collection: true,
         notes: `Promoted from tubestock batch ${tag || batchCode}.`,
+        origin_tubestock_tag: tag || batchCode,
       })
       .select('collection_id')
       .single()

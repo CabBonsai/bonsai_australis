@@ -430,6 +430,7 @@ export default function CollectionPage() {
                   {t.status && <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: (statusColor[t.status] || '#6b7280') + '22', color: statusColor[t.status] || '#6b7280' }}>{t.status}</span>}
                   {t.health_status && <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: (healthColor[t.health_status] || '#6b7280') + '22', color: healthColor[t.health_status] || '#6b7280' }}>{t.health_status}</span>}
                   {t.frostProtectionRequired && <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: '#eff6ff', color: '#2563eb' }}>&#10052; Frost Protection</span>}
+                  {t.origin_tubestock_tag && <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: '#f0fdf4', color: '#16a34a' }}>&#127793; {t.origin_tubestock_tag}</span>}
                   {t.is_favourite && <span style={{ fontSize: '12px' }}>&#10084;</span>}
                 </div>
               </div>
