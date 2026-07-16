@@ -12,6 +12,7 @@ const CARE_TYPES = [
 
 export default function Home() {
   const [trees, setTrees] = useState<any[]>([])
+  const [researchTrees, setResearchTrees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -61,6 +62,56 @@ export default function Home() {
       ...t,
       speciesLabel: (t.variant_sp_no && variantMap[t.variant_sp_no]) || speciesMap[t.sp_no] || ''
     })))
+
+    // Research-pod measurement reminders
+    const { data: rptData, error: rptError } = await supabase
+      .from('research_project_trees')
+      .select('id, project_id, collection_id, sp_no, next_measurement_date, measurement_interval_days')
+      .not('next_measurement_date', 'is', null)
+
+    if (!rptError && rptData) {
+      const collectionIds = [...new Set(rptData.map((r: any) => r.collection_id).filter(Boolean))]
+      const rptSpNos = [...new Set(rptData.map((r: any) => r.sp_no).filter(Boolean))]
+      let collectionMap: Record<string, any> = {}
+      let projectMap: Record<number, string> = {}
+      let rptSpeciesMap: Record<number, string> = {}
+
+      if (collectionIds.length > 0) {
+        const { data: collData } = await supabase
+          .from('collection')
+          .select('collection_id, display_name, tree_number')
+          .in('collection_id', collectionIds)
+        ;(collData || []).forEach((c: any) => { collectionMap[c.collection_id] = c })
+      }
+
+      const projectIds = [...new Set(rptData.map((r: any) => r.project_id).filter(Boolean))]
+      if (projectIds.length > 0) {
+        const { data: projData } = await supabase
+          .from('research_projects')
+          .select('id, title')
+          .in('id', projectIds)
+        ;(projData || []).forEach((p: any) => { projectMap[p.id] = p.title })
+      }
+
+      if (rptSpNos.length > 0) {
+        const { data: spData } = await supabase
+          .from('species')
+          .select('sp_no, species, common_name')
+          .in('sp_no', rptSpNos)
+        ;(spData || []).forEach((s: any) => {
+          rptSpeciesMap[s.sp_no] = s.species + (s.common_name && s.common_name !== 'Unknown' ? ' \u2014 ' + s.common_name : '')
+        })
+      }
+
+      setResearchTrees(rptData.map((r: any) => ({
+        ...r,
+        treeLabel: collectionMap[r.collection_id]?.display_name || 'Unnamed Tree',
+        treeNumber: collectionMap[r.collection_id]?.tree_number || null,
+        speciesLabel: rptSpeciesMap[r.sp_no] || '',
+        projectTitle: projectMap[r.project_id] || 'Research Project',
+      })))
+    }
+
     setError(null)
     setLoading(false)
   }
@@ -90,6 +141,21 @@ export default function Home() {
 
   const overdueItems = careItems.filter(i => i.status === 'overdue').sort((a, b) => a.dateStr.localeCompare(b.dateStr))
   const soonItems = careItems.filter(i => i.status === 'soon').sort((a, b) => a.dateStr.localeCompare(b.dateStr))
+
+  // Research-pod measurement items, same overdue/soon split
+  const measurementItems: any[] = []
+  researchTrees.forEach(rt => {
+    const val = rt.next_measurement_date
+    if (!val) return
+    const d = new Date(val)
+    if (d < now) {
+      measurementItems.push({ tree: rt, dateStr: val, status: 'overdue' })
+    } else if (d <= soonCutoff) {
+      measurementItems.push({ tree: rt, dateStr: val, status: 'soon' })
+    }
+  })
+  const overdueMeasurements = measurementItems.filter(i => i.status === 'overdue').sort((a, b) => a.dateStr.localeCompare(b.dateStr))
+  const soonMeasurements = measurementItems.filter(i => i.status === 'soon').sort((a, b) => a.dateStr.localeCompare(b.dateStr))
 
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -172,7 +238,7 @@ export default function Home() {
             ))}
           </section>
 
-          <section>
+          <section style={{ marginBottom: '28px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px', color: '#b45309' }}>
               Due Soon (next 14 days) &mdash; {soonItems.length} item{soonItems.length !== 1 ? 's' : ''}
             </h2>
@@ -192,6 +258,49 @@ export default function Home() {
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
                   <p style={{ fontSize: '12px', fontWeight: '700', color: '#b45309', margin: 0 }}>{item.careLabel}</p>
+                  <p style={{ fontSize: '11px', color: '#b45309', margin: '2px 0 0' }}>Due {formatDate(item.dateStr)} ({daysUntil(item.dateStr)}d)</p>
+                </div>
+              </Link>
+            ))}
+          </section>
+
+          <section style={{ marginBottom: '28px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px', color: '#059669' }}>
+              Research Pod Measurements Due &mdash; {overdueMeasurements.length + soonMeasurements.length} item{(overdueMeasurements.length + soonMeasurements.length) !== 1 ? 's' : ''}
+            </h2>
+            {overdueMeasurements.length === 0 && soonMeasurements.length === 0 && (
+              <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>No measurements due in the next 14 days.</p>
+            )}
+            {overdueMeasurements.map((item, i) => (
+              <Link
+                key={`overdue-${i}`}
+                href={`/research-projects/${item.tree.project_id}`}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '6px' }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ fontWeight: '600', fontSize: '14px' }}>{item.tree.treeLabel}</span>
+                  {item.tree.treeNumber && <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '6px' }}>#{item.tree.treeNumber}</span>}
+                  <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{item.tree.projectTitle}{item.tree.speciesLabel ? ` \u00b7 ${item.tree.speciesLabel}` : ''}</p>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                  <p style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626', margin: 0 }}>Measurement</p>
+                  <p style={{ fontSize: '11px', color: '#dc2626', margin: '2px 0 0' }}>Due {formatDate(item.dateStr)}</p>
+                </div>
+              </Link>
+            ))}
+            {soonMeasurements.map((item, i) => (
+              <Link
+                key={`soon-${i}`}
+                href={`/research-projects/${item.tree.project_id}`}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 14px', marginBottom: '6px' }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ fontWeight: '600', fontSize: '14px' }}>{item.tree.treeLabel}</span>
+                  {item.tree.treeNumber && <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '6px' }}>#{item.tree.treeNumber}</span>}
+                  <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{item.tree.projectTitle}{item.tree.speciesLabel ? ` \u00b7 ${item.tree.speciesLabel}` : ''}</p>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                  <p style={{ fontSize: '12px', fontWeight: '700', color: '#b45309', margin: 0 }}>Measurement</p>
                   <p style={{ fontSize: '11px', color: '#b45309', margin: '2px 0 0' }}>Due {formatDate(item.dateStr)} ({daysUntil(item.dateStr)}d)</p>
                 </div>
               </Link>

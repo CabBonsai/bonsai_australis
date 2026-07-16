@@ -55,6 +55,7 @@ export default function TubestockAdmin() {
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [linkedIds, setLinkedIds] = useState<Set<number>>(new Set())
 
   useEffect(() => { fetchAll() }, [])
 
@@ -91,6 +92,13 @@ export default function TubestockAdmin() {
       .order('title', { ascending: true })
     setProjects(projectData || [])
 
+    // Research-pod badge: which tubestock batches are linked to a research project.
+    const { data: linkData } = await supabase
+      .from('research_project_trees')
+      .select('tubestock_id')
+      .not('tubestock_id', 'is', null)
+    setLinkedIds(new Set((linkData || []).map((l: any) => l.tubestock_id)))
+
     setLoading(false)
   }
 
@@ -124,6 +132,7 @@ export default function TubestockAdmin() {
         speciesInfo={row.sp_no ? speciesMap[row.sp_no] : undefined}
         displayLabel={label(row)}
         projects={projects}
+        isLinkedToResearch={linkedIds.has(row.id)}
         onDone={() => { setEditingId(null); fetchAll() }}
       />
     )
@@ -166,12 +175,22 @@ export default function TubestockAdmin() {
                   Qty {row.quantity}{row.source ? ` \u00b7 ${row.source}` : ''}{row.acquisition_date ? ` \u00b7 ${row.acquisition_date}` : ''}
                 </p>
               </div>
-              <span style={{
-                fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', flexShrink: 0,
-                background: (statusColor[row.status] || '#6b7280') + '22', color: statusColor[row.status] || '#6b7280',
-              }}>
-                {row.status.replace('_', ' ')}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end', flexShrink: 0 }}>
+                <span style={{
+                  fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px',
+                  background: (statusColor[row.status] || '#6b7280') + '22', color: statusColor[row.status] || '#6b7280',
+                }}>
+                  {row.status.replace('_', ' ')}
+                </span>
+                {linkedIds.has(row.id) && (
+                  <span style={{
+                    fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px',
+                    background: '#05966922', color: '#059669',
+                  }}>
+                    Research Pod
+                  </span>
+                )}
+              </div>
             </button>
           )
         })}
@@ -181,8 +200,8 @@ export default function TubestockAdmin() {
   )
 }
 
-function TubestockEditor({ row, speciesInfo, displayLabel, projects, onDone }: {
-  row: Tubestock, speciesInfo: SpeciesInfo | undefined, displayLabel: string, projects: Project[], onDone: () => void
+function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToResearch, onDone }: {
+  row: Tubestock, speciesInfo: SpeciesInfo | undefined, displayLabel: string, projects: Project[], isLinkedToResearch: boolean, onDone: () => void
 }) {
   const [quantity, setQuantity] = useState(row.quantity)
   const [healthNotes, setHealthNotes] = useState(row.health_notes || '')
@@ -292,6 +311,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, onDone }: {
       .insert({
         project_id: selectedProjectId,
         collection_id: inserted.collection_id,
+        tubestock_id: row.id,
       })
 
     if (linkError) {
@@ -348,12 +368,22 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, onDone }: {
       {speciesInfo?.common_name && <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px' }}>{speciesInfo.common_name}</p>}
       {row.sp_no && <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 12px' }}>sp_no {row.sp_no}</p>}
 
-      <span style={{
-        display: 'inline-block', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', marginBottom: '16px',
-        background: (statusColor[row.status] || '#6b7280') + '22', color: statusColor[row.status] || '#6b7280',
-      }}>
-        {row.status.replace('_', ' ')}
-      </span>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <span style={{
+          display: 'inline-block', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px',
+          background: (statusColor[row.status] || '#6b7280') + '22', color: statusColor[row.status] || '#6b7280',
+        }}>
+          {row.status.replace('_', ' ')}
+        </span>
+        {isLinkedToResearch && (
+          <span style={{
+            display: 'inline-block', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px',
+            background: '#05966922', color: '#059669',
+          }}>
+            Linked to Research Pod
+          </span>
+        )}
+      </div>
 
       {row.quantity > 0 && (
         <div style={{ marginBottom: '16px' }}>

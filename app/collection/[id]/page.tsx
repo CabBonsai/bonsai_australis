@@ -816,6 +816,15 @@ updateData.in_collection = true
           <Field label="Development Stage"><Dropdown value={tree.development_stage} onChange={v => set('development_stage', v)} options={DEV_STAGE_OPTIONS} category="development_stage" /></Field>
           <Field label="Training Stage"><Dropdown value={tree.training_stage} onChange={v => set('training_stage', v)} options={TRAINING_STAGE_OPTIONS} category="training_stage" /></Field>
           <Field label="Origin Material"><Dropdown value={tree.origin_material} onChange={v => set('origin_material', v)} options={ORIGIN_MATERIAL_OPTIONS} category="origin_material" /></Field>
+          <Field label="Origin Tubestock Tag">
+            <input
+              type="text"
+              value={tree.origin_tubestock_tag || ''}
+              onChange={e => set('origin_tubestock_tag', e.target.value)}
+              placeholder="e.g. TS0007/003"
+              className={inputClass}
+            />
+          </Field>
           <Field label="Year Est. Planted">
             <input
               type="number"
