@@ -124,6 +124,12 @@ export default function Home() {
           <Link href="/blog-admin" style={{ fontSize: '13px', background: '#c026d3', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Blog Admin
           </Link>
+	  <Link href="/research-projects" style={{ fontSize: '13px', background: '#059669', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Research Projects
+          </Link>
+          <Link href="/tubestock-admin" style={{ fontSize: '13px', background: '#84670d', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Tubestock
+          </Link>
           <button
             onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login' }}
             style={{ fontSize: '13px', background: '#e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
