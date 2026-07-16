@@ -54,34 +54,64 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
       .eq('project_id', projectId)
 
     const treeLinks = treeRows || []
-    const collectionIds = treeLinks.map((t: any) => t.collection_id)
+    const collectionIds = treeLinks.map((t: any) => t.collection_id).filter(Boolean)
+    const tubestockIds = treeLinks.map((t: any) => t.tubestock_id).filter(Boolean)
     let collectionMap: Record<string, any> = {}
+    let tubestockMap: Record<number, any> = {}
     let speciesMap: Record<number, string> = {}
+    const spNosNeeded = new Set<number>()
 
     if (collectionIds.length > 0) {
       const { data: collectionData } = await supabase
         .from('collection')
         .select('collection_id, display_name, tree_name, sp_no, image_url')
         .in('collection_id', collectionIds)
-      ;(collectionData || []).forEach((c: any) => { collectionMap[c.collection_id] = c })
+      ;(collectionData || []).forEach((c: any) => {
+        collectionMap[c.collection_id] = c
+        if (c.sp_no) spNosNeeded.add(c.sp_no)
+      })
+    }
 
-      const spNos = [...new Set((collectionData || []).map((c: any) => c.sp_no).filter(Boolean))]
-      if (spNos.length > 0) {
-        const { data: spData } = await supabase.from('species').select('sp_no, species, common_name').in('sp_no', spNos)
-        ;(spData || []).forEach((s: any) => {
-          speciesMap[s.sp_no] = s.species + (s.common_name && s.common_name !== 'Unknown' ? ' \u2014 ' + s.common_name : '')
-        })
-      }
+    if (tubestockIds.length > 0) {
+      const { data: tubestockData } = await supabase
+        .from('tubestock')
+        .select('id, tubestock_number, sp_no, species_name_text, quantity, source')
+        .in('id', tubestockIds)
+      ;(tubestockData || []).forEach((t: any) => {
+        tubestockMap[t.id] = t
+        if (t.sp_no) spNosNeeded.add(t.sp_no)
+      })
+    }
+
+    if (spNosNeeded.size > 0) {
+      const { data: spData } = await supabase.from('species').select('sp_no, species, common_name').in('sp_no', Array.from(spNosNeeded))
+      ;(spData || []).forEach((s: any) => {
+        speciesMap[s.sp_no] = s.species + (s.common_name && s.common_name !== 'Unknown' ? ' \u2014 ' + s.common_name : '')
+      })
     }
 
     setTrees(treeLinks.map((t: any) => {
-      const c = collectionMap[t.collection_id]
-      return {
-        ...t,
-        displayName: c?.display_name || c?.tree_name || 'Unnamed tree',
-        speciesLabel: c ? speciesMap[c.sp_no] || '' : '',
-        imageUrl: c?.image_url || null,
+      if (t.collection_id && collectionMap[t.collection_id]) {
+        const c = collectionMap[t.collection_id]
+        return {
+          ...t,
+          displayName: c.display_name || c.tree_name || 'Unnamed tree',
+          speciesLabel: speciesMap[c.sp_no] || '',
+          imageUrl: c.image_url || null,
+          sourceLabel: null,
+        }
       }
+      if (t.tubestock_id && tubestockMap[t.tubestock_id]) {
+        const ts = tubestockMap[t.tubestock_id]
+        return {
+          ...t,
+          displayName: (ts.tubestock_number ? ts.tubestock_number + ' \u2014 ' : '') + (speciesMap[ts.sp_no] || ts.species_name_text || 'Unnamed'),
+          speciesLabel: speciesMap[ts.sp_no] || ts.species_name_text || '',
+          imageUrl: null,
+          sourceLabel: ts.source || null,
+        }
+      }
+      return { ...t, displayName: 'Unlinked entry', speciesLabel: '', imageUrl: null, sourceLabel: null }
     }))
 
     const { data: journalRows } = await supabase
@@ -94,6 +124,9 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
       const c = j.collection_id ? collectionMap[j.collection_id] : null
       return { ...j, treeName: c ? (c.display_name || c.tree_name) : null }
     }))
+    // Note: journal entries are tied to collection_id only (pod-wide vs one tree).
+    // If a tree has since moved to tubestock, its past journal entries will show as "Pod-wide"
+    // since the collection_id lookup will no longer resolve. Not fixed here \u2014 flag if this matters.
 
     setError(null)
     setLoading(false)
@@ -185,6 +218,7 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
               <div style={{ minWidth: 0, flex: 1 }}>
                 <p style={{ fontWeight: '600', fontSize: '14px', margin: 0 }}>{t.displayName}</p>
                 {t.speciesLabel && <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{t.speciesLabel}</p>}
+                {t.sourceLabel && <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>{t.sourceLabel}</p>}
               </div>
             </div>
 
