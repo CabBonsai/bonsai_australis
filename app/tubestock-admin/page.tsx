@@ -3,7 +3,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
-const inputClass = "w-full border rounded px-4 py-3 text-base min-h-[48px]"
+const inputStyle: React.CSSProperties = {
+  width: '100%', border: '1px solid #e2e8f0', borderRadius: '8px',
+  padding: '10px 14px', fontSize: '14px', boxSizing: 'border-box',
+}
 
 type Tubestock = {
   id: number
@@ -34,10 +37,10 @@ type Project = {
   status: string
 }
 
-const statusStyles: Record<string, string> = {
-  growing_on: 'bg-blue-100 text-blue-700',
-  promoted: 'bg-green-100 text-green-700',
-  culled: 'bg-gray-200 text-gray-500',
+const statusColor: Record<string, string> = {
+  growing_on: '#2563eb',
+  promoted: '#16a34a',
+  culled: '#6b7280',
 }
 
 function padTag(n: number) {
@@ -109,8 +112,8 @@ export default function TubestockAdmin() {
     )
   })
 
-  if (fetchError) return <main className="max-w-2xl mx-auto p-4"><p style={{ color: 'red' }}>Error: {fetchError}</p></main>
-  if (loading) return <main className="max-w-2xl mx-auto p-4"><p>Loading...</p></main>
+  if (fetchError) return <main style={{ maxWidth: '700px', margin: '0 auto', padding: '16px' }}><p style={{ color: '#dc2626' }}>Error: {fetchError}</p></main>
+  if (loading) return <main style={{ maxWidth: '700px', margin: '0 auto', padding: '16px' }}><p style={{ color: '#9ca3af' }}>Loading...</p></main>
 
   if (editingId !== null) {
     const row = rows.find(r => r.id === editingId)
@@ -127,42 +130,52 @@ export default function TubestockAdmin() {
   }
 
   return (
-    <main className="max-w-2xl mx-auto p-4">
-      <a href="/" className="text-sm text-gray-500 mb-2 inline-block">&larr; Admin Home</a>
-      <h1 className="text-xl font-semibold mb-4">Tubestock</h1>
+    <main style={{ maxWidth: '700px', width: '100%', margin: '0 auto', padding: '16px', boxSizing: 'border-box' }}>
+      <a href="/" style={{ fontSize: '13px', color: '#6b7280', textDecoration: 'none' }}>&larr; Admin Home</a>
+      <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '4px 0 16px' }}>Tubestock</h1>
+
       <input
         type="text"
         placeholder="Search tubestock..."
         value={search}
         onChange={e => setSearch(e.target.value)}
-        className={inputClass + " mb-4"}
+        style={{ ...inputStyle, marginBottom: '16px' }}
       />
-      <div className="space-y-2">
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {filtered.map(row => {
           const info = row.sp_no ? speciesMap[row.sp_no] : undefined
           return (
             <button
               key={row.id}
               onClick={() => setEditingId(row.id)}
-              className="w-full flex items-center gap-3 border rounded-lg p-3 text-left"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '10px', width: '100%', textAlign: 'left',
+                background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px 14px',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.06)', cursor: 'pointer',
+              }}
             >
-              <div className="flex-1">
-                <p className="font-medium text-sm">
-                  {row.tubestock_number && <span className="text-gray-400 font-mono mr-2">{row.tubestock_number}</span>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: '600', fontSize: '14px', margin: 0 }}>
+                  {row.tubestock_number && <span style={{ color: '#9ca3af', fontFamily: 'monospace', marginRight: '8px' }}>{row.tubestock_number}</span>}
                   {label(row)}
                 </p>
-                {info?.common_name && <p className="text-xs text-gray-500">{info.common_name}</p>}
-                <p className="text-xs text-gray-400">
+                {info?.common_name && <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{info.common_name}</p>}
+                {row.sp_no && <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>sp_no {row.sp_no}</p>}
+                <p style={{ fontSize: '12px', color: '#9ca3af', margin: '4px 0 0' }}>
                   Qty {row.quantity}{row.source ? ` \u00b7 ${row.source}` : ''}{row.acquisition_date ? ` \u00b7 ${row.acquisition_date}` : ''}
                 </p>
               </div>
-              <span className={`text-xs px-2 py-1 rounded-full ${statusStyles[row.status] || 'bg-gray-100 text-gray-600'}`}>
+              <span style={{
+                fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', flexShrink: 0,
+                background: (statusColor[row.status] || '#6b7280') + '22', color: statusColor[row.status] || '#6b7280',
+              }}>
                 {row.status.replace('_', ' ')}
               </span>
             </button>
           )
         })}
-        {filtered.length === 0 && <p className="text-sm text-gray-400">No tubestock match.</p>}
+        {filtered.length === 0 && <p style={{ color: '#9ca3af', fontSize: '13px' }}>No tubestock match.</p>}
       </div>
     </main>
   )
@@ -182,7 +195,6 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, onDone }: {
 
   const batchCode = row.tubestock_number || `TS${String(row.id).padStart(4, '0')}`
   const plantTags = Array.from({ length: row.quantity }, (_, i) => `${batchCode}/${padTag(row.quantity - i)}`)
-  // Highest-numbered tag is next to leave the batch by convention.
   const nextTag = row.quantity > 0 ? `${batchCode}/${padTag(row.quantity)}` : null
 
   async function createCollectionRow(tag: string | null) {
@@ -219,8 +231,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, onDone }: {
   }
 
   function promptForTag(): string | null {
-    const input = prompt(`Which tag is leaving the batch? (its number gets replaced by a Collection tree number)`, nextTag || '')
-    return input
+    return prompt(`Which tag is leaving the batch? (its number gets replaced by a Collection tree number)`, nextTag || '')
   }
 
   async function handleSaveNotes() {
@@ -327,51 +338,60 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, onDone }: {
   }
 
   return (
-    <main className="max-w-2xl mx-auto p-4">
-      <button onClick={onDone} className="text-sm text-gray-500 mb-4">&larr; Back to list</button>
-      <p className="text-xs text-gray-400 font-mono mb-1">{batchCode}</p>
-      <h1 className="text-xl font-semibold mb-1">{displayLabel}</h1>
-      {speciesInfo?.common_name && <p className="text-sm text-gray-500 mb-4">{speciesInfo.common_name}</p>}
+    <main style={{ maxWidth: '700px', width: '100%', margin: '0 auto', padding: '16px', boxSizing: 'border-box' }}>
+      <button onClick={onDone} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '13px', cursor: 'pointer', padding: 0, marginBottom: '12px' }}>
+        &larr; Back to list
+      </button>
 
-      <span className={`inline-block text-xs px-2 py-1 rounded-full mb-4 ${statusStyles[row.status] || 'bg-gray-100 text-gray-600'}`}>
+      <p style={{ fontSize: '13px', color: '#9ca3af', fontFamily: 'monospace', margin: '0 0 4px' }}>{batchCode}</p>
+      <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 4px' }}>{displayLabel}</h1>
+      {speciesInfo?.common_name && <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px' }}>{speciesInfo.common_name}</p>}
+      {row.sp_no && <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 12px' }}>sp_no {row.sp_no}</p>}
+
+      <span style={{
+        display: 'inline-block', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', marginBottom: '16px',
+        background: (statusColor[row.status] || '#6b7280') + '22', color: statusColor[row.status] || '#6b7280',
+      }}>
         {row.status.replace('_', ' ')}
       </span>
 
       {row.quantity > 0 && (
-        <div className="mb-4">
-          <p className="text-xs text-gray-500 mb-1">Plant tags (for pot labels)</p>
-          <div className="flex flex-wrap gap-1">
+        <div style={{ marginBottom: '16px' }}>
+          <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 6px' }}>Plant tags (for pot labels)</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
             {plantTags.map(tag => (
-              <span key={tag} className="text-xs font-mono bg-gray-100 rounded px-2 py-1">{tag}</span>
+              <span key={tag} style={{ fontSize: '12px', fontFamily: 'monospace', background: '#f1f5f9', color: '#374151', borderRadius: '6px', padding: '4px 8px' }}>
+                {tag}
+              </span>
             ))}
           </div>
         </div>
       )}
 
-      <label className="block text-sm mb-3">
-        <span className="text-gray-500 block mb-1">Quantity</span>
-        <input type="number" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 0)} className={inputClass} />
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Quantity</span>
+        <input type="number" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 0)} style={inputStyle} />
       </label>
 
-      <label className="block text-sm mb-3">
-        <span className="text-gray-500 block mb-1">Health notes</span>
-        <textarea value={healthNotes} onChange={e => setHealthNotes(e.target.value)} rows={2} className={inputClass} />
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Health notes</span>
+        <textarea value={healthNotes} onChange={e => setHealthNotes(e.target.value)} rows={2} style={inputStyle} />
       </label>
 
-      <label className="block text-sm mb-3">
-        <span className="text-gray-500 block mb-1">Growing-on notes</span>
-        <textarea value={growingOnNotes} onChange={e => setGrowingOnNotes(e.target.value)} rows={2} className={inputClass} />
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Growing-on notes</span>
+        <textarea value={growingOnNotes} onChange={e => setGrowingOnNotes(e.target.value)} rows={2} style={inputStyle} />
       </label>
 
-      <label className="block text-sm mb-6">
-        <span className="text-gray-500 block mb-1">Target criteria (what triggers promotion)</span>
-        <textarea value={targetCriteria} onChange={e => setTargetCriteria(e.target.value)} rows={2} className={inputClass} />
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '20px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Target criteria (what triggers promotion)</span>
+        <textarea value={targetCriteria} onChange={e => setTargetCriteria(e.target.value)} rows={2} style={inputStyle} />
       </label>
 
       <button
         onClick={handleSaveNotes}
         disabled={saving || busy}
-        className="bg-blue-600 text-white px-6 py-4 rounded-lg font-semibold w-full text-lg disabled:opacity-50 mb-3"
+        style={{ width: '100%', padding: '12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', marginBottom: '10px', opacity: (saving || busy) ? 0.5 : 1 }}
       >
         {saving ? 'Saving...' : 'Save changes'}
       </button>
@@ -381,7 +401,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, onDone }: {
           <button
             onClick={handlePromoteToCollection}
             disabled={busy}
-            className="bg-green-600 text-white px-6 py-4 rounded-lg font-semibold w-full text-lg disabled:opacity-50 mb-3"
+            style={{ width: '100%', padding: '12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', marginBottom: '10px', opacity: busy ? 0.5 : 1 }}
           >
             {busy ? 'Working...' : 'Promote 1 to Collection'}
           </button>
@@ -389,7 +409,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, onDone }: {
           <button
             onClick={() => setShowProjectPicker(true)}
             disabled={busy || projects.length === 0}
-            className="bg-teal-600 text-white px-6 py-4 rounded-lg font-semibold w-full text-lg disabled:opacity-50 mb-3"
+            style={{ width: '100%', padding: '12px', background: '#0d9488', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', marginBottom: '10px', opacity: (busy || projects.length === 0) ? 0.5 : 1 }}
           >
             {projects.length === 0 ? 'No active research projects' : 'Promote 1 to Research Pod'}
           </button>
@@ -397,30 +417,30 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, onDone }: {
       )}
 
       {showProjectPicker && (
-        <div className="border rounded-lg p-4 mb-3">
-          <label className="block text-sm mb-3">
-            <span className="text-gray-500 block mb-1">Which research project?</span>
+        <div style={{ background: '#f9fafb', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px', marginBottom: '10px' }}>
+          <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+            <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Which research project?</span>
             <select
               value={selectedProjectId}
               onChange={e => setSelectedProjectId(e.target.value ? parseInt(e.target.value, 10) : '')}
-              className={inputClass}
+              style={inputStyle}
             >
               <option value="">Select a project...</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
             </select>
           </label>
-          <div className="flex gap-2">
+          <div style={{ display: 'flex', gap: '8px' }}>
             <button
               onClick={() => { setShowProjectPicker(false); setSelectedProjectId('') }}
               disabled={busy}
-              className="flex-1 border rounded-lg px-4 py-3 text-sm text-gray-600"
+              style={{ flex: 1, padding: '10px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#6b7280', cursor: 'pointer' }}
             >
               Cancel
             </button>
             <button
               onClick={handlePromoteToResearchPod}
               disabled={busy || !selectedProjectId}
-              className="flex-1 bg-teal-600 text-white rounded-lg px-4 py-3 text-sm font-semibold disabled:opacity-50"
+              style={{ flex: 1, padding: '10px', background: '#0d9488', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', opacity: (busy || !selectedProjectId) ? 0.5 : 1 }}
             >
               {busy ? 'Working...' : 'Confirm'}
             </button>
@@ -432,14 +452,14 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, onDone }: {
         <button
           onClick={handleCull}
           disabled={busy}
-          className="text-red-500 text-sm w-full text-center py-2"
+          style={{ width: '100%', padding: '8px', background: 'none', border: 'none', color: '#dc2626', fontSize: '13px', cursor: 'pointer', textAlign: 'center' }}
         >
           Cull
         </button>
       )}
 
       {row.status !== 'growing_on' && (
-        <p className="text-sm text-gray-400 text-center">
+        <p style={{ fontSize: '13px', color: '#9ca3af', textAlign: 'center' }}>
           {row.status === 'promoted' && `Promoted ${row.promoted_date || ''}`}
           {row.status === 'culled' && `Culled ${row.culled_date || ''}${row.culled_reason ? ` \u2014 ${row.culled_reason}` : ''}`}
         </p>
