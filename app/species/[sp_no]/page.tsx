@@ -183,6 +183,7 @@ export default function SpeciesDetail() {
   const [regional, setRegional] = useState<any>(null)
   const [placement, setPlacement] = useState<any>(null)
   const [toxicity, setToxicity] = useState<any>(null)
+  const [tubestockDev, setTubestockDev] = useState<any>(null)
   const [tubestockRows, setTubestockRows] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -192,7 +193,7 @@ export default function SpeciesDetail() {
 
   useEffect(() => {
     async function fetchAll() {
-      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes, placeRes, toxRes, tubeRes, prevRes, nextRes] = await Promise.all([
+      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes, placeRes, toxRes, devRes, tubeRes, prevRes, nextRes] = await Promise.all([
         supabase.from('species').select('*').eq('sp_no', spNo).single(),
         supabase.from('bonsai_suitability').select('*').eq('sp_no', spNo).single(),
         supabase.from('care_guide').select('*').eq('sp_no', spNo).single(),
@@ -204,6 +205,7 @@ export default function SpeciesDetail() {
         supabase.from('regional_suitability').select('*').eq('sp_no', spNo).single(),
         supabase.from('placement_matrix').select('*').eq('sp_no', spNo).single(),
         supabase.from('toxicity').select('*').eq('sp_no', spNo).single(),
+        supabase.from('tubestock_development').select('*').eq('sp_no', spNo).single(),
         supabase.from('tubestock').select('*').eq('sp_no', spNo).order('created_at', { ascending: false }),
         supabase.from('species').select('sp_no').lt('sp_no', spNo).order('sp_no', { ascending: false }).limit(1).single(),
         supabase.from('species').select('sp_no').gt('sp_no', spNo).order('sp_no', { ascending: true }).limit(1).single(),
@@ -220,6 +222,7 @@ export default function SpeciesDetail() {
       if (!regRes.error) setRegional(regRes.data)
       if (!placeRes.error) setPlacement(placeRes.data)
       if (!toxRes.error) setToxicity(toxRes.data)
+      if (!devRes.error) setTubestockDev(devRes.data)
       if (!tubeRes.error) setTubestockRows(tubeRes.data || [])
       setPrevNext({ prev: prevRes.data?.sp_no ?? null, next: nextRes.data?.sp_no ?? null })
       setLoading(false)
@@ -238,6 +241,7 @@ export default function SpeciesDetail() {
   function updateRegional(field: string, value: any) { setRegional({ ...regional, [field]: value }) }
   function updatePlacement(field: string, value: any) { setPlacement({ ...placement, [field]: value }) }
   function updateToxicity(field: string, value: any) { setToxicity({ ...toxicity, [field]: value }) }
+  function updateTubestockDev(field: string, value: any) { setTubestockDev({ ...tubestockDev, [field]: value }) }
 
   async function handleSave() {
     setSaving(true)
@@ -455,6 +459,36 @@ export default function SpeciesDetail() {
       symptoms: toxicity.symptoms,
       severity_notes: toxicity.severity_notes,
       first_aid_notes: toxicity.first_aid_notes,
+    }).eq('sp_no', spNo))
+    if (tubestockDev) saves.push(supabase.from('tubestock_development').update({
+      species: tubestockDev.species,
+      establishment_period_weeks: tubestockDev.establishment_period_weeks,
+      survival_rate_notes: tubestockDev.survival_rate_notes,
+      common_failures: tubestockDev.common_failures,
+      tubestock_potting_mix: tubestockDev.tubestock_potting_mix,
+      first_pot_size: tubestockDev.first_pot_size,
+      potting_on_schedule: tubestockDev.potting_on_schedule,
+      initial_potting_timing: tubestockDev.initial_potting_timing,
+      watering_frequency: tubestockDev.watering_frequency,
+      fertilising_regime: tubestockDev.fertilising_regime,
+      recommended_fertiliser: tubestockDev.recommended_fertiliser,
+      growth_rate_expected: tubestockDev.growth_rate_expected,
+      first_pruning_timing: tubestockDev.first_pruning_timing,
+      first_structure_timing: tubestockDev.first_structure_timing,
+      root_establishment_notes: tubestockDev.root_establishment_notes,
+      nursery_to_training_pot: tubestockDev.nursery_to_training_pot,
+      revegetation_planting_notes: tubestockDev.revegetation_planting_notes,
+      establishment_in_ground: tubestockDev.establishment_in_ground,
+      weed_competition_tolerance: tubestockDev.weed_competition_tolerance,
+      irrigation_requirement: tubestockDev.irrigation_requirement,
+      species_specific_notes: tubestockDev.species_specific_notes,
+      record_complete: tubestockDev.record_complete,
+      last_updated: tubestockDev.last_updated,
+      research_status: tubestockDev.research_status,
+      data_source: tubestockDev.data_source,
+      research_notes: tubestockDev.research_notes,
+      reference_urls: tubestockDev.reference_urls,
+      needs_verification: tubestockDev.needs_verification,
     }).eq('sp_no', spNo))
     const results = await Promise.all(saves)
     const errors = results.filter((r: any) => r.error).map((r: any) => r.error.message)
@@ -988,6 +1022,46 @@ export default function SpeciesDetail() {
           <Field label="Avoid fertilisers" value={fertilisation.avoid_fertilisers} onChange={v => updateFertilisation('avoid_fertilisers', v)} type="textarea" />
           <Field label="Recommended products" value={fertilisation.recommended_products} onChange={v => updateFertilisation('recommended_products', v)} type="textarea" />
           <Field label="Notes" value={fertilisation.notes_schema} onChange={v => updateFertilisation('notes_schema', v)} type="textarea" />
+        </Section>
+      )}
+      {tubestockDev && (
+        <Section title="Tubestock Development">
+          <Field label="Species (record label)" value={tubestockDev.species} onChange={v => updateTubestockDev('species', v)} />
+          <Field label="Establishment period (weeks)" value={tubestockDev.establishment_period_weeks} onChange={v => updateTubestockDev('establishment_period_weeks', v)} />
+          <Field label="Survival rate notes" value={tubestockDev.survival_rate_notes} onChange={v => updateTubestockDev('survival_rate_notes', v)} type="textarea" />
+          <Field label="Common failures" value={tubestockDev.common_failures} onChange={v => updateTubestockDev('common_failures', v)} type="textarea" />
+          <Field label="Tubestock potting mix" value={tubestockDev.tubestock_potting_mix} onChange={v => updateTubestockDev('tubestock_potting_mix', v)} type="textarea" />
+          <Field label="First pot size" value={tubestockDev.first_pot_size} onChange={v => updateTubestockDev('first_pot_size', v)} />
+          <Field label="Potting-on schedule" value={tubestockDev.potting_on_schedule} onChange={v => updateTubestockDev('potting_on_schedule', v)} type="textarea" />
+          <Field label="Initial potting timing" value={tubestockDev.initial_potting_timing} onChange={v => updateTubestockDev('initial_potting_timing', v)} type="textarea" />
+          <Field label="Watering frequency" value={tubestockDev.watering_frequency} onChange={v => updateTubestockDev('watering_frequency', v)} type="textarea" />
+          <Field label="Fertilising regime" value={tubestockDev.fertilising_regime} onChange={v => updateTubestockDev('fertilising_regime', v)} type="textarea" />
+          <Field label="Recommended fertiliser" value={tubestockDev.recommended_fertiliser} onChange={v => updateTubestockDev('recommended_fertiliser', v)} type="textarea" />
+          <Field label="Growth rate expected" value={tubestockDev.growth_rate_expected} onChange={v => updateTubestockDev('growth_rate_expected', v)} />
+          <Field label="First pruning timing" value={tubestockDev.first_pruning_timing} onChange={v => updateTubestockDev('first_pruning_timing', v)} type="textarea" />
+          <Field label="First structure timing" value={tubestockDev.first_structure_timing} onChange={v => updateTubestockDev('first_structure_timing', v)} type="textarea" />
+          <Field label="Root establishment notes" value={tubestockDev.root_establishment_notes} onChange={v => updateTubestockDev('root_establishment_notes', v)} type="textarea" />
+          <Field label="Nursery to training pot" value={tubestockDev.nursery_to_training_pot} onChange={v => updateTubestockDev('nursery_to_training_pot', v)} type="textarea" />
+          <Field label="Revegetation planting notes" value={tubestockDev.revegetation_planting_notes} onChange={v => updateTubestockDev('revegetation_planting_notes', v)} type="textarea" />
+          <Field label="Establishment in ground" value={tubestockDev.establishment_in_ground} onChange={v => updateTubestockDev('establishment_in_ground', v)} type="textarea" />
+          <Field label="Weed competition tolerance" value={tubestockDev.weed_competition_tolerance} onChange={v => updateTubestockDev('weed_competition_tolerance', v)} />
+          <Field label="Irrigation requirement" value={tubestockDev.irrigation_requirement} onChange={v => updateTubestockDev('irrigation_requirement', v)} type="textarea" />
+          <Field label="Species-specific notes" value={tubestockDev.species_specific_notes} onChange={v => updateTubestockDev('species_specific_notes', v)} type="textarea" />
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={tubestockDev.record_complete || false} onChange={e => updateTubestockDev('record_complete', e.target.checked)} className="w-4 h-4" />
+              Record complete
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={tubestockDev.needs_verification || false} onChange={e => updateTubestockDev('needs_verification', e.target.checked)} className="w-4 h-4" />
+              Needs verification
+            </label>
+          </div>
+          <Field label="Last updated" value={tubestockDev.last_updated} onChange={v => updateTubestockDev('last_updated', v)} />
+          <Field label="Research status" value={tubestockDev.research_status} onChange={v => updateTubestockDev('research_status', v)} />
+          <Field label="Data source" value={tubestockDev.data_source} onChange={v => updateTubestockDev('data_source', v)} type="textarea" />
+          <Field label="Research notes" value={tubestockDev.research_notes} onChange={v => updateTubestockDev('research_notes', v)} type="textarea" />
+          <Field label="Reference URLs" value={tubestockDev.reference_urls} onChange={v => updateTubestockDev('reference_urls', v)} type="textarea" />
         </Section>
       )}
       {pruning && (
