@@ -55,6 +55,7 @@ export default function TubestockAdmin() {
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [creating, setCreating] = useState(false)
   const [linkedIds, setLinkedIds] = useState<Set<number>>(new Set())
 
   useEffect(() => { fetchAll() }, [])
@@ -123,6 +124,10 @@ export default function TubestockAdmin() {
   if (fetchError) return <main style={{ maxWidth: '700px', margin: '0 auto', padding: '16px' }}><p style={{ color: '#dc2626' }}>Error: {fetchError}</p></main>
   if (loading) return <main style={{ maxWidth: '700px', margin: '0 auto', padding: '16px' }}><p style={{ color: '#9ca3af' }}>Loading...</p></main>
 
+  if (creating) {
+    return <TubestockCreateForm onDone={() => { setCreating(false); fetchAll() }} onCancel={() => setCreating(false)} />
+  }
+
   if (editingId !== null) {
     const row = rows.find(r => r.id === editingId)
     if (!row) return null
@@ -141,7 +146,15 @@ export default function TubestockAdmin() {
   return (
     <main style={{ maxWidth: '700px', width: '100%', margin: '0 auto', padding: '16px', boxSizing: 'border-box' }}>
       <a href="/" style={{ fontSize: '13px', color: '#6b7280', textDecoration: 'none' }}>&larr; Admin Home</a>
-      <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '4px 0 16px' }}>Tubestock</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 16px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>Tubestock</h1>
+        <button
+          onClick={() => setCreating(true)}
+          style={{ fontSize: '13px', fontWeight: '600', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 14px', cursor: 'pointer' }}
+        >
+          + New Tubestock
+        </button>
+      </div>
 
       <input
         type="text"
@@ -494,6 +507,183 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
           {row.status === 'culled' && `Culled ${row.culled_date || ''}${row.culled_reason ? ` \u2014 ${row.culled_reason}` : ''}`}
         </p>
       )}
+    </main>
+  )
+}
+
+function TubestockCreateForm({ onDone, onCancel }: { onDone: () => void, onCancel: () => void }) {
+  const [speciesQuery, setSpeciesQuery] = useState('')
+  const [speciesResults, setSpeciesResults] = useState<{ sp_no: number, species: string, common_name: string | null }[]>([])
+  const [selectedSpNo, setSelectedSpNo] = useState<number | null>(null)
+  const [selectedSpeciesLabel, setSelectedSpeciesLabel] = useState('')
+  const [speciesNameText, setSpeciesNameText] = useState('')
+  const [tubestockNumber, setTubestockNumber] = useState('')
+  const [quantity, setQuantity] = useState(1)
+  const [source, setSource] = useState('')
+  const [acquisitionDate, setAcquisitionDate] = useState('')
+  const [healthNotes, setHealthNotes] = useState('')
+  const [growingOnNotes, setGrowingOnNotes] = useState('')
+  const [targetCriteria, setTargetCriteria] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (selectedSpNo !== null) return // don't search once a species is picked
+    if (speciesQuery.trim().length < 2) { setSpeciesResults([]); return }
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('species')
+        .select('sp_no, species, common_name')
+        .or(`species.ilike.%${speciesQuery}%,common_name.ilike.%${speciesQuery}%`)
+        .limit(8)
+      setSpeciesResults(data || [])
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [speciesQuery, selectedSpNo])
+
+  function pickSpecies(s: { sp_no: number, species: string, common_name: string | null }) {
+    setSelectedSpNo(s.sp_no)
+    setSelectedSpeciesLabel(s.species + (s.common_name && s.common_name !== 'Unknown' ? ` \u2014 ${s.common_name}` : ''))
+    setSpeciesQuery('')
+    setSpeciesResults([])
+  }
+
+  function clearSpecies() {
+    setSelectedSpNo(null)
+    setSelectedSpeciesLabel('')
+  }
+
+  async function handleCreate() {
+    if (quantity < 1) {
+      setSaveError('Quantity must be at least 1.')
+      return
+    }
+    if (!selectedSpNo && !speciesNameText.trim()) {
+      setSaveError('Either pick a species from the database, or type a species name in the fallback field below.')
+      return
+    }
+    setSaving(true)
+    setSaveError(null)
+
+    const { error } = await supabase.from('tubestock').insert({
+      tubestock_number: tubestockNumber.trim() || null,
+      sp_no: selectedSpNo,
+      species_name_text: selectedSpNo ? null : speciesNameText.trim(),
+      quantity,
+      source: source.trim() || null,
+      acquisition_date: acquisitionDate || null,
+      health_notes: healthNotes.trim() || null,
+      growing_on_notes: growingOnNotes.trim() || null,
+      target_criteria: targetCriteria.trim() || null,
+      status: 'growing_on',
+    })
+
+    setSaving(false)
+
+    if (error) {
+      setSaveError(error.message)
+      return
+    }
+    onDone()
+  }
+
+  return (
+    <main style={{ maxWidth: '700px', width: '100%', margin: '0 auto', padding: '16px', boxSizing: 'border-box' }}>
+      <button onClick={onCancel} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '13px', cursor: 'pointer', padding: 0, marginBottom: '12px' }}>
+        &larr; Back to list
+      </button>
+
+      <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 16px' }}>New Tubestock Batch</h1>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Species</span>
+      </label>
+
+      {selectedSpNo !== null ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px' }}>
+          <span style={{ fontSize: '14px', fontWeight: '600' }}>{selectedSpeciesLabel}</span>
+          <button onClick={clearSpecies} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '13px', cursor: 'pointer' }}>Change</button>
+        </div>
+      ) : (
+        <>
+          <input
+            type="text"
+            placeholder="Search species by name..."
+            value={speciesQuery}
+            onChange={e => setSpeciesQuery(e.target.value)}
+            style={{ ...inputStyle, marginBottom: '4px' }}
+          />
+          {speciesResults.length > 0 && (
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '12px', overflow: 'hidden' }}>
+              {speciesResults.map(s => (
+                <button
+                  key={s.sp_no}
+                  onClick={() => pickSpecies(s)}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: '#fff', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontSize: '13px' }}
+                >
+                  {s.species}{s.common_name && s.common_name !== 'Unknown' ? ` \u2014 ${s.common_name}` : ''}
+                  <span style={{ color: '#9ca3af', marginLeft: '6px' }}>sp_no {s.sp_no}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+            <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>No match in database? Type a name here instead (fallback, unlinked)</span>
+            <input
+              type="text"
+              value={speciesNameText}
+              onChange={e => setSpeciesNameText(e.target.value)}
+              placeholder="e.g. Acacia sp. (unidentified)"
+              style={inputStyle}
+            />
+          </label>
+        </>
+      )}
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Tubestock number (optional \u2014 leave blank to auto-generate from ID)</span>
+        <input type="text" value={tubestockNumber} onChange={e => setTubestockNumber(e.target.value)} placeholder="e.g. TS0014" style={inputStyle} />
+      </label>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Quantity</span>
+        <input type="number" min={1} value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 0)} style={inputStyle} />
+      </label>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Source</span>
+        <input type="text" value={source} onChange={e => setSource(e.target.value)} placeholder="e.g. Nursery, Cutting, Seed" style={inputStyle} />
+      </label>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Acquisition date</span>
+        <input type="date" value={acquisitionDate} onChange={e => setAcquisitionDate(e.target.value)} style={inputStyle} />
+      </label>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Health notes</span>
+        <textarea value={healthNotes} onChange={e => setHealthNotes(e.target.value)} rows={2} style={inputStyle} />
+      </label>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Growing-on notes</span>
+        <textarea value={growingOnNotes} onChange={e => setGrowingOnNotes(e.target.value)} rows={2} style={inputStyle} />
+      </label>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '20px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Target criteria (what triggers promotion)</span>
+        <textarea value={targetCriteria} onChange={e => setTargetCriteria(e.target.value)} rows={2} style={inputStyle} />
+      </label>
+
+      {saveError && <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '12px' }}>{saveError}</p>}
+
+      <button
+        onClick={handleCreate}
+        disabled={saving}
+        style={{ width: '100%', padding: '12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', opacity: saving ? 0.5 : 1 }}
+      >
+        {saving ? 'Creating...' : 'Create Tubestock Batch'}
+      </button>
     </main>
   )
 }
