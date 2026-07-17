@@ -183,6 +183,7 @@ export default function SpeciesDetail() {
   const [regional, setRegional] = useState<any>(null)
   const [placement, setPlacement] = useState<any>(null)
   const [toxicity, setToxicity] = useState<any>(null)
+  const [tubestockRows, setTubestockRows] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -191,7 +192,7 @@ export default function SpeciesDetail() {
 
   useEffect(() => {
     async function fetchAll() {
-      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes, placeRes, toxRes, prevRes, nextRes] = await Promise.all([
+      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes, placeRes, toxRes, tubeRes, prevRes, nextRes] = await Promise.all([
         supabase.from('species').select('*').eq('sp_no', spNo).single(),
         supabase.from('bonsai_suitability').select('*').eq('sp_no', spNo).single(),
         supabase.from('care_guide').select('*').eq('sp_no', spNo).single(),
@@ -203,6 +204,7 @@ export default function SpeciesDetail() {
         supabase.from('regional_suitability').select('*').eq('sp_no', spNo).single(),
         supabase.from('placement_matrix').select('*').eq('sp_no', spNo).single(),
         supabase.from('toxicity').select('*').eq('sp_no', spNo).single(),
+        supabase.from('tubestock').select('*').eq('sp_no', spNo).order('created_at', { ascending: false }),
         supabase.from('species').select('sp_no').lt('sp_no', spNo).order('sp_no', { ascending: false }).limit(1).single(),
         supabase.from('species').select('sp_no').gt('sp_no', spNo).order('sp_no', { ascending: true }).limit(1).single(),
       ])
@@ -218,6 +220,7 @@ export default function SpeciesDetail() {
       if (!regRes.error) setRegional(regRes.data)
       if (!placeRes.error) setPlacement(placeRes.data)
       if (!toxRes.error) setToxicity(toxRes.data)
+      if (!tubeRes.error) setTubestockRows(tubeRes.data || [])
       setPrevNext({ prev: prevRes.data?.sp_no ?? null, next: nextRes.data?.sp_no ?? null })
       setLoading(false)
     }
@@ -845,6 +848,36 @@ export default function SpeciesDetail() {
       </div>
       <h1 style={{fontSize:'28px',fontWeight:700,color:'#2b2620',letterSpacing:'-0.01em'}}>{species.species}</h1>
       <p style={{fontSize:'13px',color:'#a89e7a',marginBottom:'18px'}}>sp_no: {species.sp_no}</p>
+      {tubestockRows.length > 0 && (
+        <div style={{
+          background: '#eef3e4',
+          border: '1px solid #cddba8',
+          borderRadius: '10px',
+          padding: '12px 16px',
+          marginBottom: '18px',
+        }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#5c7a2a', margin: '0 0 8px' }}>
+            In Tubestock
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {tubestockRows.map(row => (
+              <div key={row.id} style={{ fontSize: '13px', color: '#3f5228', display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
+                <span style={{ fontWeight: 600 }}>{row.quantity}&times;</span>
+                <span style={{
+                  fontSize: '11px', fontWeight: 600, padding: '1px 8px', borderRadius: '20px',
+                  background: row.status === 'growing_on' ? '#dceac0' : row.status === 'promoted' ? '#d8e3f5' : '#e5e5e5',
+                  color: row.status === 'growing_on' ? '#3f5228' : row.status === 'promoted' ? '#2a4a7a' : '#6b6b6b',
+                }}>
+                  {row.status.replace('_', ' ')}
+                </span>
+                {row.source && <span style={{ color: '#7a6a3a' }}>{row.source}</span>}
+                {row.acquisition_date && <span style={{ color: '#a89e7a' }}>{row.acquisition_date}</span>}
+                {row.tubestock_number && <span style={{ color: '#a89e7a', fontFamily: 'monospace' }}>{row.tubestock_number}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <SpeciesPhotoField value={species.reference_photo || ''} onChange={v => updateSpecies('reference_photo', v)} />
       <div style={{marginBottom:'20px'}}>
         <label style={{display:'block',fontSize:'12px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'6px'}}>Quick Notes</label>
