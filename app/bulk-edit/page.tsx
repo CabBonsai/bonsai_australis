@@ -65,6 +65,30 @@ const TABLES: Record<string, TableConfig> = {
       ageing_notes: 'text', notes_for_future_development: 'text', research_status: 'text', data_source: 'text', research_notes: 'text',
     },
   },
+  barkchar: {
+    label: 'Bark Character',
+    table: 'bark_character',
+    columns: ['sp_no', 'species', 'bark_texture_type', 'natural_bark_character', 'development_speed', 'years_to_corking_onset', 'years_to_mature_character', 'climate_influence_notes', 'best_techniques_for_species', 'typical_bark_faults', 'underlying_causes', 'corrective_strategies', 'ultimate_bark_quality_potential', 'expected_mature_bark_form', 'maintenance_requirements', 'ageing_notes', 'notes_for_future_development', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification', 'last_updated'],
+    types: {
+      sp_no: 'number', species: 'text', bark_texture_type: 'text', natural_bark_character: 'text',
+      development_speed: 'text', years_to_corking_onset: 'text', years_to_mature_character: 'text',
+      climate_influence_notes: 'text', best_techniques_for_species: 'text', typical_bark_faults: 'text',
+      underlying_causes: 'text', corrective_strategies: 'text', ultimate_bark_quality_potential: 'text',
+      expected_mature_bark_form: 'text', maintenance_requirements: 'text', ageing_notes: 'text',
+      notes_for_future_development: 'text', research_status: 'text', data_source: 'text',
+      research_notes: 'text', reference_urls: 'text', needs_verification: 'bool', last_updated: 'text',
+    },
+  },
+  tapermove: {
+    label: 'Taper & Movement',
+    table: 'taper_movement',
+    columns: ['sp_no', 'species', 'natural_taper_tendency', 'trunk_movement_potential', 'best_techniques_for_species', 'notes', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification', 'last_updated'],
+    types: {
+      sp_no: 'number', species: 'text', natural_taper_tendency: 'text', trunk_movement_potential: 'text',
+      best_techniques_for_species: 'text', notes: 'text', research_status: 'text', data_source: 'text',
+      research_notes: 'text', reference_urls: 'text', needs_verification: 'bool', last_updated: 'text',
+    },
+  },
   regional: {
     label: 'Regional',
     table: 'regional_suitability',
