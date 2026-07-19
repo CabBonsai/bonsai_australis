@@ -9,6 +9,7 @@ export default function SpeciesList() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [topMode, setTopMode] = useState(false)
+  const [nativeFilter, setNativeFilter] = useState<'all' | 'native' | 'non-native'>('all')
 
   useEffect(() => {
     if (topMode) {
@@ -19,16 +20,36 @@ export default function SpeciesList() {
       fetchSpecies(search)
     }, 300)
     return () => clearTimeout(timeout)
-  }, [search, topMode])
+  }, [search, topMode, nativeFilter])
 
   async function fetchTop300() {
     setLoading(true)
-    const { data: scoreRows, error: scoreErr } = await supabase
+    const cols = 'sp_no, species, common_name, species_family, australian_native, research_status, reference_photo'
+
+    let allowedSpNos: number[] | null = null
+    if (nativeFilter !== 'all') {
+      let nativeQuery = supabase.from('species').select('sp_no')
+      nativeQuery = nativeFilter === 'native'
+        ? nativeQuery.eq('australian_native', true)
+        : nativeQuery.eq('australian_native', false)
+      const { data: nativeRows, error: nativeErr } = await nativeQuery
+      if (nativeErr) {
+        setError(nativeErr.message)
+        setSpecies([])
+        setLoading(false)
+        return
+      }
+      allowedSpNos = (nativeRows || []).map(r => r.sp_no)
+    }
+
+    let scoreQuery = supabase
       .from('bonsai_suitability')
       .select('sp_no, final_bonsai_score, bonsai_tier, needs_verification')
       .not('final_bonsai_score', 'is', null)
       .order('final_bonsai_score', { ascending: false })
       .limit(300)
+    if (allowedSpNos !== null) scoreQuery = scoreQuery.in('sp_no', allowedSpNos)
+    const { data: scoreRows, error: scoreErr } = await scoreQuery
 
     if (scoreErr) {
       setError(scoreErr.message)
@@ -38,7 +59,6 @@ export default function SpeciesList() {
     }
 
     const spNos = (scoreRows || []).map(r => r.sp_no)
-    const cols = 'sp_no, species, common_name, species_family, australian_native, research_status, reference_photo'
     const { data: speciesRows, error: speciesErr } = await supabase
       .from('species')
       .select(cols)
@@ -75,6 +95,8 @@ export default function SpeciesList() {
     if (trimmed) {
       textQuery = textQuery.or(`species.ilike.%${trimmed}%,common_name.ilike.%${trimmed}%,species_genus.ilike.%${trimmed}%`)
     }
+    if (nativeFilter === 'native') textQuery = textQuery.eq('australian_native', true)
+    if (nativeFilter === 'non-native') textQuery = textQuery.eq('australian_native', false)
 
     const [textRes, spNoRes] = await Promise.all([
       textQuery,
@@ -122,15 +144,36 @@ export default function SpeciesList() {
 
       <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>Species Admin</p>
 
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
         <input
           type="text"
           placeholder="Search species, common name, genus, or sp_no..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           disabled={topMode}
-          style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: '8px', padding: '10px 14px', fontSize: '15px', boxSizing: 'border-box', opacity: topMode ? 0.5 : 1 }}
+          style={{ flex: 1, minWidth: '180px', border: '1px solid #d1d5db', borderRadius: '8px', padding: '10px 14px', fontSize: '15px', boxSizing: 'border-box', opacity: topMode ? 0.5 : 1 }}
         />
+        <div style={{ display: 'flex', border: '1px solid #d1d5db', borderRadius: '8px', overflow: 'hidden' }}>
+          {(['all', 'native', 'non-native'] as const).map((opt, i) => (
+            <button
+              key={opt}
+              onClick={() => setNativeFilter(opt)}
+              style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                background: nativeFilter === opt ? '#16a34a' : 'white',
+                color: nativeFilter === opt ? 'white' : '#374151',
+                padding: '10px 12px',
+                border: 'none',
+                borderLeft: i > 0 ? '1px solid #d1d5db' : 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {opt === 'all' ? 'All' : opt === 'native' ? 'Native' : 'Non-Native'}
+            </button>
+          ))}
+        </div>
         <button
           onClick={() => setTopMode(t => !t)}
           style={{
