@@ -8,13 +8,58 @@ export default function SpeciesList() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [topMode, setTopMode] = useState(false)
 
   useEffect(() => {
+    if (topMode) {
+      fetchTop300()
+      return
+    }
     const timeout = setTimeout(() => {
       fetchSpecies(search)
     }, 300)
     return () => clearTimeout(timeout)
-  }, [search])
+  }, [search, topMode])
+
+  async function fetchTop300() {
+    setLoading(true)
+    const { data: scoreRows, error: scoreErr } = await supabase
+      .from('bonsai_suitability')
+      .select('sp_no, final_bonsai_score, bonsai_tier, needs_verification')
+      .not('final_bonsai_score', 'is', null)
+      .order('final_bonsai_score', { ascending: false })
+      .limit(300)
+
+    if (scoreErr) {
+      setError(scoreErr.message)
+      setSpecies([])
+      setLoading(false)
+      return
+    }
+
+    const spNos = (scoreRows || []).map(r => r.sp_no)
+    const cols = 'sp_no, species, common_name, species_family, australian_native, research_status, reference_photo'
+    const { data: speciesRows, error: speciesErr } = await supabase
+      .from('species')
+      .select(cols)
+      .in('sp_no', spNos)
+
+    if (speciesErr) {
+      setError(speciesErr.message)
+      setSpecies([])
+      setLoading(false)
+      return
+    }
+
+    const scoreBySpNo = new Map((scoreRows || []).map(r => [r.sp_no, r]))
+    const merged = (speciesRows || [])
+      .map(s => ({ ...s, ...scoreBySpNo.get(s.sp_no) }))
+      .sort((a, b) => (b.final_bonsai_score ?? 0) - (a.final_bonsai_score ?? 0))
+
+    setSpecies(merged)
+    setError(null)
+    setLoading(false)
+  }
 
   async function fetchSpecies(term: string) {
     setLoading(true)
@@ -77,19 +122,38 @@ export default function SpeciesList() {
 
       <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>Species Admin</p>
 
-      <input
-        type="text"
-        placeholder="Search species, common name, genus, or sp_no..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: '8px', padding: '10px 14px', fontSize: '15px', marginBottom: '16px', boxSizing: 'border-box' }}
-      />
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px' }}>
+        <input
+          type="text"
+          placeholder="Search species, common name, genus, or sp_no..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          disabled={topMode}
+          style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: '8px', padding: '10px 14px', fontSize: '15px', boxSizing: 'border-box', opacity: topMode ? 0.5 : 1 }}
+        />
+        <button
+          onClick={() => setTopMode(t => !t)}
+          style={{
+            fontSize: '13px',
+            fontWeight: 600,
+            background: topMode ? '#16a34a' : '#f3f4f6',
+            color: topMode ? 'white' : '#374151',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            border: 'none',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          🏆 Top 300
+        </button>
+      </div>
 
       {error && <p style={{ color: '#dc2626', marginBottom: '16px' }}>Error: {error}</p>}
       {loading && <p style={{ color: '#9ca3af' }}>Loading...</p>}
 
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {species.map((s) => (
+        {species.map((s, idx) => (
           <li key={s.sp_no} style={{ borderBottom: '1px solid #e5e7eb' }}>
             <Link href={`/species/${s.sp_no}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', textDecoration: 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
@@ -108,6 +172,14 @@ export default function SpeciesList() {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', marginLeft: '8px', flexShrink: 0 }}>
+                {topMode && typeof s.final_bonsai_score === 'number' && (
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#374151' }}>
+                    #{idx + 1} · {s.final_bonsai_score.toFixed(2)}{s.bonsai_tier ? ` · ${s.bonsai_tier}` : ''}
+                  </span>
+                )}
+                {topMode && s.needs_verification && (
+                  <span style={{ fontSize: '11px', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '999px', whiteSpace: 'nowrap' }}>Needs Verification</span>
+                )}
                 {s.australian_native && (
                   <span style={{ fontSize: '11px', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '999px', whiteSpace: 'nowrap' }}>AU Native</span>
                 )}
@@ -121,7 +193,9 @@ export default function SpeciesList() {
       </ul>
 
       {!loading && species.length === 0 && (
-        <p style={{ color: '#9ca3af', textAlign: 'center', padding: '32px 0' }}>No species found.</p>
+        <p style={{ color: '#9ca3af', textAlign: 'center', padding: '32px 0' }}>
+          {topMode ? 'No scored species found.' : 'No species found.'}
+        </p>
       )}
     </div>
   )
