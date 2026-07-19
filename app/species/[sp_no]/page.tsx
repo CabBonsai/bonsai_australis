@@ -632,25 +632,37 @@ export default function SpeciesDetail() {
         y += 8
       }
 
-      if (reportType === 'basic') {
-        addSection('Species Info', [
-          ['Research Status', species.research_status],
-          ['Genus', species.species_genus],
-          ['Epithet', species.species_epithet],
-          ['Family', species.species_family],
-          ['Tree Type', species.tree_type],
-          ['Pure Species', species.pure_species],
-          ['AU Native', species.australian_native],
-          ['Origin', species.species_origin],
-          ['Natural Habitat', species.natural_habitat],
-          ['Species Notes', species.species_notes],
-          ['Quick Notes', species.research_notes],
-        ])
-        if (suitability) {
+      addSection('Species Info', [
+        ['Research Status', species.research_status],
+        ['Genus', species.species_genus],
+        ['Epithet', species.species_epithet],
+        ['Family', species.species_family],
+        ['Tree Type', species.tree_type],
+        ['Pure Species', species.pure_species],
+        ['AU Native', species.australian_native],
+        ['Origin', species.species_origin],
+        ['Natural Habitat', species.natural_habitat],
+        ['Species Notes', species.species_notes],
+        ['Quick Notes', species.research_notes],
+      ])
+      if (suitability) {
+        if (reportType === 'basic') {
           addSection('Bonsai Suitability', [
             ['Suitability', suitability.bonsai_suitability],
             ['Difficulty', suitability.difficulty],
             ['Recommended Styles', suitability.recommended_bonsai_styles],
+            ['Final Bonsai Score', suitability.final_bonsai_score],
+            ['Tier', suitability.bonsai_tier],
+          ])
+        } else {
+          const confidenceLabel = suitability.needs_verification
+            ? 'Provisional / Family Default'
+            : (suitability.research_status || 'Verified')
+          addSection('Bonsai Suitability Profile', [
+            ['Suitability', suitability.bonsai_suitability],
+            ['Difficulty', suitability.difficulty],
+            ['Recommended Styles', suitability.recommended_bonsai_styles],
+            ['Confidence', confidenceLabel],
             ['Vigor', suitability.vigor],
             ['Vigor Notes', suitability.vigor_notes],
             ['Back Budding Ability', suitability.back_budding_ability],
@@ -661,60 +673,69 @@ export default function SpeciesDetail() {
             ['Leaf Reduction Notes', suitability.leaf_reduction_notes],
             ['Root Tolerance Score', suitability.root_tolerance_score],
             ['Root Tolerance Notes', suitability.root_tolerance_notes],
+            ['Wire/Bend Tolerance', suitability.wire_bend_tolerance],
+            ['Wire/Bend Notes', suitability.wire_bend_notes],
+            ['Nebari Potential', suitability.nebari_potential_score],
+            ['Bark Character', suitability.bark_character_score],
+            ['Taper & Movement', suitability.taper_movement_score],
+            ['Longevity', suitability.longevity_score],
+            ['Native Bonus', suitability.native_bonus],
             ['Final Bonsai Score', suitability.final_bonsai_score],
             ['Tier', suitability.bonsai_tier],
           ])
-          checkPageBreak(14)
-          doc.setFontSize(8)
-          doc.setFont('helvetica', 'italic')
-          doc.setTextColor(120, 120, 120)
-          doc.text('Note: all suitability ratings are expressed on a scale of 1-100.', margin + 5, y)
-          doc.setTextColor(0, 0, 0)
-          y += 16
         }
-        if (careGuide) addSection('Care Guide', [
-          ['Growth Season', careGuide.growth_season],
-          ['Growth Season Notes', careGuide.growth_season_notes],
-          ['Growth Plan', careGuide.growth_plan],
-          ['Watering', careGuide.watering],
-          ['Watering Frequency', careGuide.watering_frequency],
-          ['Sun Exposure', careGuide.sun_exposure],
-          ['Light Requirements', careGuide.light_requirements],
-          ['Fertilizing', careGuide.fertilizing],
-          ['Best Fertiliser (AU)', careGuide.best_fertiliser_australia],
-          ['Promote Growth', careGuide.promote_growth],
-          ['Promote Back Budding', careGuide.promote_back_budding],
-          ['Style Options', careGuide.style_options],
-          ['Styling Considerations', careGuide.styling_considerations],
-          ['Technical Training & Styling', careGuide.technical_training_styling],
-          ['Pruning & Refinement', careGuide.pruning_refinement_protocols],
-          ['Wiring', careGuide.wiring],
-          ['Branch Direction After Wiring', careGuide.branch_direction_after_wiring],
-          ['Repotting Guide', careGuide.repotting_guide],
-          ['Best Soil Mix', careGuide.best_soil_mix],
-          ['Pests & Diseases', careGuide.pests_and_diseases],
-          ['Climate Zone', careGuide.climate_zone],
-          ['Watering (Summer)', careGuide.watering_summer_notes],
-          ['Watering (Winter)', careGuide.watering_winter_notes],
-          ['Summer Sun Protection', careGuide.summer_sun_protection],
-          ['Frost Risk', careGuide.frost_risk],
-          ['Min Temp (C)', careGuide.min_temp_c],
-          ['Pruning Season', careGuide.pruning_season],
-          ['Repotting Season', careGuide.repotting_season],
-          ['Repotting Frequency (yrs)', careGuide.repotting_freq_yrs],
-        ])
-        if (toxicity) addSection('Toxicity', [
-          ['Toxicity Level', toxicity.toxicity_level],
-          ['Toxic to Humans', toxicity.toxic_to_humans],
-          ['Toxic to Pets', toxicity.toxic_to_pets],
-          ['Toxic to Livestock', toxicity.toxic_to_livestock],
-          ['Toxic Parts', toxicity.toxic_parts],
-          ['Toxic Principle', toxicity.toxic_principle],
-          ['Symptoms', toxicity.symptoms],
-          ['Severity Notes', toxicity.severity_notes],
-          ['First Aid Notes', toxicity.first_aid_notes],
-        ])
-      } else {
+        checkPageBreak(14)
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'italic')
+        doc.setTextColor(120, 120, 120)
+        doc.text('Note: all suitability ratings are expressed on a scale of 1-100.', margin + 5, y)
+        doc.setTextColor(0, 0, 0)
+        y += 16
+      }
+      addSection('Care Guide', [
+        ['Growth Season', careGuide?.growth_season],
+        ['Growth Season Notes', careGuide?.growth_season_notes],
+        ['Growth Plan', careGuide?.growth_plan],
+        ['Watering', careGuide?.watering],
+        ['Watering Frequency', careGuide?.watering_frequency],
+        ['Sun Exposure', careGuide?.sun_exposure],
+        ['Light Requirements', careGuide?.light_requirements],
+        ['Fertilizing', careGuide?.fertilizing],
+        ['Best Fertiliser (AU)', careGuide?.best_fertiliser_australia],
+        ['Promote Growth', careGuide?.promote_growth],
+        ['Promote Back Budding', careGuide?.promote_back_budding],
+        ['Style Options', careGuide?.style_options],
+        ['Styling Considerations', careGuide?.styling_considerations],
+        ['Technical Training & Styling', careGuide?.technical_training_styling],
+        ['Pruning & Refinement', careGuide?.pruning_refinement_protocols],
+        ['Wiring', careGuide?.wiring],
+        ['Branch Direction After Wiring', careGuide?.branch_direction_after_wiring],
+        ['Repotting Guide', careGuide?.repotting_guide],
+        ['Best Soil Mix', careGuide?.best_soil_mix],
+        ['Pests & Diseases', careGuide?.pests_and_diseases],
+        ['Climate Zone', careGuide?.climate_zone],
+        ['Watering (Summer)', careGuide?.watering_summer_notes],
+        ['Watering (Winter)', careGuide?.watering_winter_notes],
+        ['Summer Sun Protection', careGuide?.summer_sun_protection],
+        ['Frost Risk', careGuide?.frost_risk],
+        ['Min Temp (C)', careGuide?.min_temp_c],
+        ['Pruning Season', careGuide?.pruning_season],
+        ['Repotting Season', careGuide?.repotting_season],
+        ['Repotting Frequency (yrs)', careGuide?.repotting_freq_yrs],
+      ])
+      addSection('Toxicity', [
+        ['Toxicity Level', toxicity?.toxicity_level],
+        ['Toxic to Humans', toxicity?.toxic_to_humans],
+        ['Toxic to Pets', toxicity?.toxic_to_pets],
+        ['Toxic to Livestock', toxicity?.toxic_to_livestock],
+        ['Toxic Parts', toxicity?.toxic_parts],
+        ['Toxic Principle', toxicity?.toxic_principle],
+        ['Symptoms', toxicity?.symptoms],
+        ['Severity Notes', toxicity?.severity_notes],
+        ['First Aid Notes', toxicity?.first_aid_notes],
+      ])
+
+      if (reportType === 'advanced') {
         if (fertilisation) addSection('Fertilisation', [
           ['P Tolerance', fertilisation.p_tolerance],
           ['N Requirement', fertilisation.n_requirement],
