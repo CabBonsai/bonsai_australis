@@ -248,7 +248,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       .single()
   }
 
-  async function decrementTubestock(collectionId: string) {
+  async function decrementTubestock(collectionId: string | null) {
     const newQuantity = row.quantity - 1
     const today = new Date().toISOString().slice(0, 10)
     await supabase
@@ -311,31 +311,25 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
     if (tag === null) return
 
     setBusy(true)
-    const { data: inserted, error: insertError } = await createCollectionRow(tag)
 
-    if (insertError || !inserted) {
-      alert(`Promote failed: ${insertError?.message}`)
-      setBusy(false)
-      return
-    }
-
+    // Research pod trees stay in the research pipeline only \u2014 no Collection row,
+    // no bonsai_collection_number. Only research_project_trees gets written here.
     const { error: linkError } = await supabase
       .from('research_project_trees')
       .insert({
         project_id: selectedProjectId,
-        collection_id: inserted.collection_id,
         tubestock_id: row.id,
+        sp_no: row.sp_no,
+        baseline_notes: `From tubestock ${tag || batchCode}.`,
       })
 
     if (linkError) {
-      alert(`Created the Collection tree, but linking to the research project failed: ${linkError.message}. You can link it manually from the research project page.`)
+      alert(`Linking to the research project failed: ${linkError.message}`)
       setBusy(false)
-      await decrementTubestock(inserted.collection_id)
-      onDone()
       return
     }
 
-    await decrementTubestock(inserted.collection_id)
+    await decrementTubestock(null)
     setBusy(false)
     onDone()
   }
