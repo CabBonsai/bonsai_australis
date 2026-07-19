@@ -596,6 +596,16 @@ updateData.in_collection = true
         variantCare = vc
       }
 
+      let suitability: any = null
+      if (tree.sp_no) {
+        const { data: sd } = await supabase
+          .from('bonsai_suitability')
+          .select('bonsai_suitability, difficulty, recommended_bonsai_styles, vigor, back_budding_ability, ramification_potential, leaf_reduction_potential, root_tolerance_score, wire_bend_tolerance, nebari_potential_score, bark_character_score, taper_movement_score, longevity_score, native_bonus, final_bonsai_score, bonsai_tier, research_status, needs_verification')
+          .eq('sp_no', tree.sp_no)
+          .single()
+        suitability = sd
+      }
+
       function checkPageBreak(needed: number) {
         if (y + needed > doc.internal.pageSize.getHeight() - 40) {
           doc.addPage()
@@ -631,6 +641,40 @@ updateData.in_collection = true
         })
         doc.setTextColor(0, 0, 0)
         y += 8
+      }
+
+      addSection('Origin & Provenance', [
+        ['Origin Material', tree.origin_material],
+        ['Source', tree.source],
+        ['Acquired Date', tree.acquired_date],
+        ['Origin Tubestock Tag', tree.origin_tubestock_tag],
+        ['Year Est. Planted', tree.year_est_planted],
+        ['Estimated Age', tree.estimated_age],
+      ])
+
+      if (suitability) {
+        const confidenceLabel = suitability.needs_verification
+          ? 'Provisional / Family Default'
+          : (suitability.research_status || 'Verified')
+        addSection('Bonsai Suitability Profile', [
+          ['Overall Suitability', suitability.bonsai_suitability],
+          ['Suitability Tier', suitability.bonsai_tier],
+          ['Final Score', suitability.final_bonsai_score],
+          ['Difficulty', suitability.difficulty],
+          ['Confidence', confidenceLabel],
+          ['Recommended Styles', suitability.recommended_bonsai_styles],
+          ['Vigor', suitability.vigor],
+          ['Back Budding', suitability.back_budding_ability],
+          ['Ramification Potential', suitability.ramification_potential],
+          ['Leaf Reduction Potential', suitability.leaf_reduction_potential],
+          ['Root Tolerance', suitability.root_tolerance_score],
+          ['Wire/Bend Tolerance', suitability.wire_bend_tolerance],
+          ['Nebari Potential', suitability.nebari_potential_score],
+          ['Bark Character', suitability.bark_character_score],
+          ['Taper & Movement', suitability.taper_movement_score],
+          ['Longevity', suitability.longevity_score],
+          ['Native Bonus', suitability.native_bonus],
+        ])
       }
 
       if (variantCare) {
