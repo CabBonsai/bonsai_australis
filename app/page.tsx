@@ -193,6 +193,9 @@ export default function Home() {
 	  <Link href="/research-projects" style={{ fontSize: '13px', background: '#059669', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Research Projects
           </Link>
+          <Link href="/community-submissions" style={{ fontSize: '13px', background: '#b91c1c', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Community Submissions
+          </Link>
           <Link href="/tubestock-admin" style={{ fontSize: '13px', background: '#84670d', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Tubestock
           </Link>
