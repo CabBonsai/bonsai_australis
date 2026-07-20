@@ -47,7 +47,7 @@ type Submission = {
   common_name?: string
 }
 
-const TRAIT_ROWS: { key: keyof Submission; detailKey: keyof Submission; label: string }[] = [
+const TRAIT_ROWS: { key: keyof Submission; detailKey?: keyof Submission; label: string }[] = [
   { key: 'back_budding', detailKey: 'back_budding_detail', label: 'Back budding' },
   { key: 'wire_tolerance', detailKey: 'wire_tolerance_detail', label: 'Wire tolerance' },
   { key: 'vigor', detailKey: 'vigor_detail', label: 'Vigor' },
@@ -57,7 +57,7 @@ const TRAIT_ROWS: { key: keyof Submission; detailKey: keyof Submission; label: s
   { key: 'frost_tolerance', detailKey: 'frost_tolerance_detail', label: 'Frost tolerance' },
   { key: 'deadwood_technique', detailKey: 'deadwood_technique_detail', label: 'Deadwood technique' },
   { key: 'pest_disease_issues', detailKey: 'pest_disease_detail', label: 'Pest/disease issues' },
-  { key: 'would_recommend', detailKey: 'would_recommend' as keyof Submission, label: 'Would recommend' },
+  { key: 'would_recommend', label: 'Would recommend' },
 ]
 
 const statusColors: Record<string, { bg: string; color: string }> = {
@@ -134,6 +134,22 @@ export default function CommunitySubmissionsAdmin() {
 
     if (updateError) {
       setError(updateError.message)
+      return
+    }
+    setSubmissions(prev => prev.filter(s => s.id !== id))
+    setExpandedId(null)
+  }
+
+  async function deleteSubmission(id: number) {
+    if (!confirm('Permanently delete this submission? This cannot be undone.')) return
+
+    const { error: deleteError } = await supabase
+      .from('community_submissions')
+      .delete()
+      .eq('id', id)
+
+    if (deleteError) {
+      setError(deleteError.message)
       return
     }
     setSubmissions(prev => prev.filter(s => s.id !== id))
@@ -233,7 +249,7 @@ export default function CommunitySubmissionsAdmin() {
                   <div style={{ marginBottom: '14px' }}>
                     {TRAIT_ROWS.map(t => {
                       const primary = s[t.key] as string | null
-                      const detail = s[t.detailKey] as string | null
+                      const detail = t.detailKey ? (s[t.detailKey] as string | null) : null
                       if (!primary) return null
                       return (
                         <div key={t.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
@@ -279,6 +295,15 @@ export default function CommunitySubmissionsAdmin() {
                         Reject
                       </button>
                     </div>
+                  )}
+
+                  {s.status === 'rejected' && (
+                    <button
+                      onClick={() => deleteSubmission(s.id)}
+                      style={{ width: '100%', fontSize: '13px', fontWeight: 600, background: '#7f1d1d', color: 'white', padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+                    >
+                      Delete permanently
+                    </button>
                   )}
                 </div>
               )}
