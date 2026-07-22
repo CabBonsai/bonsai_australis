@@ -42,14 +42,18 @@ function formatVal(v: any): string {
 }
 
 // BAMSR v3.1.1 — 10 weighted traits + flat native bonus, per the authoritative
-// methodology doc. Column names match bonsai_suitability exactly.
-const BAMSR_TRAITS: { label: string, column: string, weight: number }[] = [
-  { label: 'Back Budding', column: 'back_budding_ability', weight: 20 },
-  { label: 'Ramification', column: 'ramification_potential', weight: 12 },
-  { label: 'Leaf Reduction', column: 'leaf_reduction_potential', weight: 12 },
-  { label: 'Vigor', column: 'vigor', weight: 10 },
-  { label: 'Root Tolerance', column: 'root_tolerance_score', weight: 10 },
-  { label: 'Wire/Bend Tolerance', column: 'wire_bend_tolerance', weight: 10 },
+// methodology doc. Column names match bonsai_suitability exactly. Only 6 of the
+// 10 traits carry an inline notes column on bonsai_suitability itself — Nebari,
+// Bark Character, Taper & Movement, and Longevity are sourced from their own
+// detail tables (nebari_root, bark_character, taper_movement) rather than a
+// notes column here, so notesColumn is omitted for those four.
+const BAMSR_TRAITS: { label: string, column: string, weight: number, notesColumn?: string }[] = [
+  { label: 'Back Budding', column: 'back_budding_ability', weight: 20, notesColumn: 'back_budding_notes' },
+  { label: 'Ramification', column: 'ramification_potential', weight: 12, notesColumn: 'ramification_notes' },
+  { label: 'Leaf Reduction', column: 'leaf_reduction_potential', weight: 12, notesColumn: 'leaf_reduction_notes' },
+  { label: 'Vigor', column: 'vigor', weight: 10, notesColumn: 'vigor_notes' },
+  { label: 'Root Tolerance', column: 'root_tolerance_score', weight: 10, notesColumn: 'root_tolerance_notes' },
+  { label: 'Wire/Bend Tolerance', column: 'wire_bend_tolerance', weight: 10, notesColumn: 'wire_bend_notes' },
   { label: 'Nebari Potential', column: 'nebari_potential_score', weight: 10 },
   { label: 'Bark Character', column: 'bark_character_score', weight: 8 },
   { label: 'Taper & Movement', column: 'taper_movement_score', weight: 6 },
@@ -69,22 +73,35 @@ function SuitabilityBreakdown({ suitability }: { suitability: any }) {
       <p className="font-semibold mb-1" style={{ color: '#166534' }}>BAMSR v3.1.1 Breakdown</p>
       <table className="w-full" style={{ borderCollapse: 'collapse' }}>
         <tbody>
-          {BAMSR_TRAITS.map(t => (
-            <tr key={t.column}>
-              <td style={{ padding: '2px 4px 2px 0', color: '#374151' }}>{t.label} <span style={{ color: '#9ca3af' }}>({t.weight}%)</span></td>
-              <td style={{ padding: '2px 0', textAlign: 'right', fontWeight: 600, color: suitability[t.column] === null ? '#9ca3af' : '#111827' }}>
-                {suitability[t.column] === null || suitability[t.column] === undefined ? '—' : suitability[t.column]}
-              </td>
-            </tr>
-          ))}
+          {BAMSR_TRAITS.map(t => {
+            const note = t.notesColumn ? suitability[t.notesColumn] : null
+            return (
+              <tr key={t.column}>
+                <td colSpan={2} style={{ padding: '3px 0 3px 0' }}>
+                  <div className="flex justify-between">
+                    <span style={{ color: '#374151' }}>{t.label} <span style={{ color: '#9ca3af' }}>({t.weight}%)</span></span>
+                    <span style={{ fontWeight: 600, color: suitability[t.column] === null ? '#9ca3af' : '#111827' }}>
+                      {suitability[t.column] === null || suitability[t.column] === undefined ? '—' : suitability[t.column]}
+                    </span>
+                  </div>
+                  {note && <div style={{ color: '#4b5563', fontStyle: 'italic', marginTop: '1px' }}>{note}</div>}
+                </td>
+              </tr>
+            )
+          })}
           <tr>
-            <td style={{ padding: '2px 4px 2px 0', color: '#374151' }}>Native Bonus</td>
-            <td style={{ padding: '2px 0', textAlign: 'right', fontWeight: 600, color: '#111827' }}>
-              {suitability.native_bonus === null || suitability.native_bonus === undefined ? '—' : `+${suitability.native_bonus}`}
+            <td colSpan={2} style={{ padding: '3px 0 3px 0' }}>
+              <div className="flex justify-between">
+                <span style={{ color: '#374151' }}>Native Bonus</span>
+                <span style={{ fontWeight: 600, color: '#111827' }}>
+                  {suitability.native_bonus === null || suitability.native_bonus === undefined ? '—' : `+${suitability.native_bonus}`}
+                </span>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
+
       <div className="flex justify-between items-center mt-2 pt-2" style={{ borderTop: '1px solid #bbf7d0' }}>
         <span className="font-semibold" style={{ color: '#166534' }}>
           {suitability.final_bonsai_score}/100 — {suitability.bonsai_tier}
@@ -93,7 +110,26 @@ function SuitabilityBreakdown({ suitability }: { suitability: any }) {
           <span style={{ fontSize: '10px', color: '#6b7280' }}>{suitability.research_status}</span>
         )}
       </div>
-      <p style={{ color: '#6b7280', marginTop: '4px' }}>Edit via the Suitability bulk-edit tab, keyed to sp_no {suitability.sp_no}.</p>
+
+      {suitability.difficulty !== null && suitability.difficulty !== undefined && (
+        <p style={{ marginTop: '4px' }}><span style={{ color: '#374151', fontWeight: 600 }}>Difficulty: </span><span style={{ color: '#111827' }}>{suitability.difficulty}</span></p>
+      )}
+      {suitability.recommended_bonsai_styles && (
+        <p style={{ marginTop: '4px' }}><span style={{ color: '#374151', fontWeight: 600 }}>Recommended styles: </span><span style={{ color: '#111827' }}>{suitability.recommended_bonsai_styles}</span></p>
+      )}
+      {suitability.data_source && (
+        <p style={{ marginTop: '4px' }}><span style={{ color: '#374151', fontWeight: 600 }}>Data source: </span><span style={{ color: '#111827' }}>{suitability.data_source}</span></p>
+      )}
+      {suitability.research_notes && (
+        <p style={{ marginTop: '4px' }}><span style={{ color: '#374151', fontWeight: 600 }}>Research notes: </span><span style={{ color: '#111827' }}>{suitability.research_notes}</span></p>
+      )}
+      {suitability.needs_verification !== null && suitability.needs_verification !== undefined && (
+        <p style={{ marginTop: '4px', color: suitability.needs_verification ? '#b45309' : '#166534' }}>
+          {suitability.needs_verification ? '⚠ Needs verification' : '✓ Verified'}
+        </p>
+      )}
+
+      <p style={{ color: '#6b7280', marginTop: '6px' }}>Edit via the Suitability bulk-edit tab, keyed to sp_no {suitability.sp_no}.</p>
     </div>
   )
 }
@@ -273,7 +309,19 @@ function VariantCard({ variant, suitability, overrides, onDelete, onSaved }: {
         ['Native Bonus', suitability?.native_bonus],
         ['Suitability Score', suitability?.final_bonsai_score],
         ['Tier', suitability?.bonsai_tier],
+        ['Difficulty', suitability?.difficulty],
+        ['Recommended Styles', suitability?.recommended_bonsai_styles],
       ])
+
+      if (reportType === 'advanced') {
+        addSection('Suitability — Trait Notes & Sourcing', [
+          ...BAMSR_TRAITS.filter(t => t.notesColumn).map(t => [`${t.label} Notes`, suitability?.[t.notesColumn as string]] as [string, any]),
+          ['Data Source', suitability?.data_source],
+          ['Research Notes', suitability?.research_notes],
+          ['Research Status', suitability?.research_status],
+          ['Needs Verification', suitability?.needs_verification],
+        ])
+      }
 
       if (reportType === 'basic') {
         addSection('Care Overrides', [
