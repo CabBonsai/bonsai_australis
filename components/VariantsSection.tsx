@@ -41,6 +41,63 @@ function formatVal(v: any): string {
   return sanitizeForPDF(String(v))
 }
 
+// BAMSR v3.1.1 — 10 weighted traits + flat native bonus, per the authoritative
+// methodology doc. Column names match bonsai_suitability exactly.
+const BAMSR_TRAITS: { label: string, column: string, weight: number }[] = [
+  { label: 'Back Budding', column: 'back_budding_ability', weight: 20 },
+  { label: 'Ramification', column: 'ramification_potential', weight: 12 },
+  { label: 'Leaf Reduction', column: 'leaf_reduction_potential', weight: 12 },
+  { label: 'Vigor', column: 'vigor', weight: 10 },
+  { label: 'Root Tolerance', column: 'root_tolerance_score', weight: 10 },
+  { label: 'Wire/Bend Tolerance', column: 'wire_bend_tolerance', weight: 10 },
+  { label: 'Nebari Potential', column: 'nebari_potential_score', weight: 10 },
+  { label: 'Bark Character', column: 'bark_character_score', weight: 8 },
+  { label: 'Taper & Movement', column: 'taper_movement_score', weight: 6 },
+  { label: 'Longevity/Ageing Grace', column: 'longevity_score', weight: 2 },
+]
+
+function SuitabilityBreakdown({ suitability }: { suitability: any }) {
+  if (!suitability) {
+    return (
+      <div className="mt-2 px-2 py-1.5 rounded text-xs" style={{ background: '#f9fafb', border: '1px solid #e2e8f0', color: '#6b7280' }}>
+        Not yet scored under BAMSR v3.1.1.
+      </div>
+    )
+  }
+  return (
+    <div className="mt-2 px-3 py-2 rounded text-xs" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+      <p className="font-semibold mb-1" style={{ color: '#166534' }}>BAMSR v3.1.1 Breakdown</p>
+      <table className="w-full" style={{ borderCollapse: 'collapse' }}>
+        <tbody>
+          {BAMSR_TRAITS.map(t => (
+            <tr key={t.column}>
+              <td style={{ padding: '2px 4px 2px 0', color: '#374151' }}>{t.label} <span style={{ color: '#9ca3af' }}>({t.weight}%)</span></td>
+              <td style={{ padding: '2px 0', textAlign: 'right', fontWeight: 600, color: suitability[t.column] === null ? '#9ca3af' : '#111827' }}>
+                {suitability[t.column] === null || suitability[t.column] === undefined ? '—' : suitability[t.column]}
+              </td>
+            </tr>
+          ))}
+          <tr>
+            <td style={{ padding: '2px 4px 2px 0', color: '#374151' }}>Native Bonus</td>
+            <td style={{ padding: '2px 0', textAlign: 'right', fontWeight: 600, color: '#111827' }}>
+              {suitability.native_bonus === null || suitability.native_bonus === undefined ? '—' : `+${suitability.native_bonus}`}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="flex justify-between items-center mt-2 pt-2" style={{ borderTop: '1px solid #bbf7d0' }}>
+        <span className="font-semibold" style={{ color: '#166534' }}>
+          {suitability.final_bonsai_score}/100 — {suitability.bonsai_tier}
+        </span>
+        {suitability.research_status && (
+          <span style={{ fontSize: '10px', color: '#6b7280' }}>{suitability.research_status}</span>
+        )}
+      </div>
+      <p style={{ color: '#6b7280', marginTop: '4px' }}>Edit via the Suitability bulk-edit tab, keyed to sp_no {suitability.sp_no}.</p>
+    </div>
+  )
+}
+
 function VariantCard({ variant, suitability, overrides, onDelete, onSaved }: {
   variant: any
   suitability: any
@@ -212,6 +269,8 @@ function VariantCard({ variant, suitability, overrides, onDelete, onSaved }: {
 
       addSection('Bonsai Suitability (BAMSR v3.1.1)', [
         ['Rating (nursery/grower)', v.rating],
+        ...BAMSR_TRAITS.map(t => [`${t.label} (${t.weight}%)`, suitability?.[t.column]] as [string, any]),
+        ['Native Bonus', suitability?.native_bonus],
         ['Suitability Score', suitability?.final_bonsai_score],
         ['Tier', suitability?.bonsai_tier],
       ])
@@ -285,7 +344,7 @@ function VariantCard({ variant, suitability, overrides, onDelete, onSaved }: {
         {suitability
           ? <span>{suitability.final_bonsai_score}/100 — {suitability.bonsai_tier}</span>
           : <span style={{ color: '#6b7280' }}>Not yet scored</span>}
-        <span style={{ color: '#6b7280' }}> (edit via Suitability bulk-edit tab, keyed to sp_no {v.sp_no})</span>
+        <span style={{ color: '#6b7280' }}> — full breakdown in "Show more details" below</span>
       </div>
 
       <div className="flex gap-2 mt-2">
@@ -318,6 +377,8 @@ function VariantCard({ variant, suitability, overrides, onDelete, onSaved }: {
 
       {expanded && (
         <div className="space-y-2 mt-2 pt-2 border-t">
+          <SuitabilityBreakdown suitability={suitability} />
+
           <VariantField label="Common name" value={v.common_name} onChange={val => updateV('common_name', val)} />
           <VariantField label="Botanical rank" value={v.botanical_rank} onChange={val => updateV('botanical_rank', val)} />
           <div className="flex gap-2">
@@ -374,7 +435,7 @@ export default function VariantsSection({ spNo }: { spNo: string | number }) {
 
     if (rows.length > 0) {
       const spNos = rows.map(r => r.sp_no)
-      const { data: suitabilityRows } = await supabase.from('bonsai_suitability').select('sp_no, final_bonsai_score, bonsai_tier').in('sp_no', spNos)
+      const { data: suitabilityRows } = await supabase.from('bonsai_suitability').select('*').in('sp_no', spNos)
       const { data: overrideRows } = await supabase.from('variant_overrides').select('*').in('sp_no', spNos)
 
       const suMap: Record<string, any> = {}
