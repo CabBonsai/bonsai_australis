@@ -35,23 +35,19 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
   async function fetchAll() {
     setLoading(true)
 
-    const { data: projectData, error: projectError } = await supabase
-      .from('research_projects')
-      .select('*')
-      .eq('id', projectId)
-      .single()
+    const projectRes = await fetch(`/api/research-projects?id=${projectId}`)
+    const projectRows = await projectRes.json()
 
-    if (projectError) {
-      setError(projectError.message)
+    if (!projectRes.ok) {
+      setError(projectRows.error || 'Failed to load project')
       setLoading(false)
       return
     }
+    const projectData = Array.isArray(projectRows) ? projectRows[0] : projectRows
     setProject(projectData)
 
-    const { data: treeRows } = await supabase
-      .from('research_project_trees')
-      .select('*')
-      .eq('project_id', projectId)
+    const treesRes = await fetch(`/api/research-project-trees?project_id=${projectId}`)
+    const treeRows = treesRes.ok ? await treesRes.json() : []
 
     const treeLinks = treeRows || []
     const collectionIds = treeLinks.map((t: any) => t.collection_id).filter(Boolean)
@@ -61,6 +57,7 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
     let speciesMap: Record<number, string> = {}
     const spNosNeeded = new Set<number>()
 
+    // collection is not one of the locked-down tables — direct Supabase call unchanged.
     if (collectionIds.length > 0) {
       const { data: collectionData } = await supabase
         .from('collection')
@@ -72,17 +69,21 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
       })
     }
 
+    // tubestock API route only filters by a single id/sp_no, not a list — fetch all
+    // rows and filter client-side to the ids we actually need.
     if (tubestockIds.length > 0) {
-      const { data: tubestockData } = await supabase
-        .from('tubestock')
-        .select('id, tubestock_number, sp_no, species_name_text, quantity, source')
-        .in('id', tubestockIds)
-      ;(tubestockData || []).forEach((t: any) => {
-        tubestockMap[t.id] = t
-        if (t.sp_no) spNosNeeded.add(t.sp_no)
-      })
+      const tubestockRes = await fetch('/api/tubestock')
+      const allTubestock = tubestockRes.ok ? await tubestockRes.json() : []
+      const idSet = new Set(tubestockIds)
+      ;(allTubestock || [])
+        .filter((t: any) => idSet.has(t.id))
+        .forEach((t: any) => {
+          tubestockMap[t.id] = t
+          if (t.sp_no) spNosNeeded.add(t.sp_no)
+        })
     }
 
+    // species is not one of the locked-down tables — direct Supabase call unchanged.
     if (spNosNeeded.size > 0) {
       const { data: spData } = await supabase.from('species').select('sp_no, species, common_name').in('sp_no', Array.from(spNosNeeded))
       ;(spData || []).forEach((s: any) => {
@@ -114,13 +115,18 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
       return { ...t, displayName: 'Unlinked entry', speciesLabel: '', imageUrl: null, sourceLabel: null }
     }))
 
-    const { data: journalRows } = await supabase
-      .from('research_project_journal')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('entry_date', { ascending: false })
+    const journalRes = await fetch(`/api/research-project-journal?project_id=${projectId}`)
+    const journalRows = journalRes.ok ? await journalRes.json() : []
 
-    setJournal((journalRows || []).map((j: any) => {
+    // API route doesn't support server-side ordering — sort client-side instead
+    // (entry_date descending, matching the original query's behavior).
+    const sortedJournal = (journalRows || []).slice().sort((a: any, b: any) => {
+      if (a.entry_date < b.entry_date) return 1
+      if (a.entry_date > b.entry_date) return -1
+      return 0
+    })
+
+    setJournal(sortedJournal.map((j: any) => {
       const c = j.collection_id ? collectionMap[j.collection_id] : null
       return { ...j, treeName: c ? (c.display_name || c.tree_name) : null }
     }))
@@ -141,15 +147,17 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
 
   async function handleSaveBaseline(treeRowId: number) {
     setSavingBaseline(true)
-    await supabase
-      .from('research_project_trees')
-      .update({
+    await fetch('/api/research-project-trees', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: treeRowId,
         baseline_date: new Date().toISOString().slice(0, 10),
         baseline_caliper_mm: baselineCaliper === '' ? null : parseFloat(baselineCaliper),
         baseline_height_mm: baselineHeight === '' ? null : parseFloat(baselineHeight),
         baseline_notes: baselineNotes || null,
-      })
-      .eq('id', treeRowId)
+      }),
+    })
     setSavingBaseline(false)
     setEditingBaselineId(null)
     fetchAll()
@@ -158,17 +166,20 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
   async function handleAddEntry() {
     if (!entryNote.trim()) { alert('Note is required.'); return }
     setSavingEntry(true)
-    const { error } = await supabase
-      .from('research_project_journal')
-      .insert({
+    const res = await fetch('/api/research-project-journal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         project_id: projectId,
         collection_id: entryTreeId || null,
         entry_date: entryDate,
         note: entryNote.trim(),
         photo_url: entryPhotoUrl.trim() || null,
-      })
+      }),
+    })
+    const data = await res.json()
     setSavingEntry(false)
-    if (error) { alert('Error: ' + error.message); return }
+    if (!res.ok) { alert('Error: ' + data.error); return }
     setEntryNote('')
     setEntryPhotoUrl('')
     fetchAll()

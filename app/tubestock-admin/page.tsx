@@ -64,18 +64,20 @@ export default function TubestockAdmin() {
     setLoading(true)
     setFetchError(null)
 
-    const { data: stockData, error: stockError } = await supabase
-      .from('tubestock')
-      .select('*')
-      .order('created_at', { ascending: false })
+    const stockRes = await fetch('/api/tubestock')
+    const stockData = stockRes.ok ? await stockRes.json() : null
 
-    if (stockError) {
-      setFetchError(stockError.message)
+    if (!stockRes.ok) {
+      setFetchError((stockData && stockData.error) || 'Failed to load tubestock')
       setLoading(false)
       return
     }
 
-    const tubestockRows = stockData || []
+    // API route doesn't support server-side ordering — sort client-side instead
+    // (created_at descending, matching the original query's behavior).
+    const tubestockRows = (stockData || []).slice().sort((a: any, b: any) =>
+      (b.created_at || '').localeCompare(a.created_at || '')
+    )
     setRows(tubestockRows)
 
     const spNos = [...new Set(tubestockRows.map(r => r.sp_no).filter(Boolean))] as number[]
@@ -86,19 +88,22 @@ export default function TubestockAdmin() {
       setSpeciesMap(map)
     }
 
-    const { data: projectData } = await supabase
-      .from('research_projects')
-      .select('id, title, status')
-      .eq('status', 'active')
-      .order('title', { ascending: true })
-    setProjects(projectData || [])
+    // API route doesn't support filtering by status or server-side ordering —
+    // fetch all research projects and filter/sort client-side instead.
+    const projRes = await fetch('/api/research-projects')
+    const allProjects = projRes.ok ? await projRes.json() : []
+    const projectData = (allProjects || [])
+      .filter((p: any) => p.status === 'active')
+      .slice()
+      .sort((a: any, b: any) => (a.title || '').localeCompare(b.title || ''))
+    setProjects(projectData)
 
     // Research-pod badge: which tubestock batches are linked to a research project.
-    const { data: linkData } = await supabase
-      .from('research_project_trees')
-      .select('tubestock_id')
-      .not('tubestock_id', 'is', null)
-    setLinkedIds(new Set((linkData || []).map((l: any) => l.tubestock_id)))
+    // API route doesn't support a "not null" filter — fetch all rows and filter here.
+    const linkRes = await fetch('/api/research-project-trees')
+    const allLinkRows = linkRes.ok ? await linkRes.json() : []
+    const linkData = (allLinkRows || []).filter((l: any) => l.tubestock_id != null)
+    setLinkedIds(new Set(linkData.map((l: any) => l.tubestock_id)))
 
     setLoading(false)
   }
@@ -251,15 +256,17 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
   async function decrementTubestock(collectionId: string | null) {
     const newQuantity = row.quantity - 1
     const today = new Date().toISOString().slice(0, 10)
-    await supabase
-      .from('tubestock')
-      .update({
+    await fetch('/api/tubestock', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: row.id,
         quantity: newQuantity,
         status: newQuantity <= 0 ? 'promoted' : 'growing_on',
         promoted_to_collection_id: collectionId,
         promoted_date: today,
-      })
-      .eq('id', row.id)
+      }),
+    })
   }
 
   function promptForTag(): string | null {
@@ -268,15 +275,17 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
 
   async function handleSaveNotes() {
     setSaving(true)
-    await supabase
-      .from('tubestock')
-      .update({
+    await fetch('/api/tubestock', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: row.id,
         quantity,
         health_notes: healthNotes || null,
         growing_on_notes: growingOnNotes || null,
         target_criteria: targetCriteria || null,
-      })
-      .eq('id', row.id)
+      }),
+    })
     setSaving(false)
     onDone()
   }
@@ -314,17 +323,20 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
 
     // Research pod trees stay in the research pipeline only \u2014 no Collection row,
     // no bonsai_collection_number. Only research_project_trees gets written here.
-    const { error: linkError } = await supabase
-      .from('research_project_trees')
-      .insert({
+    const linkRes = await fetch('/api/research-project-trees', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         project_id: selectedProjectId,
         tubestock_id: row.id,
         sp_no: row.sp_no,
         baseline_notes: `From tubestock ${tag || batchCode}.`,
-      })
+      }),
+    })
+    const linkResult = await linkRes.json()
 
-    if (linkError) {
-      alert(`Linking to the research project failed: ${linkError.message}`)
+    if (!linkRes.ok) {
+      alert(`Linking to the research project failed: ${linkResult.error}`)
       setBusy(false)
       return
     }
@@ -350,15 +362,17 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
     const newQuantity = row.quantity - cullQty
     const today = new Date().toISOString().slice(0, 10)
 
-    await supabase
-      .from('tubestock')
-      .update({
+    await fetch('/api/tubestock', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: row.id,
         quantity: newQuantity,
         status: newQuantity <= 0 ? 'culled' : 'growing_on',
         culled_date: today,
         culled_reason: fullReason || null,
-      })
-      .eq('id', row.id)
+      }),
+    })
 
     setBusy(false)
     onDone()
@@ -559,23 +573,28 @@ function TubestockCreateForm({ onDone, onCancel }: { onDone: () => void, onCance
     setSaving(true)
     setSaveError(null)
 
-    const { error } = await supabase.from('tubestock').insert({
-      tubestock_number: tubestockNumber.trim() || null,
-      sp_no: selectedSpNo,
-      species_name_text: selectedSpNo ? null : speciesNameText.trim(),
-      quantity,
-      source: source.trim() || null,
-      acquisition_date: acquisitionDate || null,
-      health_notes: healthNotes.trim() || null,
-      growing_on_notes: growingOnNotes.trim() || null,
-      target_criteria: targetCriteria.trim() || null,
-      status: 'growing_on',
+    const res = await fetch('/api/tubestock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tubestock_number: tubestockNumber.trim() || null,
+        sp_no: selectedSpNo,
+        species_name_text: selectedSpNo ? null : speciesNameText.trim(),
+        quantity,
+        source: source.trim() || null,
+        acquisition_date: acquisitionDate || null,
+        health_notes: healthNotes.trim() || null,
+        growing_on_notes: growingOnNotes.trim() || null,
+        target_criteria: targetCriteria.trim() || null,
+        status: 'growing_on',
+      }),
     })
+    const result = await res.json()
 
     setSaving(false)
 
-    if (error) {
-      setSaveError(error.message)
+    if (!res.ok) {
+      setSaveError(result.error)
       return
     }
     onDone()

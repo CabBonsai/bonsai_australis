@@ -205,7 +205,10 @@ export default function SpeciesDetail() {
         supabase.from('bark_character').select('*').eq('sp_no', spNo).single(),
         supabase.from('taper_movement').select('*').eq('sp_no', spNo).single(),
         supabase.from('tubestock_development').select('*').eq('sp_no', spNo).single(),
-        supabase.from('tubestock').select('*').eq('sp_no', spNo),
+        fetch(`/api/tubestock?sp_no=${spNo}`).then(async r => {
+          const json = await r.json()
+          return r.ok ? { data: json, error: null } : { data: null, error: { message: json.error } }
+        }),
         supabase.from('seasonal_maintenance').select('*').eq('sp_no', spNo).single(),
         supabase.from('advanced_expert').select('*').eq('sp_no', spNo).single(),
         supabase.from('regional_suitability').select('*').eq('sp_no', spNo).single(),

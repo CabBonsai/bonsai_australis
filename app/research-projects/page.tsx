@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
 
 const statusColor: Record<string, string> = {
   active: '#16a34a',
@@ -26,30 +25,28 @@ export default function ResearchProjectsPage() {
 
   async function fetchProjects() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('research_projects')
-      .select('*')
-      .order('created_at', { ascending: false })
 
-    if (error) {
-      setError(error.message)
+    const projectsRes = await fetch('/api/research-projects')
+    const projectsData = await projectsRes.json()
+
+    if (!projectsRes.ok) {
+      setError(projectsData.error || 'Failed to load research projects')
       setLoading(false)
       return
     }
 
-    const rows = data || []
-    const projectIds = rows.map((p: any) => p.id)
-    let countMap: Record<number, number> = {}
+    const rows = projectsData || []
 
-    if (projectIds.length > 0) {
-      const { data: treeRows } = await supabase
-        .from('research_project_trees')
-        .select('project_id')
-        .in('project_id', projectIds)
-      ;(treeRows || []).forEach((t: any) => {
-        countMap[t.project_id] = (countMap[t.project_id] || 0) + 1
-      })
-    }
+    // Fetch all research_project_trees rows and count them per project client-side.
+    // (The original query used .in('project_id', projectIds) — the API route only
+    // filters by a single project_id, so we fetch all trees and tally here instead.)
+    const treesRes = await fetch('/api/research-project-trees')
+    const treeRows = treesRes.ok ? await treesRes.json() : []
+
+    let countMap: Record<number, number> = {}
+    ;(treeRows || []).forEach((t: any) => {
+      countMap[t.project_id] = (countMap[t.project_id] || 0) + 1
+    })
 
     setProjects(rows.map((p: any) => ({ ...p, treeCount: countMap[p.id] || 0 })))
     setError(null)
@@ -59,20 +56,26 @@ export default function ResearchProjectsPage() {
   async function handleCreate() {
     if (!title.trim()) { alert('Title is required.'); return }
     setCreating(true)
-    const { data, error } = await supabase
-      .from('research_projects')
-      .insert({
+
+    const res = await fetch('/api/research-projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         title: title.trim(),
         hypothesis: hypothesis.trim() || null,
         methodology: methodology.trim() || null,
         start_date: startDate || null,
         status: 'active',
-      })
-      .select()
-      .single()
+      }),
+    })
+    const data = await res.json()
+
     setCreating(false)
-    if (error) { alert('Error: ' + error.message); return }
-    window.location.href = `/research-projects/${data.id}`
+    if (!res.ok) { alert('Error: ' + data.error); return }
+
+    // POST returns an array (insert().select()), so grab the first row.
+    const created = Array.isArray(data) ? data[0] : data
+    window.location.href = `/research-projects/${created.id}`
   }
 
   return (

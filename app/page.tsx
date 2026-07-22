@@ -64,12 +64,12 @@ export default function Home() {
     })))
 
     // Research-pod measurement reminders
-    const { data: rptData, error: rptError } = await supabase
-      .from('research_project_trees')
-      .select('id, project_id, collection_id, sp_no, next_measurement_date, measurement_interval_days')
-      .not('next_measurement_date', 'is', null)
+    // API route doesn't support a "not null" filter — fetch all rows and filter here.
+    const rptRes = await fetch('/api/research-project-trees')
+    const allRptRows = rptRes.ok ? await rptRes.json() : []
+    const rptData = (allRptRows || []).filter((r: any) => r.next_measurement_date != null)
 
-    if (!rptError && rptData) {
+    if (rptRes.ok && rptData.length > 0) {
       const collectionIds = [...new Set(rptData.map((r: any) => r.collection_id).filter(Boolean))]
       const rptSpNos = [...new Set(rptData.map((r: any) => r.sp_no).filter(Boolean))]
       let collectionMap: Record<string, any> = {}
@@ -86,11 +86,14 @@ export default function Home() {
 
       const projectIds = [...new Set(rptData.map((r: any) => r.project_id).filter(Boolean))]
       if (projectIds.length > 0) {
-        const { data: projData } = await supabase
-          .from('research_projects')
-          .select('id, title')
-          .in('id', projectIds)
-        ;(projData || []).forEach((p: any) => { projectMap[p.id] = p.title })
+        // API route doesn't support .in() with a list of ids — fetch all projects
+        // and filter client-side to the ones we actually need.
+        const projRes = await fetch('/api/research-projects')
+        const allProjects = projRes.ok ? await projRes.json() : []
+        const projectIdSet = new Set(projectIds)
+        ;(allProjects || [])
+          .filter((p: any) => projectIdSet.has(p.id))
+          .forEach((p: any) => { projectMap[p.id] = p.title })
       }
 
       if (rptSpNos.length > 0) {
