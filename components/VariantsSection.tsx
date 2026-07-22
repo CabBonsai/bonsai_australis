@@ -41,15 +41,14 @@ function formatVal(v: any): string {
   return sanitizeForPDF(String(v))
 }
 
-function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
+function VariantCard({ variant, suitability, overrides, onDelete, onSaved }: {
   variant: any
-  scoring: any
+  suitability: any
   overrides: any
   onDelete: (spNo: number) => void
   onSaved: () => void
 }) {
   const [v, setV] = useState(variant)
-  const [s, setS] = useState(scoring || { sp_no: variant.sp_no })
   const [o, setO] = useState(overrides || { sp_no: variant.sp_no })
   const [expanded, setExpanded] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -57,7 +56,6 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
   const [generatingReport, setGeneratingReport] = useState<string | null>(null)
 
   function updateV(field: string, value: any) { setV({ ...v, [field]: value }) }
-  function updateS(field: string, value: any) { setS({ ...s, [field]: value }) }
   function updateO(field: string, value: any) { setO({ ...o, [field]: value }) }
 
   async function handleSave() {
@@ -79,22 +77,6 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
       species_notes: v.species_notes,
     }).eq('sp_no', v.sp_no)
 
-    const sResult = await supabase.from('bonsai_scoring').upsert({
-      sp_no: v.sp_no,
-      variant_name: v.variant_name,
-      cultivar: s.cultivar,
-      species_ref: s.species_ref,
-      base_score: s.base_score,
-      delta_vigor: s.delta_vigor,
-      delta_back_budding: s.delta_back_budding,
-      delta_ramification: s.delta_ramification,
-      delta_leaf: s.delta_leaf,
-      delta_root: s.delta_root,
-      refine: s.refine,
-      final_score: s.final_score,
-      class: s.class,
-    }, { onConflict: 'sp_no' })
-
     const oResult = await supabase.from('variant_overrides').upsert({
       sp_no: v.sp_no,
       variant_name: v.variant_name,
@@ -108,7 +90,7 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
       override_detailed_general_overview: o.override_detailed_general_overview,
     }, { onConflict: 'sp_no' })
 
-    const errors = [vResult.error, sResult.error, oResult.error].filter(Boolean)
+    const errors = [vResult.error, oResult.error].filter(Boolean)
     if (errors.length > 0) {
       setMessage('Error: ' + errors.map(e => e?.message).join(', '))
     } else {
@@ -122,7 +104,7 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
   async function handleDelete() {
     if (!confirm(`Delete variant "${v.variant_name}"? This cannot be undone.`)) return
     await supabase.from('variant_overrides').delete().eq('sp_no', v.sp_no)
-    await supabase.from('bonsai_scoring').delete().eq('sp_no', v.sp_no)
+    await supabase.from('bonsai_suitability').delete().eq('sp_no', v.sp_no)
     await supabase.from('variants').delete().eq('sp_no', v.sp_no)
     onDelete(v.sp_no)
   }
@@ -205,13 +187,6 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
         fields.forEach(([label, value]) => {
           const formatted = formatVal(value)
           const isEmpty = formatted === '— not set —'
-          // Subtract an extra safety margin here: jsPDF calculates wrapping using its
-          // own internal assumed widths for the built-in 'helvetica' font, but doesn't
-          // embed that font in the file - actual rendering relies on whatever font each
-          // PDF viewer substitutes for it. On long lines, small per-character width
-          // differences between viewers can compound enough to push text past the edge
-          // even though jsPDF's own math said it would fit. Wrapping noticeably earlier
-          // leaves headroom so that drift doesn't reach the true page edge in practice.
           const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 170 - 30)
           checkPageBreak(14 * lines.length + 4)
           doc.setTextColor(60, 60, 60)
@@ -235,11 +210,10 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
         ['Notes', v.notes],
       ])
 
-      addSection('Scoring', [
-        ['Rating', v.rating],
-        ['Base Score', s.base_score],
-        ['Final Score', s.final_score],
-        ['Class', s.class],
+      addSection('Bonsai Suitability (BAMSR v3.1.1)', [
+        ['Rating (nursery/grower)', v.rating],
+        ['Suitability Score', suitability?.final_bonsai_score],
+        ['Tier', suitability?.bonsai_tier],
       ])
 
       if (reportType === 'basic') {
@@ -249,10 +223,6 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
           ['Detailed Overview', o.override_detailed_general_overview],
         ])
       } else {
-        addSection('Scoring Breakdown', [
-          ['Refine', s.refine],
-        ])
-
         addSection('Care Overrides (Full)', [
           ['Repotting Cycles', o.override_repotting_cycles],
           ['Soil Preferences', o.override_soil_preferences],
@@ -310,6 +280,14 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
         </div>
       </div>
 
+      <div className="mt-2 px-2 py-1.5 rounded text-xs" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+        <span className="font-semibold" style={{ color: '#166534' }}>Bonsai Suitability: </span>
+        {suitability
+          ? <span>{suitability.final_bonsai_score}/100 — {suitability.bonsai_tier}</span>
+          : <span style={{ color: '#6b7280' }}>Not yet scored</span>}
+        <span style={{ color: '#6b7280' }}> (edit via Suitability bulk-edit tab, keyed to sp_no {v.sp_no})</span>
+      </div>
+
       <div className="flex gap-2 mt-2">
         <button
           type="button"
@@ -351,27 +329,6 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
           <VariantField label="Natural habitat" value={v.natural_habitat} onChange={val => updateV('natural_habitat', val)} type="textarea" />
           <VariantField label="Species notes" value={v.species_notes} onChange={val => updateV('species_notes', val)} type="textarea" />
 
-          <p className="text-xs font-semibold text-gray-500 mt-3">Scoring</p>
-          <VariantField label="Cultivar" value={s.cultivar} onChange={val => updateS('cultivar', val)} />
-          <VariantField label="Species ref" value={s.species_ref} onChange={val => updateS('species_ref', val)} />
-          <div className="flex gap-2">
-            <div className="flex-1"><VariantField label="Base score" value={s.base_score} onChange={val => updateS('base_score', val)} /></div>
-            <div className="flex-1"><VariantField label="Final score" value={s.final_score} onChange={val => updateS('final_score', val)} /></div>
-          </div>
-          <div className="flex gap-2">
-            <div className="flex-1"><VariantField label="Vigor delta" value={s.delta_vigor} onChange={val => updateS('delta_vigor', val)} /></div>
-            <div className="flex-1"><VariantField label="Back budding delta" value={s.delta_back_budding} onChange={val => updateS('delta_back_budding', val)} /></div>
-          </div>
-          <div className="flex gap-2">
-            <div className="flex-1"><VariantField label="Ramification delta" value={s.delta_ramification} onChange={val => updateS('delta_ramification', val)} /></div>
-            <div className="flex-1"><VariantField label="Leaf delta" value={s.delta_leaf} onChange={val => updateS('delta_leaf', val)} /></div>
-          </div>
-          <div className="flex gap-2">
-            <div className="flex-1"><VariantField label="Root delta" value={s.delta_root} onChange={val => updateS('delta_root', val)} /></div>
-            <div className="flex-1"><VariantField label="Refine" value={s.refine} onChange={val => updateS('refine', val)} /></div>
-          </div>
-          <VariantField label="Class" value={s.class} onChange={val => updateS('class', val)} />
-
           <p className="text-xs font-semibold text-gray-500 mt-3">Overrides</p>
           <VariantField label="Repotting cycles" value={o.override_repotting_cycles} onChange={val => updateO('override_repotting_cycles', val)} />
           <VariantField label="Soil preferences" value={o.override_soil_preferences} onChange={val => updateO('override_soil_preferences', val)} type="textarea" />
@@ -400,7 +357,7 @@ function VariantCard({ variant, scoring, overrides, onDelete, onSaved }: {
 
 export default function VariantsSection({ spNo }: { spNo: string | number }) {
   const [variants, setVariants] = useState<any[]>([])
-  const [scoringMap, setScoringMap] = useState<Record<string, any>>({})
+  const [suitabilityMap, setSuitabilityMap] = useState<Record<string, any>>({})
   const [overridesMap, setOverridesMap] = useState<Record<string, any>>({})
   const [loading, setLoading] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -417,12 +374,12 @@ export default function VariantsSection({ spNo }: { spNo: string | number }) {
 
     if (rows.length > 0) {
       const spNos = rows.map(r => r.sp_no)
-      const { data: scoringRows } = await supabase.from('bonsai_scoring').select('*').in('sp_no', spNos)
+      const { data: suitabilityRows } = await supabase.from('bonsai_suitability').select('sp_no, final_bonsai_score, bonsai_tier').in('sp_no', spNos)
       const { data: overrideRows } = await supabase.from('variant_overrides').select('*').in('sp_no', spNos)
 
-      const sMap: Record<string, any> = {}
-      ;(scoringRows || []).forEach(r => { sMap[r.sp_no] = r })
-      setScoringMap(sMap)
+      const suMap: Record<string, any> = {}
+      ;(suitabilityRows || []).forEach(r => { suMap[r.sp_no] = r })
+      setSuitabilityMap(suMap)
 
       const oMap: Record<string, any> = {}
       ;(overrideRows || []).forEach(r => { oMap[r.sp_no] = r })
@@ -446,7 +403,6 @@ export default function VariantsSection({ spNo }: { spNo: string | number }) {
       sp_no: newSpNo,
       parent_sp_no: Number(spNo),
       variant_name: 'New variant',
-      no_parent: false,
     })
 
     if (!error) {
@@ -478,7 +434,7 @@ export default function VariantsSection({ spNo }: { spNo: string | number }) {
             <VariantCard
               key={v.sp_no}
               variant={v}
-              scoring={scoringMap[v.sp_no]}
+              suitability={suitabilityMap[v.sp_no]}
               overrides={overridesMap[v.sp_no]}
               onDelete={handleDelete}
               onSaved={fetchVariants}
