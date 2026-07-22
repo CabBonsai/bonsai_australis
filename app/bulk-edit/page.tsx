@@ -106,7 +106,7 @@ const TABLES: Record<string, TableConfig> = {
     },
   },
   suitability: {
-    label: 'Species Scoring',
+    label: 'Suitability',
     table: 'bonsai_suitability',
     columns: ['sp_no', 'bonsai_suitability', 'difficulty', 'recommended_bonsai_styles', 'vigor', 'vigor_notes', 'back_budding_ability', 'back_budding_notes', 'ramification_potential', 'ramification_notes', 'leaf_reduction_potential', 'leaf_reduction_notes', 'root_tolerance_score', 'root_tolerance_notes', 'wire_bend_tolerance', 'wire_bend_notes', 'native_bonus', 'nebari_potential_score', 'bark_character_score', 'taper_movement_score', 'longevity_score', 'final_bonsai_score', 'bonsai_tier', 'research_status', 'data_source', 'research_notes', 'needs_verification'],
     types: {
@@ -118,17 +118,6 @@ const TABLES: Record<string, TableConfig> = {
       nebari_potential_score: 'number', bark_character_score: 'number', taper_movement_score: 'number',
       longevity_score: 'number', final_bonsai_score: 'number', bonsai_tier: 'text', research_status: 'text',
       data_source: 'text', research_notes: 'text', needs_verification: 'bool',
-    },
-  },
-scoring: {
-    label: 'Variant Scoring',
-    table: 'bonsai_scoring',
-    columns: ['sp_no', 'variant_name', 'cultivar', 'species_ref', 'base_score', 'delta_vigor', 'delta_back_budding', 'delta_ramification', 'delta_leaf', 'delta_root', 'refine', 'final_score', 'class', 'research_notes'],
-    types: {
-      sp_no: 'number', variant_name: 'text', cultivar: 'text', species_ref: 'text',
-      base_score: 'number', delta_vigor: 'number', delta_back_budding: 'number',
-      delta_ramification: 'number', delta_leaf: 'number', delta_root: 'number',
-      refine: 'number', final_score: 'number', class: 'text', research_notes: 'text',
     },
   },
 tubestock: {
