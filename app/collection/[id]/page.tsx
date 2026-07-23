@@ -517,18 +517,21 @@ export default function CollectionDetailPage() {
 
   async function handleSave() {
     setSaving(true)
-   const { collection_id, created_at, updated_at, ...updateData } = tree
-updateData.in_collection = true
+    const { collection_id, created_at, updated_at, ...updateData } = tree
+    updateData.in_collection = true
+    updateData.collection_id = id
 
-    const { error } = await supabase
-      .from('collection')
-      .update(updateData)
-      .eq('collection_id', id)
+    const res = await fetch('/api/collection', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
+    })
+    const data = await res.json()
 
     setSaving(false)
 
-    if (error) {
-      alert('Error saving: ' + error.message)
+    if (!res.ok) {
+      alert('Error saving: ' + data.error)
     } else {
       alert('Saved')
     }
@@ -536,13 +539,11 @@ updateData.in_collection = true
 
   async function handleDelete() {
     if (!confirm('Delete this tree permanently?')) return
-    const { error } = await supabase
-      .from('collection')
-      .delete()
-      .eq('collection_id', id)
+    const res = await fetch(`/api/collection?id=${id}`, { method: 'DELETE' })
+    const data = await res.json()
 
-    if (error) {
-      alert('Error deleting: ' + error.message)
+    if (!res.ok) {
+      alert('Error deleting: ' + data.error)
       return
     }
     window.location.href = '/collection'
@@ -818,9 +819,13 @@ updateData.in_collection = true
 
       {/* Identity header - always visible */}
       <div style={{ marginBottom: '18px' }}>
-        <h1 style={{ width: '100%', fontSize: '32px', fontWeight: 700, color: '#2b2620', borderBottom: '1px solid #e2dac2', paddingBottom: '10px', marginBottom: '10px', letterSpacing: '-0.01em' }}>
+        <h1 style={{ width: '100%', fontSize: '32px', fontWeight: 700, color: '#2b2620', borderBottom: '1px solid #e2dac2', paddingBottom: '10px', marginBottom: '2px', letterSpacing: '-0.01em' }}>
           {tree.display_name || 'Unnamed Tree'}
         </h1>
+        <p style={{ fontSize: '13px', color: '#a89e7a', margin: '0 0 8px' }}>
+          sp_no: {tree.sp_no ?? '— not set —'}
+          {tree.variant_sp_no ? ` · variant sp_no: ${tree.variant_sp_no}` : ''}
+        </p>
         <input
           type="text"
           value={tree.tree_name || ''}

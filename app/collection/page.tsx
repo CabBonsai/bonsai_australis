@@ -151,13 +151,14 @@ export default function CollectionPage() {
     setAdding(true)
     const insertData: any = { display_name: selectedSpecies ? selectedSpecies.species : 'New Tree', in_collection: false }
     if (selectedSpecies) insertData.sp_no = selectedSpecies.sp_no
-    const { data, error } = await supabase
-      .from('collection')
-      .insert(insertData)
-      .select()
-      .single()
+    const res = await fetch('/api/collection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(insertData),
+    })
+    const data = await res.json()
     setAdding(false)
-    if (error) { alert('Error: ' + error.message); return }
+    if (!res.ok) { alert('Error: ' + data.error); return }
     window.location.href = `/collection/${data.collection_id}`
   }
 

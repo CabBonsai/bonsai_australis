@@ -348,9 +348,27 @@ export default function BulkEditPage() {
       return merged
     })
 
-    const { error } = await supabase
-      .from(config.table)
-      .upsert(upsertRows, { onConflict: 'sp_no' })
+    // `variants` and `variant_overrides` have RLS locked down (no anon writes) —
+    // route through the service-role API instead of a direct client upsert.
+    // Every other table in this tool is unaffected and keeps writing directly.
+    let error: any = null
+    if (config.table === 'variants' || config.table === 'variant_overrides') {
+      const apiPath = config.table === 'variants' ? '/api/variants' : '/api/variant-overrides'
+      const res = await fetch(apiPath, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(upsertRows),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        error = { message: data.error }
+      }
+    } else {
+      const result = await supabase
+        .from(config.table)
+        .upsert(upsertRows, { onConflict: 'sp_no' })
+      error = result.error
+    }
 
     setApplying(false)
 

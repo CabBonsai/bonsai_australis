@@ -155,37 +155,48 @@ function VariantCard({ variant, suitability, overrides, onDelete, onSaved }: {
     setSaving(true)
     setMessage(null)
 
-    const vResult = await supabase.from('variants').update({
-      variant_name: v.variant_name,
-      common_name: v.common_name,
-      rating: v.rating,
-      variant_type: v.variant_type,
-      botanical_rank: v.botanical_rank,
-      is_hybrid: v.is_hybrid,
-      hybrid_parent_1: v.hybrid_parent_1,
-      hybrid_parent_2: v.hybrid_parent_2,
-      notes: v.notes,
-      species_origin: v.species_origin,
-      natural_habitat: v.natural_habitat,
-      species_notes: v.species_notes,
-    }).eq('sp_no', v.sp_no)
+    const vRes = await fetch('/api/variants', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sp_no: v.sp_no,
+        variant_name: v.variant_name,
+        common_name: v.common_name,
+        rating: v.rating,
+        variant_type: v.variant_type,
+        botanical_rank: v.botanical_rank,
+        is_hybrid: v.is_hybrid,
+        hybrid_parent_1: v.hybrid_parent_1,
+        hybrid_parent_2: v.hybrid_parent_2,
+        notes: v.notes,
+        species_origin: v.species_origin,
+        natural_habitat: v.natural_habitat,
+        species_notes: v.species_notes,
+      }),
+    })
+    const vData = await vRes.json()
 
-    const oResult = await supabase.from('variant_overrides').upsert({
-      sp_no: v.sp_no,
-      variant_name: v.variant_name,
-      override_repotting_cycles: o.override_repotting_cycles,
-      override_soil_preferences: o.override_soil_preferences,
-      override_fertilisation_patterns: o.override_fertilisation_patterns,
-      override_watering_times: o.override_watering_times,
-      override_watering_notes: o.override_watering_notes,
-      override_winter_protection: o.override_winter_protection,
-      override_important_species_info: o.override_important_species_info,
-      override_detailed_general_overview: o.override_detailed_general_overview,
-    }, { onConflict: 'sp_no' })
+    const oRes = await fetch('/api/variant-overrides', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sp_no: v.sp_no,
+        variant_name: v.variant_name,
+        override_repotting_cycles: o.override_repotting_cycles,
+        override_soil_preferences: o.override_soil_preferences,
+        override_fertilisation_patterns: o.override_fertilisation_patterns,
+        override_watering_times: o.override_watering_times,
+        override_watering_notes: o.override_watering_notes,
+        override_winter_protection: o.override_winter_protection,
+        override_important_species_info: o.override_important_species_info,
+        override_detailed_general_overview: o.override_detailed_general_overview,
+      }),
+    })
+    const oData = await oRes.json()
 
-    const errors = [vResult.error, oResult.error].filter(Boolean)
+    const errors = [!vRes.ok && vData.error, !oRes.ok && oData.error].filter(Boolean)
     if (errors.length > 0) {
-      setMessage('Error: ' + errors.map(e => e?.message).join(', '))
+      setMessage('Error: ' + errors.join(', '))
     } else {
       setMessage('Saved!')
       onSaved()
@@ -196,9 +207,9 @@ function VariantCard({ variant, suitability, overrides, onDelete, onSaved }: {
 
   async function handleDelete() {
     if (!confirm(`Delete variant "${v.variant_name}"? This cannot be undone.`)) return
-    await supabase.from('variant_overrides').delete().eq('sp_no', v.sp_no)
+    await fetch(`/api/variant-overrides?id=${v.sp_no}`, { method: 'DELETE' })
     await supabase.from('bonsai_suitability').delete().eq('sp_no', v.sp_no)
-    await supabase.from('variants').delete().eq('sp_no', v.sp_no)
+    await fetch(`/api/variants?id=${v.sp_no}`, { method: 'DELETE' })
     onDelete(v.sp_no)
   }
 
@@ -508,16 +519,21 @@ export default function VariantsSection({ spNo }: { spNo: string | number }) {
 
     const newSpNo = (maxRow?.sp_no || 0) + 1
 
-    const { error } = await supabase.from('variants').insert({
-      sp_no: newSpNo,
-      parent_sp_no: Number(spNo),
-      variant_name: 'New variant',
+    const res = await fetch('/api/variants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sp_no: newSpNo,
+        parent_sp_no: Number(spNo),
+        variant_name: 'New variant',
+      }),
     })
 
-    if (!error) {
+    if (res.ok) {
       fetchVariants()
     } else {
-      alert('Error adding variant: ' + error.message)
+      const data = await res.json()
+      alert('Error adding variant: ' + data.error)
     }
   }
 
