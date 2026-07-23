@@ -22,9 +22,9 @@ function Section({ title, children }: { title: string, children: React.ReactNode
         style={{
           width: '100%',
           textAlign: 'left',
-          padding: '16px 20px',
+          padding: '18px 22px',
           fontWeight: 600,
-          fontSize: '15px',
+          fontSize: '17px',
           letterSpacing: '0.02em',
           display: 'flex',
           justifyContent: 'space-between',
@@ -36,9 +36,9 @@ function Section({ title, children }: { title: string, children: React.ReactNode
         }}
       >
         {title}
-        <span style={{ color: '#8a9a6d', fontSize: '12px' }}>{open ? '▲ collapse' : '▼ expand'}</span>
+        <span style={{ color: '#8a9a6d', fontSize: '13px' }}>{open ? '▲ collapse' : '▼ expand'}</span>
       </button>
-      {open && <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>{children}</div>}
+      {open && <div style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '22px' }}>{children}</div>}
     </div>
   )
 }
@@ -53,7 +53,7 @@ function Field({ label, value, onChange, type = 'text' }: {
     <div>
       <label style={{
         display: 'block',
-        fontSize: '12px',
+        fontSize: '13px',
         fontWeight: 600,
         textTransform: 'uppercase',
         letterSpacing: '0.06em',
@@ -73,8 +73,8 @@ function Field({ label, value, onChange, type = 'text' }: {
               boxShadow,
               borderRadius: '10px',
               padding: '14px 16px',
-              fontSize: '15px',
-              lineHeight: 1.65,
+              fontSize: '17px',
+              lineHeight: 1.7,
               fontFamily: 'inherit',
               color: '#2b2620',
               background: '#fffefb',
@@ -95,8 +95,8 @@ function Field({ label, value, onChange, type = 'text' }: {
               border: baseBorder,
               boxShadow,
               borderRadius: '10px',
-              padding: '11px 16px',
-              fontSize: '15px',
+              padding: '12px 16px',
+              fontSize: '17px',
               color: '#2b2620',
               background: '#fffefb',
               outline: 'none',
@@ -129,15 +129,15 @@ function SpeciesPhotoField({ value, onChange }: { value: string, onChange: (v: s
   }
 
   return (
-    <div className="mb-4">
-      <label className="block text-sm font-medium mb-1">Reference Photo</label>
+    <div style={{ marginBottom: '18px' }}>
+      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8a7f5f', marginBottom: '6px' }}>Reference Photo</label>
       {value && <img src={value} alt="Reference" style={{width:'100%',maxHeight:'300px',objectFit:'cover',borderRadius:'8px',marginBottom:'8px',border:'1px solid #e2e8f0'}} />}
-      <div className="flex gap-2">
-        <label htmlFor="species-ref-photo" className="flex-1 text-center bg-gray-100 border rounded px-3 py-2 text-sm cursor-pointer">
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <label htmlFor="species-ref-photo" style={{ flex: 1, textAlign: 'center', background: '#f3efe2', border: '1.5px solid #e2dac2', borderRadius: '10px', padding: '11px 14px', fontSize: '15px', cursor: 'pointer', color: '#2b2620' }}>
           {uploading ? 'Uploading...' : value ? '📷 Replace Photo' : '📷 Add Reference Photo'}
         </label>
-        <input id="species-ref-photo" type="file" accept="image/*" onChange={handleFile} className="hidden" disabled={uploading} />
-        {value && <button type="button" onClick={() => onChange('')} className="text-red-500 text-sm px-2">✕</button>}
+        <input id="species-ref-photo" type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
+        {value && <button type="button" onClick={() => onChange('')} style={{ color: '#c04545', fontSize: '15px', padding: '0 10px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>}
       </div>
     </div>
   )
@@ -906,39 +906,39 @@ export default function SpeciesDetail() {
     }
   }
 
-  if (loading) return <div className="p-4">Loading...</div>
-  if (error) return <div className="p-4 text-red-600">Error: {error}</div>
-  if (!species) return <div className="p-4">Species not found.</div>
+  if (loading) return <div style={{ padding: '20px', fontSize: '15px', color: '#2b2620' }}>Loading...</div>
+  if (error) return <div style={{ padding: '20px', fontSize: '15px', color: '#dc2626' }}>Error: {error}</div>
+  if (!species) return <div style={{ padding: '20px', fontSize: '15px', color: '#2b2620' }}>Species not found.</div>
 
   return (
-    <div style={{maxWidth:'1500px',margin:'0 auto',padding:'24px 24px 96px',background:'#faf7f1',minHeight:'100vh'}}>
-      <div className="flex justify-between items-center mb-3">
-        <Link href="/" style={{color:'#5c7a2a',fontSize:'13px',fontWeight:600,textDecoration:'none'}}>&larr; Back to list</Link>
-        <div className="flex gap-3">
-          {prevNext.prev && <Link href={`/species/${prevNext.prev}`} style={{color:'#5c7a2a',fontSize:'13px',fontWeight:600,textDecoration:'none'}}>&#8592; Prev</Link>}
-          {prevNext.next && <Link href={`/species/${prevNext.next}`} style={{color:'#5c7a2a',fontSize:'13px',fontWeight:600,textDecoration:'none'}}>Next &#8594;</Link>}
+    <div style={{width:'100%',boxSizing:'border-box',maxWidth:'1500px',margin:'0 auto',padding:'24px 24px 96px',background:'#faf7f1',minHeight:'100vh'}}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        <Link href="/" style={{color:'#5c7a2a',fontSize:'14px',fontWeight:600,textDecoration:'none'}}>&larr; Back to list</Link>
+        <div style={{ display: 'flex', gap: '14px' }}>
+          {prevNext.prev && <Link href={`/species/${prevNext.prev}`} style={{color:'#5c7a2a',fontSize:'14px',fontWeight:600,textDecoration:'none'}}>&#8592; Prev</Link>}
+          {prevNext.next && <Link href={`/species/${prevNext.next}`} style={{color:'#5c7a2a',fontSize:'14px',fontWeight:600,textDecoration:'none'}}>Next &#8594;</Link>}
         </div>
       </div>
-      <div className="flex gap-2 mb-5">
-        <button type="button" onClick={() => generatePDF('basic')} disabled={generatingReport !== null} style={{fontSize:'12px',background:'#3f5228',color:'#fdfaf3',padding:'8px 14px',borderRadius:'8px',border:'none',cursor:'pointer',opacity:generatingReport!==null?0.5:1,fontWeight:600}}>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '22px' }}>
+        <button type="button" onClick={() => generatePDF('basic')} disabled={generatingReport !== null} style={{fontSize:'13px',background:'#3f5228',color:'#fdfaf3',padding:'9px 16px',borderRadius:'8px',border:'none',cursor:'pointer',opacity:generatingReport!==null?0.5:1,fontWeight:600}}>
           {generatingReport === 'basic' ? 'Generating...' : '📄 Basic Report'}
         </button>
-        <button type="button" onClick={() => generatePDF('advanced')} disabled={generatingReport !== null} style={{fontSize:'12px',background:'#7a9c42',color:'#1e2b12',padding:'8px 14px',borderRadius:'8px',border:'none',cursor:'pointer',opacity:generatingReport!==null?0.5:1,fontWeight:600}}>
+        <button type="button" onClick={() => generatePDF('advanced')} disabled={generatingReport !== null} style={{fontSize:'13px',background:'#7a9c42',color:'#1e2b12',padding:'9px 16px',borderRadius:'8px',border:'none',cursor:'pointer',opacity:generatingReport!==null?0.5:1,fontWeight:600}}>
           {generatingReport === 'advanced' ? 'Generating...' : '📄 Advanced Report'}
         </button>
       </div>
-      <h1 style={{fontSize:'28px',fontWeight:700,color:'#2b2620',letterSpacing:'-0.01em'}}>{species.species}</h1>
-      <p style={{fontSize:'13px',color:'#a89e7a',marginBottom:'18px'}}>sp_no: {species.sp_no}</p>
+      <h1 style={{fontSize:'32px',fontWeight:700,color:'#2b2620',letterSpacing:'-0.01em'}}>{species.species}</h1>
+      <p style={{fontSize:'14px',color:'#a89e7a',marginBottom:'20px'}}>sp_no: {species.sp_no}</p>
       <SpeciesPhotoField value={species.reference_photo || ''} onChange={v => updateSpecies('reference_photo', v)} />
       <div style={{marginBottom:'20px'}}>
-        <label style={{display:'block',fontSize:'12px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'6px'}}>Quick Notes</label>
-        <textarea value={species.research_notes || ''} onChange={(e) => updateSpecies('research_notes', e.target.value)} style={{width:'100%',minHeight:'110px',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'14px 16px',fontSize:'15px',lineHeight:1.6,fontFamily:'inherit',color:'#2b2620',background:'#fffefb',resize:'vertical',outline:'none'}} rows={4} placeholder="Voice-to-text notes go here..." />
+        <label style={{display:'block',fontSize:'13px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'6px'}}>Quick Notes</label>
+        <textarea value={species.research_notes || ''} onChange={(e) => updateSpecies('research_notes', e.target.value)} style={{width:'100%',minHeight:'110px',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'14px 16px',fontSize:'17px',lineHeight:1.65,fontFamily:'inherit',color:'#2b2620',background:'#fffefb',resize:'vertical',outline:'none'}} rows={4} placeholder="Voice-to-text notes go here..." />
       </div>
       {tubestockInv.length > 0 && (
         <div style={{background:'#f3efe2',border:'1px solid #ded4bd',borderRadius:'10px',padding:'12px 16px',marginBottom:'18px'}}>
-          <p style={{fontSize:'12px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'8px'}}>In Tubestock</p>
+          <p style={{fontSize:'13px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'8px'}}>In Tubestock</p>
           {tubestockInv.map((t: any) => (
-            <p key={t.id} style={{fontSize:'14px',color:'#2b2620',margin:'4px 0'}}>
+            <p key={t.id} style={{fontSize:'15px',color:'#2b2620',margin:'4px 0'}}>
               Qty {t.quantity} &middot; {t.status} &middot; {t.source || 'source unknown'} &middot; {t.acquisition_date || 'date unknown'}
               {t.tubestock_number ? ` \u00b7 Tag: ${t.tubestock_number}` : ''}
             </p>
@@ -947,8 +947,8 @@ export default function SpeciesDetail() {
       )}
       <Section title="Species Info">
         <div>
-          <label className="block text-sm font-medium mb-1">Research status</label>
-          <select value={species.research_status || "Not Started"} onChange={e => updateSpecies("research_status", e.target.value)} className="w-full border rounded-lg px-3 py-2 text-base">
+          <label style={{display:'block',fontSize:'13px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'6px'}}>Research status</label>
+          <select value={species.research_status || "Not Started"} onChange={e => updateSpecies("research_status", e.target.value)} style={{width:'100%',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'12px 16px',fontSize:'17px',color:'#2b2620',background:'#fffefb',outline:'none'}}>
             <option value="Not Started">Not Started</option>
             <option value="In Progress">In Progress</option>
             <option value="Complete">Complete</option>
@@ -956,29 +956,29 @@ export default function SpeciesDetail() {
         </div>
         <Field label="Species name" value={species.species} onChange={v => updateSpecies('species', v)} />
         <Field label="Common name" value={species.common_name} onChange={v => updateSpecies('common_name', v)} />
-        <div className="flex gap-2">
-          <div className="flex-1"><Field label="Genus" value={species.species_genus} onChange={v => updateSpecies('species_genus', v)} /></div>
-          <div className="flex-1"><Field label="Epithet" value={species.species_epithet} onChange={v => updateSpecies('species_epithet', v)} /></div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ flex: 1 }}><Field label="Genus" value={species.species_genus} onChange={v => updateSpecies('species_genus', v)} /></div>
+          <div style={{ flex: 1 }}><Field label="Epithet" value={species.species_epithet} onChange={v => updateSpecies('species_epithet', v)} /></div>
         </div>
         <Field label="Family" value={species.species_family} onChange={v => updateSpecies('species_family', v)} />
         <Field label="Tree type" value={species.tree_type} onChange={v => updateSpecies('tree_type', v)} />
-        <div className="flex gap-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={species.pure_species || false} onChange={e => updateSpecies('pure_species', e.target.checked)} className="w-4 h-4" />
+        <div style={{ display: 'flex', gap: '20px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#2b2620' }}>
+            <input type="checkbox" checked={species.pure_species || false} onChange={e => updateSpecies('pure_species', e.target.checked)} style={{ width: '18px', height: '18px' }} />
             Pure species
           </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={species.australian_native || false} onChange={e => updateSpecies('australian_native', e.target.checked)} className="w-4 h-4" />
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#2b2620' }}>
+            <input type="checkbox" checked={species.australian_native || false} onChange={e => updateSpecies('australian_native', e.target.checked)} style={{ width: '18px', height: '18px' }} />
             AU Native
           </label>
         </div>
         <div style={{ background: species.review_status === 'needs_review' ? '#fffbeb' : 'transparent', border: species.review_status === 'needs_review' ? '1px solid #fde68a' : 'none', borderRadius: '10px', padding: species.review_status === 'needs_review' ? '12px 14px' : '0', marginTop: '4px' }}>
-          <label className="flex items-center gap-2 text-sm" style={{ marginBottom: species.review_status === 'needs_review' ? '10px' : '0' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#2b2620', marginBottom: species.review_status === 'needs_review' ? '10px' : '0' }}>
             <input
               type="checkbox"
               checked={species.review_status === 'needs_review'}
               onChange={e => updateSpecies('review_status', e.target.checked ? 'needs_review' : 'confirmed')}
-              className="w-4 h-4"
+              style={{ width: '18px', height: '18px' }}
             />
             Flag for review
           </label>
@@ -1246,17 +1246,17 @@ export default function SpeciesDetail() {
       {toxicity && (
         <Section title="Toxicity">
           <Field label="Toxicity level" value={toxicity.toxicity_level} onChange={v => updateToxicity('toxicity_level', v)} />
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={toxicity.toxic_to_humans || false} onChange={e => updateToxicity('toxic_to_humans', e.target.checked)} className="w-4 h-4" />
+          <div style={{ display: 'flex', gap: '20px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#2b2620' }}>
+              <input type="checkbox" checked={toxicity.toxic_to_humans || false} onChange={e => updateToxicity('toxic_to_humans', e.target.checked)} style={{ width: '18px', height: '18px' }} />
               Toxic to humans
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={toxicity.toxic_to_pets || false} onChange={e => updateToxicity('toxic_to_pets', e.target.checked)} className="w-4 h-4" />
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#2b2620' }}>
+              <input type="checkbox" checked={toxicity.toxic_to_pets || false} onChange={e => updateToxicity('toxic_to_pets', e.target.checked)} style={{ width: '18px', height: '18px' }} />
               Toxic to pets
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={toxicity.toxic_to_livestock || false} onChange={e => updateToxicity('toxic_to_livestock', e.target.checked)} className="w-4 h-4" />
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#2b2620' }}>
+              <input type="checkbox" checked={toxicity.toxic_to_livestock || false} onChange={e => updateToxicity('toxic_to_livestock', e.target.checked)} style={{ width: '18px', height: '18px' }} />
               Toxic to livestock
             </label>
           </div>
@@ -1267,8 +1267,8 @@ export default function SpeciesDetail() {
           <Field label="First aid notes" value={toxicity.first_aid_notes} onChange={v => updateToxicity('first_aid_notes', v)} type="textarea" />
         </Section>
       )}
-      <div className="mt-6 mb-10 flex justify-between items-center">
-        {saveMessage && <span style={{fontSize:'13px',color:'#5c7a2a',fontWeight:600}}>{saveMessage}</span>}
+      <div style={{ marginTop: '24px', marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {saveMessage && <span style={{fontSize:'14px',color:'#5c7a2a',fontWeight:600}}>{saveMessage}</span>}
         <button onClick={handleSave} disabled={saving} style={{marginLeft:'auto',background:'#3f5228',color:'#fdfaf3',padding:'16px 24px',borderRadius:'12px',fontWeight:700,width:'100%',fontSize:'17px',border:'none',cursor:'pointer',opacity:saving?0.5:1,boxShadow:'0 2px 10px rgba(63,82,40,0.2)'}}>
           {saving ? 'Saving...' : 'Save'}
         </button>
