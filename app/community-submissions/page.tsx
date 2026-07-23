@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 type Submission = {
   id: number
   sp_no: number
+  variant_name: string | null
   submitter_name: string | null
   submitter_email: string | null
   club_name: string | null
@@ -219,6 +220,7 @@ export default function CommunitySubmissionsAdmin() {
                   <p style={{ fontWeight: 600, color: '#2563eb', margin: 0 }}>
                     {s.species || `sp_no ${s.sp_no}`}
                     {s.common_name && s.common_name !== 'Unknown' ? ` — ${s.common_name}` : ''}
+                    {s.variant_name ? ` (${s.variant_name})` : ''}
                   </p>
                   <p style={{ fontSize: '13px', color: '#6b7280', margin: '2px 0 0' }}>
                     {s.submitter_name || 'Anonymous'}{s.club_name ? ` · ${s.club_name}` : ''} · {new Date(s.submitted_at).toLocaleDateString('en-AU')}
@@ -232,6 +234,7 @@ export default function CommunitySubmissionsAdmin() {
               {expanded && (
                 <div style={{ padding: '0 16px 16px', borderTop: '1px solid #e5e7eb' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px', color: '#374151', margin: '14px 0' }}>
+                    {s.variant_name && <p style={{ margin: 0 }}><strong>Variant/cultivar:</strong> {s.variant_name}</p>}
                     {s.submitter_email && <p style={{ margin: 0 }}><strong>Email:</strong> {s.submitter_email}</p>}
                     {s.years_growing && <p style={{ margin: 0 }}><strong>Years growing:</strong> {s.years_growing}</p>}
                     {s.growing_region && <p style={{ margin: 0 }}><strong>Region:</strong> {s.growing_region}</p>}
