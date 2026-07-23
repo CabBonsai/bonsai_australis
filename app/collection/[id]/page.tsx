@@ -8,30 +8,65 @@ import JournalSection from '@/components/JournalSection'
 function Section({ title, defaultOpen, children }: { title: string, defaultOpen?: boolean, children: React.ReactNode }) {
   const [open, setOpen] = useState(!!defaultOpen)
   return (
-    <div className="border rounded-lg mb-3">
+    <div style={{ border: '1px solid #e2dac2', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden', background: '#fffefb' }}>
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex justify-between items-center px-4 py-3 font-semibold text-left"
+        style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '18px 22px',
+          fontWeight: 600,
+          fontSize: '17px',
+          textAlign: 'left',
+          background: open ? '#f3efe2' : 'transparent',
+          color: '#3f5228',
+          border: 'none',
+          cursor: 'pointer',
+        }}
       >
         {title}
-        <span>{open ? '−' : '+'}</span>
+        <span style={{ color: '#8a9a6d', fontSize: '15px' }}>{open ? '▲ collapse' : '▼ expand'}</span>
       </button>
-      {open && <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>}
+      {open && (
+        <div style={{ padding: '22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
+          {children}
+        </div>
+      )}
     </div>
   )
 }
 
 function Field({ label, children }: { label: string, children: React.ReactNode }) {
   return (
-    <label className="block text-sm">
-      <span className="text-gray-500 block mb-1">{label}</span>
+    <label style={{ display: 'block', fontSize: '15px' }}>
+      <span style={{ display: 'block', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8a7f5f', marginBottom: '6px' }}>{label}</span>
       {children}
     </label>
   )
 }
 
-const inputClass = "w-full border rounded px-4 py-3 text-base min-h-[48px]"
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  border: '1.5px solid #e2dac2',
+  borderRadius: '10px',
+  padding: '12px 16px',
+  fontSize: '17px',
+  minHeight: '48px',
+  fontFamily: 'inherit',
+  color: '#2b2620',
+  background: '#fffefb',
+  outline: 'none',
+  boxSizing: 'border-box',
+}
+
+const overdueInputStyle: React.CSSProperties = {
+  ...inputStyle,
+  border: '1.5px solid #dc2626',
+  background: '#fef2f2',
+}
 
 const STYLE_OPTIONS = ['Formal Upright', 'Informal Upright', 'Slanting', 'Cascade', 'Semi-Cascade', 'Windswept', 'Literati', 'Group/Forest', 'Raft', 'Root-over-rock', 'Multi-trunk', 'Broom', 'Driftwood']
 const SOURCE_OPTIONS = ['Nursery', 'Grown from Seed', 'Grown from Cutting', 'Air Layer', 'Collected (Yamadori)', 'Club Auction', 'Online Purchase', 'Private Sale', 'Gift', 'Other']
@@ -63,17 +98,17 @@ function Dropdown({ value, onChange, options, category }: { value: string, onCha
 
   if (adding) {
     return (
-      <div className="flex gap-2">
+      <div style={{ display: 'flex', gap: '8px' }}>
         <input
           type="text"
           value={newValue}
           onChange={e => setNewValue(e.target.value)}
           placeholder="New option..."
-          className={inputClass}
+          style={inputStyle}
           autoFocus
         />
-        <button type="button" onClick={handleAdd} className="bg-blue-600 text-white px-3 rounded text-sm">Add</button>
-        <button type="button" onClick={() => setAdding(false)} className="text-gray-400 px-2 text-sm">✕</button>
+        <button type="button" onClick={handleAdd} style={{ background: '#3f5228', color: '#fdfaf3', padding: '0 16px', borderRadius: '8px', border: 'none', fontSize: '15px', cursor: 'pointer' }}>Add</button>
+        <button type="button" onClick={() => setAdding(false)} style={{ color: '#8a7f5f', padding: '0 10px', fontSize: '15px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
       </div>
     )
   }
@@ -88,7 +123,7 @@ function Dropdown({ value, onChange, options, category }: { value: string, onCha
           onChange(e.target.value)
         }
       }}
-      className={inputClass}
+      style={inputStyle}
     >
       <option value="">Select...</option>
       {allOptions.map(o => <option key={o} value={o}>{o}</option>)}
@@ -124,13 +159,13 @@ function PhotoField({ label, value, onChange }: { label: string, value: string, 
 
   return (
     <div>
-      <span className="text-gray-500 block mb-1 text-sm">{label}</span>
+      <span style={{ display: 'block', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8a7f5f', marginBottom: '6px' }}>{label}</span>
       {value && (
         <img
           src={value}
           alt={label}
           onClick={() => setLightboxOpen(true)}
-          style={{ width: '128px', height: '128px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px', border: '1px solid #e2e8f0', cursor: 'pointer' }}
+          style={{ width: '128px', height: '128px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px', border: '1px solid #e2dac2', cursor: 'pointer' }}
         />
       )}
       {lightboxOpen && value && (
@@ -145,8 +180,8 @@ function PhotoField({ label, value, onChange }: { label: string, value: string, 
           />
         </div>
       )}
-      <div className="flex gap-2">
-        <label htmlFor={inputId} className="flex-1 text-center bg-gray-100 border rounded px-3 py-2 text-sm cursor-pointer">
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <label htmlFor={inputId} style={{ flex: 1, textAlign: 'center', background: '#f3efe2', border: '1.5px solid #e2dac2', borderRadius: '10px', padding: '11px 14px', fontSize: '15px', cursor: 'pointer', color: '#2b2620' }}>
           {uploading ? 'Uploading...' : value ? '📷 Replace Photo' : '📷 Add Photo'}
         </label>
         <input
@@ -154,11 +189,11 @@ function PhotoField({ label, value, onChange }: { label: string, value: string, 
           type="file"
           accept="image/*"
           onChange={handleFile}
-          className="hidden"
+          style={{ display: 'none' }}
           disabled={uploading}
         />
         {value && (
-          <button type="button" onClick={() => onChange('')} className="text-red-500 text-sm px-2">✕</button>
+          <button type="button" onClick={() => onChange('')} style={{ color: '#c04545', fontSize: '15px', padding: '0 10px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
         )}
       </div>
     </div>
@@ -235,8 +270,8 @@ function HeroPhotoField({ value, onChange }: { value: string, onChange: (v: stri
         </div>
       )}
 
-      <div className="flex gap-2" style={{ marginTop: '8px' }}>
-        <label htmlFor="hero-primary-photo" className="flex-1 text-center bg-gray-100 border rounded px-3 py-2 text-sm cursor-pointer">
+      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+        <label htmlFor="hero-primary-photo" style={{ flex: 1, textAlign: 'center', background: '#f3efe2', border: '1.5px solid #e2dac2', borderRadius: '10px', padding: '11px 14px', fontSize: '15px', cursor: 'pointer', color: '#2b2620' }}>
           {uploading ? 'Uploading...' : value ? '📷 Replace Primary Photo' : '📷 Add Primary Photo'}
         </label>
         <input
@@ -244,11 +279,11 @@ function HeroPhotoField({ value, onChange }: { value: string, onChange: (v: stri
           type="file"
           accept="image/*"
           onChange={handleFile}
-          className="hidden"
+          style={{ display: 'none' }}
           disabled={uploading}
         />
         {value && (
-          <button type="button" onClick={() => onChange('')} className="text-red-500 text-sm px-2">✕</button>
+          <button type="button" onClick={() => onChange('')} style={{ color: '#c04545', fontSize: '15px', padding: '0 10px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
         )}
       </div>
     </div>
@@ -298,17 +333,17 @@ useEffect(() => {
   }, [query])
 
   return (
-    <div className="relative">
+    <div style={{ position: 'relative' }}>
       <input
         type="text"
         value={query}
         onChange={e => { setQuery(e.target.value); setOpen(true); if (!e.target.value) onChange(null, '') }}
         onFocus={() => setOpen(true)}
         placeholder="Search species name..."
-        className={inputClass}
+        style={inputStyle}
       />
       {open && results.length > 0 && (
-        <ul style={{position:'absolute',zIndex:999,background:'#fff',border:'1px solid #e2e8f0',borderRadius:'12px',marginTop:'4px',width:'100%',maxHeight:'260px',overflowY:'auto',boxShadow:'0 8px 32px rgba(0,0,0,0.15)',left:0}}>
+        <ul style={{position:'absolute',zIndex:999,background:'#fffefb',border:'1px solid #e2dac2',borderRadius:'12px',marginTop:'4px',width:'100%',maxHeight:'260px',overflowY:'auto',boxShadow:'0 8px 32px rgba(0,0,0,0.15)',left:0}}>
           {results.map(r => (
             <li
               key={r.sp_no}
@@ -319,11 +354,11 @@ useEffect(() => {
                 setOpen(false)
                 setResults([])
               }}
-              style={{padding:'14px 16px',borderBottom:'1px solid #f1f5f9',cursor:'pointer',fontSize:'15px',lineHeight:'1.4'}}
+              style={{padding:'14px 16px',borderBottom:'1px solid #f3efe2',cursor:'pointer',fontSize:'15px',lineHeight:'1.4'}}
             >
-              <span className="font-medium">{r.species}</span>
+              <span style={{ fontWeight: 600 }}>{r.species}</span>
               {r.common_name && r.common_name !== 'Unknown' && (
-                <span className="text-gray-500"> — {r.common_name}</span>
+                <span style={{ color: '#8a7f5f' }}> — {r.common_name}</span>
               )}
             </li>
           ))}
@@ -364,7 +399,7 @@ useEffect(() => {
   }, [query, spNo])
 
   return (
-    <div className="relative">
+    <div style={{ position: 'relative' }}>
       <input
         type="text"
         value={query}
@@ -372,15 +407,15 @@ useEffect(() => {
         onFocus={() => setOpen(true)}
         placeholder={spNo ? "Type to search known variants..." : "Select a species first"}
         disabled={!spNo}
-        className={inputClass}
+        style={inputStyle}
       />
       {open && results.length > 0 && (
-      <ul style={{position:'absolute',zIndex:999,background:'#fff',border:'1px solid #e2e8f0',borderRadius:'12px',marginTop:'4px',width:'100%',maxHeight:'260px',overflowY:'auto',boxShadow:'0 8px 32px rgba(0,0,0,0.15)',left:0}}>
+      <ul style={{position:'absolute',zIndex:999,background:'#fffefb',border:'1px solid #e2dac2',borderRadius:'12px',marginTop:'4px',width:'100%',maxHeight:'260px',overflowY:'auto',boxShadow:'0 8px 32px rgba(0,0,0,0.15)',left:0}}>
           {results.map((r, i) => (
             <li
               key={i}
               onClick={() => { onChange(r.variant_name, r.sp_no); setQuery(r.variant_name); setOpen(false); setResults([]) }}
-              style={{padding:'14px 16px',borderBottom:'1px solid #f1f5f9',cursor:'pointer',fontSize:'15px',lineHeight:'1.4'}}
+              style={{padding:'14px 16px',borderBottom:'1px solid #f3efe2',cursor:'pointer',fontSize:'15px',lineHeight:'1.4'}}
             >
               {r.variant_name}
             </li>
@@ -407,18 +442,18 @@ function VariantCareInfo({ variantSpNo }: { variantSpNo: number | null | undefin
   }, [variantSpNo])
 
   if (!variantSpNo) return null
-  if (loading) return <p className="text-xs text-gray-400 mt-1">Loading variant care info...</p>
-  if (!care) return <p className="text-xs text-amber-600 mt-1">No specific care data recorded for this variant yet — using species-level defaults.</p>
+  if (loading) return <p style={{ fontSize: '13px', color: '#a89e7a', marginTop: '6px' }}>Loading variant care info...</p>
+  if (!care) return <p style={{ fontSize: '13px', color: '#b45309', marginTop: '6px' }}>No specific care data recorded for this variant yet — using species-level defaults.</p>
 
   return (
-    <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs space-y-1">
-      <p className="font-semibold text-amber-800 mb-1">Variant-specific care</p>
-      {care.effective_watering && <p><span className="text-gray-500">Watering: </span>{care.effective_watering}</p>}
-      {care.effective_soil_mix && <p><span className="text-gray-500">Soil mix: </span>{care.effective_soil_mix}</p>}
-      {care.effective_repotting && <p><span className="text-gray-500">Repotting cycle: </span>{care.effective_repotting}</p>}
-      {care.effective_fertilising && <p><span className="text-gray-500">Fertilising: </span>{care.effective_fertilising}</p>}
-      {care.effective_winter_care && <p><span className="text-gray-500">Winter care: </span>{care.effective_winter_care}</p>}
-      {care.effective_species_notes && <p><span className="text-gray-500">Notes: </span>{care.effective_species_notes}</p>}
+    <div style={{ marginTop: '10px', padding: '14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      <p style={{ fontWeight: 600, color: '#92400e', marginBottom: '4px' }}>Variant-specific care</p>
+      {care.effective_watering && <p><span style={{ color: '#8a7f5f' }}>Watering: </span>{care.effective_watering}</p>}
+      {care.effective_soil_mix && <p><span style={{ color: '#8a7f5f' }}>Soil mix: </span>{care.effective_soil_mix}</p>}
+      {care.effective_repotting && <p><span style={{ color: '#8a7f5f' }}>Repotting cycle: </span>{care.effective_repotting}</p>}
+      {care.effective_fertilising && <p><span style={{ color: '#8a7f5f' }}>Fertilising: </span>{care.effective_fertilising}</p>}
+      {care.effective_winter_care && <p><span style={{ color: '#8a7f5f' }}>Winter care: </span>{care.effective_winter_care}</p>}
+      {care.effective_species_notes && <p><span style={{ color: '#8a7f5f' }}>Notes: </span>{care.effective_species_notes}</p>}
     </div>
   )
 }
@@ -758,22 +793,22 @@ updateData.in_collection = true
   }
 
   if (loading) {
-    return <main className="max-w-2xl mx-auto px-4 py-8"><p className="text-gray-400">Loading...</p></main>
+    return <main style={{ maxWidth: '900px', margin: '0 auto', padding: '32px 16px' }}><p style={{ color: '#a89e7a', fontSize: '15px' }}>Loading...</p></main>
   }
 
   if (!tree) {
-    return <main className="max-w-2xl mx-auto px-4 py-8"><p className="text-red-500">Tree not found.</p></main>
+    return <main style={{ maxWidth: '900px', margin: '0 auto', padding: '32px 16px' }}><p style={{ color: '#dc2626', fontSize: '15px' }}>Tree not found.</p></main>
   }
 
   return (
-    <main className="mx-auto px-4 py-6 pb-28" style={{ maxWidth: 'clamp(400px, 90vw, 960px)' }}>
-      <div className="flex justify-between items-center mb-4">
-        <a href="/collection" className="text-sm text-blue-600">&larr; Back to Collection</a>
+    <main style={{ width: '100%', boxSizing: 'border-box', maxWidth: '1200px', margin: '0 auto', padding: '24px 24px 112px', background: '#faf7f1', minHeight: '100vh' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+        <a href="/collection" style={{ fontSize: '14px', color: '#5c7a2a', fontWeight: 600, textDecoration: 'none' }}>&larr; Back to Collection</a>
         <button
           type="button"
           onClick={handleGenerateReport}
           disabled={generatingReport}
-          className="text-sm bg-gray-800 text-white px-3 py-1.5 rounded disabled:opacity-50"
+          style={{ fontSize: '13px', background: '#3f5228', color: '#fdfaf3', padding: '9px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', opacity: generatingReport ? 0.5 : 1, fontWeight: 600 }}
         >
           {generatingReport ? 'Generating...' : '📄 PDF Report'}
         </button>
@@ -782,8 +817,8 @@ updateData.in_collection = true
       <HeroPhotoField value={tree.image_url || ''} onChange={v => set('image_url', v)} />
 
       {/* Identity header - always visible */}
-      <div className="mb-4">
-        <h1 className="w-full text-2xl font-bold border-b pb-2 mb-2">
+      <div style={{ marginBottom: '18px' }}>
+        <h1 style={{ width: '100%', fontSize: '32px', fontWeight: 700, color: '#2b2620', borderBottom: '1px solid #e2dac2', paddingBottom: '10px', marginBottom: '10px', letterSpacing: '-0.01em' }}>
           {tree.display_name || 'Unnamed Tree'}
         </h1>
         <input
@@ -791,20 +826,20 @@ updateData.in_collection = true
           value={tree.tree_name || ''}
           onChange={e => set('tree_name', e.target.value)}
           placeholder="Tree name / nickname"
-          className="w-full text-sm text-gray-500 border-b pb-1"
+          style={{ width: '100%', fontSize: '15px', color: '#8a7f5f', border: 'none', borderBottom: '1px solid #e2dac2', paddingBottom: '6px', background: 'transparent', outline: 'none' }}
         />
       </div>
 
       {/* Status badges */}
-      <div className="flex gap-2 flex-wrap mb-4">
-        <select value={tree.status || ''} onChange={e => set('status', e.target.value)} className="text-xs border rounded px-2 py-1">
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '18px' }}>
+        <select value={tree.status || ''} onChange={e => set('status', e.target.value)} style={{ fontSize: '14px', border: '1.5px solid #e2dac2', borderRadius: '8px', padding: '8px 12px', background: '#fffefb', color: '#2b2620' }}>
           <option value="">Status...</option>
           <option value="Developing">Developing</option>
           <option value="Refining">Refining</option>
           <option value="Show Ready">Show Ready</option>
           <option value="Maintenance">Maintenance</option>
         </select>
-        <select value={tree.health_status || ''} onChange={e => set('health_status', e.target.value)} className="text-xs border rounded px-2 py-1">
+        <select value={tree.health_status || ''} onChange={e => set('health_status', e.target.value)} style={{ fontSize: '14px', border: '1.5px solid #e2dac2', borderRadius: '8px', padding: '8px 12px', background: '#fffefb', color: '#2b2620' }}>
           <option value="">Health...</option>
           <option value="Excellent">Excellent</option>
           <option value="Good">Good</option>
@@ -812,18 +847,18 @@ updateData.in_collection = true
           <option value="Recovering">Recovering</option>
           <option value="Critical">Critical</option>
         </select>
-        <select value={tree.vigor || ''} onChange={e => set('vigor', e.target.value)} className="text-xs border rounded px-2 py-1">
+        <select value={tree.vigor || ''} onChange={e => set('vigor', e.target.value)} style={{ fontSize: '14px', border: '1.5px solid #e2dac2', borderRadius: '8px', padding: '8px 12px', background: '#fffefb', color: '#2b2620' }}>
           <option value="">Vigor...</option>
           <option value="Low">Low</option>
           <option value="Moderate">Moderate</option>
           <option value="Strong">Strong</option>
         </select>
-        <label className="flex items-center gap-1 text-xs">
-          <input type="checkbox" checked={!!tree.in_collection} onChange={e => set('in_collection', e.target.checked)} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#2b2620' }}>
+          <input type="checkbox" checked={!!tree.in_collection} onChange={e => set('in_collection', e.target.checked)} style={{ width: '17px', height: '17px' }} />
           In collection
         </label>
-        <label className="flex items-center gap-1 text-xs">
-          <input type="checkbox" checked={!!tree.is_favourite} onChange={e => set('is_favourite', e.target.checked)} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#2b2620' }}>
+          <input type="checkbox" checked={!!tree.is_favourite} onChange={e => set('is_favourite', e.target.checked)} style={{ width: '17px', height: '17px' }} />
           Favourite
         </label>
       </div>
@@ -834,14 +869,14 @@ updateData.in_collection = true
           value={tree.notes || ''}
           onChange={e => set('notes', e.target.value)}
           rows={3}
-          className={inputClass}
+          style={{ ...inputStyle, resize: 'vertical' }}
           placeholder="Voice-to-text friendly quick notes..."
         />
       </Field>
 
-      <div className="mt-4">
+      <div style={{ marginTop: '18px' }}>
         <Section title="Development & Styling" defaultOpen>
-          <Field label="Tree Number"><input type="number" value={tree.tree_number ?? ''} onChange={e => set('tree_number', e.target.value ? parseInt(e.target.value) : null)} className={inputClass} /></Field>
+          <Field label="Tree Number"><input type="number" value={tree.tree_number ?? ''} onChange={e => set('tree_number', e.target.value ? parseInt(e.target.value) : null)} style={inputStyle} /></Field>
           <Field label="Species">
             <SpeciesAutocomplete value={tree.sp_no} onChange={(spNo, name) => { set('sp_no', spNo); setSpeciesName(name) }} />
           </Field>
@@ -866,7 +901,7 @@ updateData.in_collection = true
               value={tree.origin_tubestock_tag || ''}
               onChange={e => set('origin_tubestock_tag', e.target.value)}
               placeholder="e.g. TS0007/003"
-              className={inputClass}
+              style={inputStyle}
             />
           </Field>
           <Field label="Year Est. Planted">
@@ -877,88 +912,88 @@ updateData.in_collection = true
               placeholder="e.g. 1995"
               min="1900"
               max={new Date().getFullYear()}
-              className={inputClass}
+              style={inputStyle}
             />
             {tree.year_est_planted && /^\d{4}$/.test(String(tree.year_est_planted)) && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p style={{ fontSize: "12px", color: "#a89e7a", marginTop: "6px" }}>
                 ≈ {new Date().getFullYear() - parseInt(tree.year_est_planted)} years old
               </p>
             )}
           </Field>
-          <Field label="Estimated Age"><input type="text" value={tree.estimated_age || ''} onChange={e => set('estimated_age', e.target.value)} className={inputClass} /></Field>
-          <Field label="Plan"><textarea value={tree.plan || ''} onChange={e => set('plan', e.target.value)} rows={2} className={inputClass} /></Field>
-         <Field label="Intended Look"><textarea value={tree.intended_look || ''} onChange={e => set('intended_look', e.target.value)} rows={2} className={inputClass} /></Field>
+          <Field label="Estimated Age"><input type="text" value={tree.estimated_age || ''} onChange={e => set('estimated_age', e.target.value)} style={inputStyle} /></Field>
+          <Field label="Plan"><textarea value={tree.plan || ''} onChange={e => set('plan', e.target.value)} rows={2} style={inputStyle} /></Field>
+         <Field label="Intended Look"><textarea value={tree.intended_look || ''} onChange={e => set('intended_look', e.target.value)} rows={2} style={inputStyle} /></Field>
           <PhotoField label="Inspiration Photo" value={tree.inspiration_photo || ''} onChange={v => set('inspiration_photo', v)} />
-          <Field label="Work Plan"><textarea value={tree.work_plan || ''} onChange={e => set('work_plan', e.target.value)} rows={2} className={inputClass} /></Field>
+          <Field label="Work Plan"><textarea value={tree.work_plan || ''} onChange={e => set('work_plan', e.target.value)} rows={2} style={inputStyle} /></Field>
         </Section>
 
         <Section title="Commercial">
           <Field label="Source"><Dropdown value={tree.source} onChange={v => set('source', v)} options={SOURCE_OPTIONS} category="source" /></Field>
-          <Field label="Acquired Date"><input type="date" value={tree.acquired_date || ''} onChange={e => set('acquired_date', e.target.value)} className={inputClass} /></Field>
-          <Field label="Pot Price"><input type="number" value={tree.pot_price || ''} onChange={e => set('pot_price', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <Field label="Price Paid"><input type="number" value={tree.price_paid || ''} onChange={e => set('price_paid', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <Field label="Estimated Value"><input type="number" value={tree.estimated_value || ''} onChange={e => set('estimated_value', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <label className="flex items-center gap-2 text-sm">
+          <Field label="Acquired Date"><input type="date" value={tree.acquired_date || ''} onChange={e => set('acquired_date', e.target.value)} style={inputStyle} /></Field>
+          <Field label="Pot Price"><input type="number" value={tree.pot_price || ''} onChange={e => set('pot_price', e.target.value ? parseFloat(e.target.value) : null)} style={inputStyle} /></Field>
+          <Field label="Price Paid"><input type="number" value={tree.price_paid || ''} onChange={e => set('price_paid', e.target.value ? parseFloat(e.target.value) : null)} style={inputStyle} /></Field>
+          <Field label="Estimated Value"><input type="number" value={tree.estimated_value || ''} onChange={e => set('estimated_value', e.target.value ? parseFloat(e.target.value) : null)} style={inputStyle} /></Field>
+          <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "15px", color: "#2b2620" }}>
             <input type="checkbox" checked={!!tree.for_sale} onChange={e => set('for_sale', e.target.checked)} />
             For Sale
           </label>
-          <Field label="Sale Price"><input type="number" value={tree.sale_price || ''} onChange={e => set('sale_price', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <Field label="Sold Price"><input type="number" value={tree.sold_price || ''} onChange={e => set('sold_price', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <Field label="Customer Facing Wording"><textarea value={tree.customer_facing_wording || ''} onChange={e => set('customer_facing_wording', e.target.value)} rows={2} className={inputClass} /></Field>
+          <Field label="Sale Price"><input type="number" value={tree.sale_price || ''} onChange={e => set('sale_price', e.target.value ? parseFloat(e.target.value) : null)} style={inputStyle} /></Field>
+          <Field label="Sold Price"><input type="number" value={tree.sold_price || ''} onChange={e => set('sold_price', e.target.value ? parseFloat(e.target.value) : null)} style={inputStyle} /></Field>
+          <Field label="Customer Facing Wording"><textarea value={tree.customer_facing_wording || ''} onChange={e => set('customer_facing_wording', e.target.value)} rows={2} style={inputStyle} /></Field>
         </Section>
 
         <Section title="Location & Display">
-          <Field label="Location"><input type="text" value={tree.location || ''} onChange={e => set('location', e.target.value)} className={inputClass} /></Field>
-          <Field label="Bench Position"><input type="text" value={tree.bench_position || ''} onChange={e => set('bench_position', e.target.value)} className={inputClass} /></Field>
-          <Field label="Display Status"><input type="text" value={tree.display_status || ''} onChange={e => set('display_status', e.target.value)} className={inputClass} /></Field>
+          <Field label="Location"><input type="text" value={tree.location || ''} onChange={e => set('location', e.target.value)} style={inputStyle} /></Field>
+          <Field label="Bench Position"><input type="text" value={tree.bench_position || ''} onChange={e => set('bench_position', e.target.value)} style={inputStyle} /></Field>
+          <Field label="Display Status"><input type="text" value={tree.display_status || ''} onChange={e => set('display_status', e.target.value)} style={inputStyle} /></Field>
         </Section>
 
         <Section title="Media & Notes">
           <PhotoField label="Photo 2" value={tree.photo_1 || ''} onChange={v => set('photo_1', v)} />
           <PhotoField label="Photo 3" value={tree.photo_2 || ''} onChange={v => set('photo_2', v)} />
           <PhotoField label="Photo 4" value={tree.photo_3 || ''} onChange={v => set('photo_3', v)} />
-          <Field label="External Documents"><input type="text" value={tree.external_documents || ''} onChange={e => set('external_documents', e.target.value)} className={inputClass} /></Field>
-          <Field label="Blog Link"><input type="text" value={tree.blog_link || ''} onChange={e => set('blog_link', e.target.value)} className={inputClass} /></Field>
-          <Field label="Notes (extended)"><textarea value={tree.notes_collection || ''} onChange={e => set('notes_collection', e.target.value)} rows={3} className={inputClass} /></Field>
+          <Field label="External Documents"><input type="text" value={tree.external_documents || ''} onChange={e => set('external_documents', e.target.value)} style={inputStyle} /></Field>
+          <Field label="Blog Link"><input type="text" value={tree.blog_link || ''} onChange={e => set('blog_link', e.target.value)} style={inputStyle} /></Field>
+          <Field label="Notes (extended)"><textarea value={tree.notes_collection || ''} onChange={e => set('notes_collection', e.target.value)} rows={3} style={inputStyle} /></Field>
         </Section>
 
         <Section title="Growing Medium">
-          <Field label="Pot Size"><input type="text" value={tree.pot_size || ''} onChange={e => set('pot_size', e.target.value)} className={inputClass} /></Field>
-          <Field label="Pot Type"><input type="text" value={tree.pot_type || ''} onChange={e => set('pot_type', e.target.value)} className={inputClass} /></Field>
-          <Field label="Best Soil Mix"><input type="text" value={tree.best_soil_mix || ''} onChange={e => set('best_soil_mix', e.target.value)} className={inputClass} /></Field>
-          <Field label="Soil Mix Used"><input type="text" value={tree.soil_mix_used || ''} onChange={e => set('soil_mix_used', e.target.value)} className={inputClass} /></Field>
+          <Field label="Pot Size"><input type="text" value={tree.pot_size || ''} onChange={e => set('pot_size', e.target.value)} style={inputStyle} /></Field>
+          <Field label="Pot Type"><input type="text" value={tree.pot_type || ''} onChange={e => set('pot_type', e.target.value)} style={inputStyle} /></Field>
+          <Field label="Best Soil Mix"><input type="text" value={tree.best_soil_mix || ''} onChange={e => set('best_soil_mix', e.target.value)} style={inputStyle} /></Field>
+          <Field label="Soil Mix Used"><input type="text" value={tree.soil_mix_used || ''} onChange={e => set('soil_mix_used', e.target.value)} style={inputStyle} /></Field>
         </Section>
 
         <Section title="Care Schedule">
-          <Field label="Last Watered"><input type="date" value={tree.last_watered || ''} onChange={e => set('last_watered', e.target.value)} className={inputClass} /></Field>
+          <Field label="Last Watered"><input type="date" value={tree.last_watered || ''} onChange={e => set('last_watered', e.target.value)} style={inputStyle} /></Field>
           <div />
-          <Field label="Last Fertilised"><input type="date" value={tree.last_fertilised || ''} onChange={e => set('last_fertilised', e.target.value)} className={inputClass} /></Field>
+          <Field label="Last Fertilised"><input type="date" value={tree.last_fertilised || ''} onChange={e => set('last_fertilised', e.target.value)} style={inputStyle} /></Field>
           <Field label="Next Fertilise Due">
             <input type="date" value={tree.next_fertilise_due || ''} onChange={e => set('next_fertilise_due', e.target.value)}
-              className={inputClass + (isOverdue(tree.next_fertilise_due) ? ' border-red-500 bg-red-50' : '')} />
+              style={isOverdue(tree.next_fertilise_due) ? overdueInputStyle : inputStyle} />
           </Field>
-          <Field label="Last Repotted"><input type="date" value={tree.last_repotted || ''} onChange={e => set('last_repotted', e.target.value)} className={inputClass} /></Field>
+          <Field label="Last Repotted"><input type="date" value={tree.last_repotted || ''} onChange={e => set('last_repotted', e.target.value)} style={inputStyle} /></Field>
           <Field label="Next Repot Due">
             <input type="date" value={tree.next_repot_due || ''} onChange={e => set('next_repot_due', e.target.value)}
-              className={inputClass + (isOverdue(tree.next_repot_due) ? ' border-red-500 bg-red-50' : '')} />
+              style={isOverdue(tree.next_repot_due) ? overdueInputStyle : inputStyle} />
           </Field>
-          <Field label="Last Pruned"><input type="date" value={tree.last_pruned || ''} onChange={e => set('last_pruned', e.target.value)} className={inputClass} /></Field>
+          <Field label="Last Pruned"><input type="date" value={tree.last_pruned || ''} onChange={e => set('last_pruned', e.target.value)} style={inputStyle} /></Field>
           <Field label="Due Prune Date">
             <input type="date" value={tree.due_prune_date || ''} onChange={e => set('due_prune_date', e.target.value)}
-              className={inputClass + (isOverdue(tree.due_prune_date) ? ' border-red-500 bg-red-50' : '')} />
+              style={isOverdue(tree.due_prune_date) ? overdueInputStyle : inputStyle} />
           </Field>
-          <Field label="Date Wired"><input type="date" value={tree.date_wired || ''} onChange={e => set('date_wired', e.target.value)} className={inputClass} /></Field>
+          <Field label="Date Wired"><input type="date" value={tree.date_wired || ''} onChange={e => set('date_wired', e.target.value)} style={inputStyle} /></Field>
           <Field label="Date Check Wire">
             <input type="date" value={tree.date_check_wire || ''} onChange={e => set('date_check_wire', e.target.value)}
-              className={inputClass + (isOverdue(tree.date_check_wire) ? ' border-red-500 bg-red-50' : '')} />
+              style={isOverdue(tree.date_check_wire) ? overdueInputStyle : inputStyle} />
           </Field>
         </Section>
 
         <Section title="Physical Details">
-          <Field label="Height (mm)"><input type="number" value={tree.height_mm || ''} onChange={e => set('height_mm', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <Field label="Trunk Thickness (mm)"><input type="number" value={tree.trunk_thickness_mm || ''} onChange={e => set('trunk_thickness_mm', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <Field label="Canopy Width (mm)"><input type="number" value={tree.canopy_width_mm || ''} onChange={e => set('canopy_width_mm', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
-          <Field label="Weight (kg)"><input type="number" value={tree.weight_kg || ''} onChange={e => set('weight_kg', e.target.value ? parseFloat(e.target.value) : null)} className={inputClass} /></Field>
+          <Field label="Height (mm)"><input type="number" value={tree.height_mm || ''} onChange={e => set('height_mm', e.target.value ? parseFloat(e.target.value) : null)} style={inputStyle} /></Field>
+          <Field label="Trunk Thickness (mm)"><input type="number" value={tree.trunk_thickness_mm || ''} onChange={e => set('trunk_thickness_mm', e.target.value ? parseFloat(e.target.value) : null)} style={inputStyle} /></Field>
+          <Field label="Canopy Width (mm)"><input type="number" value={tree.canopy_width_mm || ''} onChange={e => set('canopy_width_mm', e.target.value ? parseFloat(e.target.value) : null)} style={inputStyle} /></Field>
+          <Field label="Weight (kg)"><input type="number" value={tree.weight_kg || ''} onChange={e => set('weight_kg', e.target.value ? parseFloat(e.target.value) : null)} style={inputStyle} /></Field>
         </Section>
 
         <Section title="Journal">
@@ -968,18 +1003,18 @@ updateData.in_collection = true
         <button
           type="button"
           onClick={handleDelete}
-          className="text-red-500 text-sm mt-2"
+          style={{ color: '#c04545', fontSize: '14px', marginTop: '10px', background: 'none', border: 'none', cursor: 'pointer' }}
         >
           Delete this tree
         </button>
       </div>
 
       {/* Save button - normal flow, not fixed */}
-      <div className="mt-6 mb-10">
+      <div style={{ marginTop: '24px', marginBottom: '40px' }}>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="bg-blue-600 text-white px-6 py-4 rounded-lg font-semibold w-full text-lg disabled:opacity-50"
+          style={{ background: '#3f5228', color: '#fdfaf3', padding: '16px 24px', borderRadius: '12px', fontWeight: 700, width: '100%', fontSize: '17px', border: 'none', cursor: 'pointer', opacity: saving ? 0.5 : 1, boxShadow: '0 2px 10px rgba(63,82,40,0.2)' }}
         >
           {saving ? 'Saving...' : 'Save All'}
         </button>
