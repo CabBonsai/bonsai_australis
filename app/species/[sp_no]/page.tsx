@@ -959,6 +959,8 @@ export default function SpeciesDetail() {
             <option value="Not Started">Not Started</option>
             <option value="In Progress">In Progress</option>
             <option value="Complete">Complete</option>
+            <option value="Researched - No Data Found">Researched - No Data Found</option>
+            <option value="Data Gaps (See Below)">Data Gaps (See Below)</option>
           </select>
         </div>
         <Field label="Species name" value={species.species} onChange={v => updateSpecies('species', v)} />
