@@ -68,7 +68,7 @@ function Field({ label, value, onChange, type = 'text' }: {
             onBlur={() => setFocused(false)}
             style={{
               width: '100%',
-              minHeight: '190px',
+              padding: '12px 16px', boxSizing: 'border-box',
               border: baseBorder,
               boxShadow,
               borderRadius: '10px',
