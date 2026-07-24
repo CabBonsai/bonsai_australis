@@ -1101,33 +1101,33 @@ export default function SpeciesDetail() {
       )}
       {nebari && (
         <Section title="Nebari and Root">
-          <Field label="Root architecture type" value={nebari.root_architecture_type} onChange={v => updateNebari('root_architecture_type', v)} />
+          <Field label="Root architecture type" value={nebari.root_architecture_type} onChange={v => updateNebari('root_architecture_type', v)} type="textarea" />
           <Field label="Natural nebari form" value={nebari.natural_nebari_form} onChange={v => updateNebari('natural_nebari_form', v)} type="textarea" />
-          <Field label="Root depth tendency" value={nebari.root_depth_tendency} onChange={v => updateNebari('root_depth_tendency', v)} />
+          <Field label="Root depth tendency" value={nebari.root_depth_tendency} onChange={v => updateNebari('root_depth_tendency', v)} type="textarea" />
           <Field label="Root spread behaviour" value={nebari.root_spread_behaviour} onChange={v => updateNebari('root_spread_behaviour', v)} type="textarea" />
-          <Field label="Development speed" value={nebari.development_speed} onChange={v => updateNebari('development_speed', v)} />
+          <Field label="Development speed" value={nebari.development_speed} onChange={v => updateNebari('development_speed', v)} type="textarea" />
           <Field label="Years to initial nebari" value={nebari.years_to_initial_nebari} onChange={v => updateNebari('years_to_initial_nebari', v)} />
           <Field label="Years to mature nebari" value={nebari.years_to_mature_nebari} onChange={v => updateNebari('years_to_mature_nebari', v)} />
           <Field label="Climate influence" value={nebari.climate_influence_seq} onChange={v => updateNebari('climate_influence_seq', v)} type="textarea" />
-          <Field label="Taproot removal tolerance" value={nebari.taproot_removal_tolerance} onChange={v => updateNebari('taproot_removal_tolerance', v)} />
+          <Field label="Taproot removal tolerance" value={nebari.taproot_removal_tolerance} onChange={v => updateNebari('taproot_removal_tolerance', v)} type="textarea" />
           <Field label="Radial root pruning response" value={nebari.radial_root_pruning_response} onChange={v => updateNebari('radial_root_pruning_response', v)} type="textarea" />
-          <Field label="Root reduction tolerance" value={nebari.root_reduction_tolerance} onChange={v => updateNebari('root_reduction_tolerance', v)} />
-          <Field label="Fine root production" value={nebari.fine_root_production} onChange={v => updateNebari('fine_root_production', v)} />
-          <Field label="Root rot susceptibility" value={nebari.root_rot_susceptibility} onChange={v => updateNebari('root_rot_susceptibility', v)} />
-          <Field label="Ground layering suitability" value={nebari.ground_layering_suitability} onChange={v => updateNebari('ground_layering_suitability', v)} />
-          <Field label="Tourniquet method suitability" value={nebari.tourniquet_method_suitability} onChange={v => updateNebari('tourniquet_method_suitability', v)} />
-          <Field label="Root grafting success rate" value={nebari.root_grafting_success_rate} onChange={v => updateNebari('root_grafting_success_rate', v)} />
-          <Field label="Nebari fusion potential" value={nebari.nebari_fusion_potential} onChange={v => updateNebari('nebari_fusion_potential', v)} />
+          <Field label="Root reduction tolerance" value={nebari.root_reduction_tolerance} onChange={v => updateNebari('root_reduction_tolerance', v)} type="textarea" />
+          <Field label="Fine root production" value={nebari.fine_root_production} onChange={v => updateNebari('fine_root_production', v)} type="textarea" />
+          <Field label="Root rot susceptibility" value={nebari.root_rot_susceptibility} onChange={v => updateNebari('root_rot_susceptibility', v)} type="textarea" />
+          <Field label="Ground layering suitability" value={nebari.ground_layering_suitability} onChange={v => updateNebari('ground_layering_suitability', v)} type="textarea" />
+          <Field label="Tourniquet method suitability" value={nebari.tourniquet_method_suitability} onChange={v => updateNebari('tourniquet_method_suitability', v)} type="textarea" />
+          <Field label="Root grafting success rate" value={nebari.root_grafting_success_rate} onChange={v => updateNebari('root_grafting_success_rate', v)} type="textarea" />
+          <Field label="Nebari fusion potential" value={nebari.nebari_fusion_potential} onChange={v => updateNebari('nebari_fusion_potential', v)} type="textarea" />
           <Field label="Best techniques" value={nebari.best_techniques_for_species} onChange={v => updateNebari('best_techniques_for_species', v)} type="textarea" />
           <Field label="Typical nebari faults" value={nebari.typical_nebari_faults} onChange={v => updateNebari('typical_nebari_faults', v)} type="textarea" />
           <Field label="Underlying causes" value={nebari.underlying_causes} onChange={v => updateNebari('underlying_causes', v)} type="textarea" />
           <Field label="Corrective strategies" value={nebari.corrective_strategies} onChange={v => updateNebari('corrective_strategies', v)} type="textarea" />
           <Field label="Preferred pot depth" value={nebari.preferred_pot_depth} onChange={v => updateNebari('preferred_pot_depth', v)} />
           <Field label="Preferred pot width" value={nebari.preferred_pot_width} onChange={v => updateNebari('preferred_pot_width', v)} />
-          <Field label="Surface substrate preference" value={nebari.surface_substrate_preference} onChange={v => updateNebari('surface_substrate_preference', v)} />
-          <Field label="Moisture preference" value={nebari.moisture_preference} onChange={v => updateNebari('moisture_preference', v)} />
-          <Field label="Heat sensitivity at root base" value={nebari.heat_sensitivity_at_root_base} onChange={v => updateNebari('heat_sensitivity_at_root_base', v)} />
-          <Field label="Ultimate nebari quality potential" value={nebari.ultimate_nebari_quality_potential} onChange={v => updateNebari('ultimate_nebari_quality_potential', v)} />
+          <Field label="Surface substrate preference" value={nebari.surface_substrate_preference} onChange={v => updateNebari('surface_substrate_preference', v)} type="textarea" />
+          <Field label="Moisture preference" value={nebari.moisture_preference} onChange={v => updateNebari('moisture_preference', v)} type="textarea" />
+          <Field label="Heat sensitivity at root base" value={nebari.heat_sensitivity_at_root_base} onChange={v => updateNebari('heat_sensitivity_at_root_base', v)} type="textarea" />
+          <Field label="Ultimate nebari quality potential" value={nebari.ultimate_nebari_quality_potential} onChange={v => updateNebari('ultimate_nebari_quality_potential', v)} type="textarea" />
           <Field label="Expected mature nebari form" value={nebari.expected_mature_nebari_form} onChange={v => updateNebari('expected_mature_nebari_form', v)} type="textarea" />
           <Field label="Maintenance requirements" value={nebari.maintenance_requirements} onChange={v => updateNebari('maintenance_requirements', v)} type="textarea" />
           <Field label="Ageing notes" value={nebari.ageing_notes} onChange={v => updateNebari('ageing_notes', v)} type="textarea" />
