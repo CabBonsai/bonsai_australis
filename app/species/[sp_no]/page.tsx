@@ -994,6 +994,7 @@ export default function SpeciesDetail() {
         <Section title="Bonsai Suitability">
           <Field label="Suitability (Final Score) (1 = Poor, 100 = Elite)" value={suitability.final_bonsai_score} onChange={v => updateSuitability('final_bonsai_score', v)} />
           <Field label="Difficulty (0 = Hardest, 100 = Easiest)" value={suitability.difficulty} onChange={v => updateSuitability('difficulty', v)} />
+          <Field label="Tier (Unsuitable / Project / Strong / Excellent)" value={suitability.bonsai_tier} onChange={v => updateSuitability('bonsai_tier', v)} />
           <Field label="Recommended styles" value={suitability.recommended_bonsai_styles} onChange={v => updateSuitability('recommended_bonsai_styles', v)} type="textarea" />
           <Field label="Vigor" value={suitability.vigor} onChange={v => updateSuitability('vigor', v)} />
           <Field label="Vigor notes" value={suitability.vigor_notes} onChange={v => updateSuitability('vigor_notes', v)} type="textarea" />
@@ -1005,7 +1006,6 @@ export default function SpeciesDetail() {
           <Field label="Leaf reduction notes" value={suitability.leaf_reduction_notes} onChange={v => updateSuitability('leaf_reduction_notes', v)} type="textarea" />
           <Field label="Root tolerance score" value={suitability.root_tolerance_score} onChange={v => updateSuitability('root_tolerance_score', v)} />
           <Field label="Root tolerance notes" value={suitability.root_tolerance_notes} onChange={v => updateSuitability('root_tolerance_notes', v)} type="textarea" />
-          <Field label="Tier" value={suitability.bonsai_tier} onChange={v => updateSuitability('bonsai_tier', v)} />
         </Section>
       )}
       {careGuide && (
