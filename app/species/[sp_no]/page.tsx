@@ -995,7 +995,7 @@ export default function SpeciesDetail() {
       {suitability && (
         <Section title="Bonsai Suitability">
           <Field label="Suitability" value={suitability.bonsai_suitability} onChange={v => updateSuitability('bonsai_suitability', v)} />
-          <Field label="Difficulty" value={suitability.difficulty} onChange={v => updateSuitability('difficulty', v)} />
+          <Field label="Difficulty (0 = Hardest, 100 = Easiest)" value={suitability.difficulty} onChange={v => updateSuitability('difficulty', v)} />
           <Field label="Recommended styles" value={suitability.recommended_bonsai_styles} onChange={v => updateSuitability('recommended_bonsai_styles', v)} type="textarea" />
           <Field label="Vigor" value={suitability.vigor} onChange={v => updateSuitability('vigor', v)} />
           <Field label="Vigor notes" value={suitability.vigor_notes} onChange={v => updateSuitability('vigor_notes', v)} type="textarea" />
