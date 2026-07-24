@@ -653,10 +653,9 @@ export default function SpeciesDetail() {
       if (suitability) {
         if (reportType === 'basic') {
           addSection('Bonsai Suitability', [
-            ['Suitability', suitability.bonsai_suitability],
+            ['Suitability (Final Score)', suitability.final_bonsai_score],
             ['Difficulty', suitability.difficulty],
             ['Recommended Styles', suitability.recommended_bonsai_styles],
-            ['Final Bonsai Score', suitability.final_bonsai_score],
             ['Tier', suitability.bonsai_tier],
           ])
         } else {
@@ -664,7 +663,7 @@ export default function SpeciesDetail() {
             ? 'Provisional / Family Default'
             : (suitability.research_status || 'Verified')
           addSection('Bonsai Suitability Profile', [
-            ['Suitability', suitability.bonsai_suitability],
+            ['Suitability (Final Score)', suitability.final_bonsai_score],
             ['Difficulty', suitability.difficulty],
             ['Recommended Styles', suitability.recommended_bonsai_styles],
             ['Confidence', confidenceLabel],
@@ -685,7 +684,6 @@ export default function SpeciesDetail() {
             ['Taper & Movement', suitability.taper_movement_score],
             ['Longevity', suitability.longevity_score],
             ['Native Bonus', suitability.native_bonus],
-            ['Final Bonsai Score', suitability.final_bonsai_score],
             ['Tier', suitability.bonsai_tier],
           ])
         }
@@ -994,7 +992,7 @@ export default function SpeciesDetail() {
       </Section>
       {suitability && (
         <Section title="Bonsai Suitability">
-          <Field label="Suitability" value={suitability.bonsai_suitability} onChange={v => updateSuitability('bonsai_suitability', v)} />
+          <Field label="Suitability (Final Score) (1 = Poor, 100 = Elite)" value={suitability.final_bonsai_score} onChange={v => updateSuitability('final_bonsai_score', v)} />
           <Field label="Difficulty (0 = Hardest, 100 = Easiest)" value={suitability.difficulty} onChange={v => updateSuitability('difficulty', v)} />
           <Field label="Recommended styles" value={suitability.recommended_bonsai_styles} onChange={v => updateSuitability('recommended_bonsai_styles', v)} type="textarea" />
           <Field label="Vigor" value={suitability.vigor} onChange={v => updateSuitability('vigor', v)} />
@@ -1007,7 +1005,6 @@ export default function SpeciesDetail() {
           <Field label="Leaf reduction notes" value={suitability.leaf_reduction_notes} onChange={v => updateSuitability('leaf_reduction_notes', v)} type="textarea" />
           <Field label="Root tolerance score" value={suitability.root_tolerance_score} onChange={v => updateSuitability('root_tolerance_score', v)} />
           <Field label="Root tolerance notes" value={suitability.root_tolerance_notes} onChange={v => updateSuitability('root_tolerance_notes', v)} type="textarea" />
-          <Field label="Final bonsai score" value={suitability.final_bonsai_score} onChange={v => updateSuitability('final_bonsai_score', v)} />
           <Field label="Tier" value={suitability.bonsai_tier} onChange={v => updateSuitability('bonsai_tier', v)} />
         </Section>
       )}
