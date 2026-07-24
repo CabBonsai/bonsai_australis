@@ -293,6 +293,13 @@ export default function SpeciesDetail() {
       leaf_reduction_notes: suitability.leaf_reduction_notes,
       root_tolerance_score: suitability.root_tolerance_score,
       root_tolerance_notes: suitability.root_tolerance_notes,
+      wire_bend_tolerance: suitability.wire_bend_tolerance,
+      wire_bend_notes: suitability.wire_bend_notes,
+      nebari_potential_score: suitability.nebari_potential_score,
+      bark_character_score: suitability.bark_character_score,
+      taper_movement_score: suitability.taper_movement_score,
+      longevity_score: suitability.longevity_score,
+      native_bonus: suitability.native_bonus,
       final_bonsai_score: suitability.final_bonsai_score,
       bonsai_tier: suitability.bonsai_tier,
     }).eq('sp_no', spNo))
@@ -1006,6 +1013,13 @@ export default function SpeciesDetail() {
           <Field label="Leaf reduction notes" value={suitability.leaf_reduction_notes} onChange={v => updateSuitability('leaf_reduction_notes', v)} type="textarea" />
           <Field label="Root tolerance score" value={suitability.root_tolerance_score} onChange={v => updateSuitability('root_tolerance_score', v)} />
           <Field label="Root tolerance notes" value={suitability.root_tolerance_notes} onChange={v => updateSuitability('root_tolerance_notes', v)} type="textarea" />
+          <Field label="Wire/bend tolerance" value={suitability.wire_bend_tolerance} onChange={v => updateSuitability('wire_bend_tolerance', v)} />
+          <Field label="Wire/bend notes" value={suitability.wire_bend_notes} onChange={v => updateSuitability('wire_bend_notes', v)} type="textarea" />
+          <Field label="Nebari potential score" value={suitability.nebari_potential_score} onChange={v => updateSuitability('nebari_potential_score', v)} />
+          <Field label="Bark character score" value={suitability.bark_character_score} onChange={v => updateSuitability('bark_character_score', v)} />
+          <Field label="Taper & movement score" value={suitability.taper_movement_score} onChange={v => updateSuitability('taper_movement_score', v)} />
+          <Field label="Longevity score" value={suitability.longevity_score} onChange={v => updateSuitability('longevity_score', v)} />
+          <Field label="Native bonus (0-5)" value={suitability.native_bonus} onChange={v => updateSuitability('native_bonus', v)} />
         </Section>
       )}
       {careGuide && (
