@@ -913,6 +913,229 @@ export default function SpeciesDetail() {
     }
   }
 
+  // Spotlight report: a short, plain-language "about this tree" PDF for public-facing use
+  // (Species of the Week etc). Unlike Basic/Advanced above, this doesn't dump raw fields —
+  // it reads like a mini profile, skips anything unset rather than flagging gaps, and is
+  // uploaded to Supabase Storage (bucket: spotlight-reports) instead of downloaded locally,
+  // since the intent is one static file to link from the public site, not a local copy.
+  async function generateSpotlightPDF() {
+    setGeneratingReport('spotlight')
+    try {
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const margin = 40
+      const contentWidth = pageWidth - margin * 2
+      let y = 40
+
+      let logoDataUrl: string | null = null
+      try {
+        const res = await fetch('/logo.png')
+        const blob = await res.blob()
+        logoDataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+      } catch (e) { console.warn('Logo failed to load', e) }
+
+      if (logoDataUrl) {
+        const logoSize = 60
+        doc.addImage(logoDataUrl, 'PNG', margin, y, logoSize, logoSize)
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Bonsai Australis', margin + logoSize + 15, y + 28)
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'normal')
+        doc.text('Species Spotlight', margin + logoSize + 15, y + 46)
+        y += logoSize + 25
+      } else {
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Bonsai Australis — Species Spotlight', margin, y + 10)
+        y += 35
+      }
+
+      doc.setDrawColor(180)
+      doc.line(margin, y, pageWidth - margin, y)
+      y += 20
+
+      // Reference photo, if one exists — embedded large, under the header
+      if (species.reference_photo) {
+        try {
+          const res = await fetch(species.reference_photo)
+          const blob = await res.blob()
+          const photoDataUrl: string = await new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.onerror = reject
+            reader.readAsDataURL(blob)
+          })
+          const img = new Image()
+          await new Promise((resolve, reject) => {
+            img.onload = resolve
+            img.onerror = reject
+            img.src = photoDataUrl
+          })
+          const maxPhotoHeight = 220
+          const scale = Math.min(contentWidth / img.width, maxPhotoHeight / img.height)
+          const w = img.width * scale
+          const h = img.height * scale
+          doc.addImage(photoDataUrl, margin + (contentWidth - w) / 2, y, w, h)
+          y += h + 16
+        } catch (e) { console.warn('Photo failed to load for spotlight PDF', e) }
+      }
+
+      doc.setFontSize(20)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(20, 20, 20)
+      doc.text(species.species || 'Unnamed Species', margin, y)
+      y += 20
+
+      if (species.common_name && species.common_name !== 'Unknown') {
+        doc.setFontSize(13)
+        doc.setFont('helvetica', 'italic')
+        doc.setTextColor(90, 90, 90)
+        doc.text(species.common_name, margin, y)
+        y += 18
+      }
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(122, 156, 66)
+      doc.text(species.australian_native ? 'Australian Native' : 'Not an Australian native', margin, y)
+      doc.setTextColor(0, 0, 0)
+      y += 24
+
+      function checkPageBreak(needed: number) {
+        if (y + needed > doc.internal.pageSize.getHeight() - 50) { doc.addPage(); y = 40 }
+      }
+
+      function addHeading(title: string) {
+        checkPageBreak(30)
+        doc.setFontSize(13)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(63, 82, 40)
+        doc.text(title, margin, y)
+        y += 6
+        doc.setDrawColor(210)
+        doc.line(margin, y, margin + 60, y)
+        doc.setTextColor(0, 0, 0)
+        y += 16
+      }
+
+      function addParagraph(text: string) {
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'normal')
+        const lines = doc.splitTextToSize(sanitizeForPDF(text), contentWidth)
+        checkPageBreak(15 * lines.length)
+        doc.text(lines, margin, y)
+        y += 15 * lines.length + 14
+      }
+
+      // "About this tree" — combine whichever narrative fields are actually populated,
+      // silently skip anything blank rather than showing "not set" (this is public-facing).
+      const aboutParts = [species.species_notes, species.natural_habitat, species.species_origin]
+        .filter(p => p && String(p).trim().length > 0)
+      if (aboutParts.length > 0) {
+        addHeading('About This Tree')
+        addParagraph(aboutParts.join(' '))
+      }
+
+      // "Growing at a glance" — short bullet lines, only for populated fields
+      const glanceItems: [string, any][] = [
+        ['Sun', careGuide?.sun_exposure],
+        ['Water', careGuide?.watering],
+        ['Climate', careGuide?.climate_zone],
+        ['Soil', careGuide?.best_soil_mix],
+      ].filter(([, v]) => v && String(v).trim().length > 0) as [string, any][]
+      if (glanceItems.length > 0) {
+        addHeading('Growing at a Glance')
+        doc.setFontSize(11)
+        glanceItems.forEach(([label, value]) => {
+          doc.setFont('helvetica', 'bold')
+          const lines = doc.splitTextToSize(`${label}: `, contentWidth)
+          checkPageBreak(15)
+          doc.text(`${label}:`, margin, y)
+          doc.setFont('helvetica', 'normal')
+          const valLines = doc.splitTextToSize(sanitizeForPDF(String(value)), contentWidth - 60)
+          doc.text(valLines, margin + 60, y)
+          y += 15 * valLines.length + 4
+        })
+        y += 10
+      }
+
+      // Suitability, as a plain sentence rather than a score table
+      if (suitability?.bonsai_tier) {
+        addHeading('Suitability for Bonsai')
+        const scoreText = suitability.final_bonsai_score
+          ? `Rated ${suitability.bonsai_tier} for bonsai training (score: ${Math.round(suitability.final_bonsai_score)}/100).`
+          : `Rated ${suitability.bonsai_tier} for bonsai training.`
+        addParagraph(scoreText)
+      }
+
+      // Subscribe CTA — sits above the disclaimer, styled to stand out (brand gold),
+      // since it's the one line on the page actually meant to prompt an action.
+      checkPageBreak(60)
+      y += 6
+      doc.setDrawColor(217, 160, 43)
+      doc.line(margin, y, margin + contentWidth, y)
+      y += 18
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(217, 160, 43)
+      doc.text('Subscribe for full access', margin, y)
+      y += 15
+      doc.setFontSize(9.5)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(90, 80, 55)
+      const ctaLines = doc.splitTextToSize(
+        'Get Advanced Species Reports on demand, full BAMSR suitability breakdowns, and the complete Bonsai Australis species library.',
+        contentWidth
+      )
+      doc.text(ctaLines, margin, y)
+      y += 13 * ctaLines.length + 16
+      doc.setTextColor(0, 0, 0)
+
+      // Footer disclaimer
+      checkPageBreak(40)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'italic')
+      doc.setTextColor(120, 120, 120)
+      const disclaimerLines = doc.splitTextToSize(
+        '\u00A9 Bonsai Australis. This information is provided for general interest and does not constitute professional horticultural, arboricultural, or bonsai advice.',
+        contentWidth
+      )
+      doc.text(disclaimerLines, margin, y)
+      doc.setTextColor(0, 0, 0)
+
+      // Upload to Storage rather than local download — one static file, linked from the public site.
+      const fileSlug = (species.species || 'species').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
+      const pdfBlob = doc.output('blob')
+      const storagePath = `${spNo}_${fileSlug}_spotlight.pdf`
+      const { error: uploadError } = await supabase.storage
+        .from('spotlight-reports')
+        .upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
+      if (uploadError) {
+        alert('Upload failed: ' + uploadError.message + '\n\nMake sure the "spotlight-reports" bucket exists in Supabase Storage and is set to Public.')
+        return
+      }
+      const { data: urlData } = supabase.storage.from('spotlight-reports').getPublicUrl(storagePath)
+      const publicUrl = urlData.publicUrl
+      try {
+        await navigator.clipboard.writeText(publicUrl)
+        alert('Spotlight PDF generated and link copied to clipboard:\n\n' + publicUrl)
+      } catch {
+        alert('Spotlight PDF generated:\n\n' + publicUrl)
+      }
+    } catch (e: any) {
+      alert('Error generating spotlight report: ' + e.message)
+    } finally {
+      setGeneratingReport(null)
+    }
+  }
+
   if (loading) return <div style={{ padding: '20px', fontSize: '15px', color: '#2b2620' }}>Loading...</div>
   if (error) return <div style={{ padding: '20px', fontSize: '15px', color: '#dc2626' }}>Error: {error}</div>
   if (!species) return <div style={{ padding: '20px', fontSize: '15px', color: '#2b2620' }}>Species not found.</div>
@@ -932,6 +1155,9 @@ export default function SpeciesDetail() {
         </button>
         <button type="button" onClick={() => generatePDF('advanced')} disabled={generatingReport !== null} style={{fontSize:'13px',background:'#7a9c42',color:'#1e2b12',padding:'9px 16px',borderRadius:'8px',border:'none',cursor:'pointer',opacity:generatingReport!==null?0.5:1,fontWeight:600}}>
           {generatingReport === 'advanced' ? 'Generating...' : '📄 Advanced Report'}
+        </button>
+        <button type="button" onClick={() => generateSpotlightPDF()} disabled={generatingReport !== null} style={{fontSize:'13px',background:'#d9a02b',color:'#2b2620',padding:'9px 16px',borderRadius:'8px',border:'none',cursor:'pointer',opacity:generatingReport!==null?0.5:1,fontWeight:600}}>
+          {generatingReport === 'spotlight' ? 'Generating...' : '✨ Spotlight PDF'}
         </button>
       </div>
       <h1 style={{fontSize:'32px',fontWeight:700,color:'#2b2620',letterSpacing:'-0.01em'}}>{species.species}</h1>
