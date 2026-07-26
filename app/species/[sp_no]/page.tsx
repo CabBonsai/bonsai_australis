@@ -133,7 +133,7 @@ function SpeciesPhotoField({ value, onChange }: { value: string, onChange: (v: s
   return (
     <div style={{ marginBottom: '18px' }}>
       <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8a7f5f', marginBottom: '6px' }}>Reference Photo</label>
-      {value && <img src={value} alt="Reference" style={{width:'100%',maxHeight:'300px',objectFit:'cover',borderRadius:'8px',marginBottom:'8px',border:'1px solid #e2e8f0'}} />}
+      {value && <img src={value} alt="Reference" style={{width:'100%',maxHeight:'500px',objectFit:'contain',borderRadius:'8px',marginBottom:'8px',border:'1px solid #e2e8f0',background:'#f3efe2'}} />}
       <div style={{ display: 'flex', gap: '8px' }}>
         <label htmlFor="species-ref-photo" style={{ flex: 1, textAlign: 'center', background: '#f3efe2', border: '1.5px solid #e2dac2', borderRadius: '10px', padding: '11px 14px', fontSize: '15px', cursor: 'pointer', color: '#2b2620' }}>
           {uploading ? 'Uploading...' : value ? '📷 Replace Photo' : '📷 Add Reference Photo'}
