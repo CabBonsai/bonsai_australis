@@ -202,6 +202,9 @@ export default function Home() {
           <Link href="/tubestock-admin" style={{ fontSize: '13px', background: '#84670d', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Tubestock
           </Link>
+          <Link href="/species-of-the-week" style={{ fontSize: '13px', background: '#d9a02b', color: '#2b2620', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}>
+            ✨ Species of the Week
+          </Link>
           <button
             onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login' }}
             style={{ fontSize: '13px', background: '#e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
