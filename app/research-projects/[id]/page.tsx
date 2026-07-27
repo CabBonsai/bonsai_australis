@@ -9,6 +9,8 @@ const statusColor: Record<string, string> = {
   abandoned: '#6b7280',
 }
 
+const STATUS_OPTIONS = ['active', 'completed', 'abandoned']
+
 export default function ResearchProjectDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params)
   const projectId = parseInt(id, 10)
@@ -29,6 +31,18 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
   const [entryNote, setEntryNote] = useState('')
   const [entryPhotoUrl, setEntryPhotoUrl] = useState('')
   const [savingEntry, setSavingEntry] = useState(false)
+
+  // Project header edit mode — previously the title/status/hypothesis/methodology/
+  // dates block had no edit path at all once a project was created (only baseline
+  // and journal entries had add/edit flows). This mirrors that same pattern.
+  const [editingHeader, setEditingHeader] = useState(false)
+  const [headerTitle, setHeaderTitle] = useState('')
+  const [headerStatus, setHeaderStatus] = useState('')
+  const [headerHypothesis, setHeaderHypothesis] = useState('')
+  const [headerMethodology, setHeaderMethodology] = useState('')
+  const [headerStartDate, setHeaderStartDate] = useState('')
+  const [headerEndDate, setHeaderEndDate] = useState('')
+  const [savingHeader, setSavingHeader] = useState(false)
 
   useEffect(() => { if (projectId) fetchAll() }, [projectId])
 
@@ -57,7 +71,6 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
     let speciesMap: Record<number, string> = {}
     const spNosNeeded = new Set<number>()
 
-    // collection is not one of the locked-down tables — direct Supabase call unchanged.
     if (collectionIds.length > 0) {
       const { data: collectionData } = await supabase
         .from('collection')
@@ -69,8 +82,6 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
       })
     }
 
-    // tubestock API route only filters by a single id/sp_no, not a list — fetch all
-    // rows and filter client-side to the ids we actually need.
     if (tubestockIds.length > 0) {
       const tubestockRes = await fetch('/api/tubestock')
       const allTubestock = tubestockRes.ok ? await tubestockRes.json() : []
@@ -83,7 +94,6 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
         })
     }
 
-    // species is not one of the locked-down tables — direct Supabase call unchanged.
     if (spNosNeeded.size > 0) {
       const { data: spData } = await supabase.from('species').select('sp_no, species, common_name').in('sp_no', Array.from(spNosNeeded))
       ;(spData || []).forEach((s: any) => {
@@ -118,8 +128,6 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
     const journalRes = await fetch(`/api/research-project-journal?project_id=${projectId}`)
     const journalRows = journalRes.ok ? await journalRes.json() : []
 
-    // API route doesn't support server-side ordering — sort client-side instead
-    // (entry_date descending, matching the original query's behavior).
     const sortedJournal = (journalRows || []).slice().sort((a: any, b: any) => {
       if (a.entry_date < b.entry_date) return 1
       if (a.entry_date > b.entry_date) return -1
@@ -130,12 +138,44 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
       const c = j.collection_id ? collectionMap[j.collection_id] : null
       return { ...j, treeName: c ? (c.display_name || c.tree_name) : null }
     }))
-    // Note: journal entries are tied to collection_id only (pod-wide vs one tree).
-    // If a tree has since moved to tubestock, its past journal entries will show as "Pod-wide"
-    // since the collection_id lookup will no longer resolve. Not fixed here \u2014 flag if this matters.
 
     setError(null)
     setLoading(false)
+  }
+
+  function openHeaderEditor() {
+    setHeaderTitle(project.title || '')
+    setHeaderStatus(project.status || 'active')
+    setHeaderHypothesis(project.hypothesis || '')
+    setHeaderMethodology(project.methodology || '')
+    setHeaderStartDate(project.start_date || '')
+    setHeaderEndDate(project.end_date || '')
+    setEditingHeader(true)
+  }
+
+  async function handleSaveHeader() {
+    setSavingHeader(true)
+    const res = await fetch('/api/research-projects', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: projectId,
+        title: headerTitle.trim(),
+        status: headerStatus,
+        hypothesis: headerHypothesis.trim() || null,
+        methodology: headerMethodology.trim() || null,
+        start_date: headerStartDate || null,
+        end_date: headerEndDate || null,
+      }),
+    })
+    const data = await res.json()
+    setSavingHeader(false)
+    if (!res.ok) {
+      alert('Error saving: ' + data.error)
+      return
+    }
+    setEditingHeader(false)
+    fetchAll()
   }
 
   function openBaselineEditor(t: any) {
@@ -189,32 +229,76 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
   if (error) return <main style={{ maxWidth: '900px', margin: '0 auto', padding: '16px' }}><p style={{ color: '#dc2626' }}>Error: {error}</p></main>
   if (!project) return null
 
+  const fieldStyle: React.CSSProperties = { width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box', marginBottom: '8px' }
+  const labelStyle: React.CSSProperties = { display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '2px' }
+
   return (
     <main style={{ maxWidth: '900px', width: '100%', margin: '0 auto', padding: '16px', boxSizing: 'border-box' }}>
       <a href="/research-projects" style={{ fontSize: '13px', color: '#6b7280', textDecoration: 'none' }}>&larr; Research Projects</a>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '4px 0 4px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>{project.title}</h1>
-        <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: (statusColor[project.status] || '#6b7280') + '22', color: statusColor[project.status] || '#6b7280', textTransform: 'capitalize' }}>
-          {project.status}
-        </span>
-      </div>
+      {editingHeader ? (
+        <div style={{ background: '#f9fafb', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px', margin: '8px 0 16px' }}>
+          <label style={labelStyle}>Title</label>
+          <input type="text" value={headerTitle} onChange={e => setHeaderTitle(e.target.value)} style={fieldStyle} />
 
-      {project.hypothesis && (
-        <div style={{ marginBottom: '10px' }}>
-          <p style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', margin: '0 0 2px' }}>Hypothesis</p>
-          <p style={{ fontSize: '14px', color: '#374151', margin: 0 }}>{project.hypothesis}</p>
+          <label style={labelStyle}>Status</label>
+          <select value={headerStatus} onChange={e => setHeaderStatus(e.target.value)} style={fieldStyle}>
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+
+          <label style={labelStyle}>Hypothesis</label>
+          <textarea value={headerHypothesis} onChange={e => setHeaderHypothesis(e.target.value)} rows={2} style={fieldStyle} />
+
+          <label style={labelStyle}>Methodology</label>
+          <textarea value={headerMethodology} onChange={e => setHeaderMethodology(e.target.value)} rows={2} style={fieldStyle} />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+              <label style={labelStyle}>Start Date</label>
+              <input type="date" value={headerStartDate} onChange={e => setHeaderStartDate(e.target.value)} style={fieldStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>End Date</label>
+              <input type="date" value={headerEndDate} onChange={e => setHeaderEndDate(e.target.value)} style={fieldStyle} />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+            <button onClick={() => setEditingHeader(false)} style={{ flex: 1, padding: '8px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', color: '#6b7280', cursor: 'pointer' }}>Cancel</button>
+            <button onClick={handleSaveHeader} disabled={savingHeader} style={{ flex: 1, padding: '8px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+              {savingHeader ? 'Saving...' : 'Save'}
+            </button>
+          </div>
         </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '4px 0 4px' }}>
+            <h1 style={{ fontSize: '24px', fontWeight: '700', margin: 0 }}>{project.title}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: (statusColor[project.status] || '#6b7280') + '22', color: statusColor[project.status] || '#6b7280', textTransform: 'capitalize' }}>
+                {project.status}
+              </span>
+              <button onClick={openHeaderEditor} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', cursor: 'pointer', padding: 0 }}>Edit</button>
+            </div>
+          </div>
+
+          {project.hypothesis && (
+            <div style={{ marginBottom: '10px' }}>
+              <p style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', margin: '0 0 2px' }}>Hypothesis</p>
+              <p style={{ fontSize: '14px', color: '#374151', margin: 0 }}>{project.hypothesis}</p>
+            </div>
+          )}
+          {project.methodology && (
+            <div style={{ marginBottom: '16px' }}>
+              <p style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', margin: '0 0 2px' }}>Methodology</p>
+              <p style={{ fontSize: '14px', color: '#374151', margin: 0 }}>{project.methodology}</p>
+            </div>
+          )}
+          <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '24px' }}>
+            {project.start_date ? `Started ${project.start_date}` : ''}{project.end_date ? ` \u00b7 Ended ${project.end_date}` : ''}
+          </p>
+        </>
       )}
-      {project.methodology && (
-        <div style={{ marginBottom: '16px' }}>
-          <p style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', margin: '0 0 2px' }}>Methodology</p>
-          <p style={{ fontSize: '14px', color: '#374151', margin: 0 }}>{project.methodology}</p>
-        </div>
-      )}
-      <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '24px' }}>
-        {project.start_date ? `Started ${project.start_date}` : ''}{project.end_date ? ` \u00b7 Ended ${project.end_date}` : ''}
-      </p>
 
       <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 10px' }}>Trees in this project ({trees.length})</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px', marginBottom: '28px' }}>
