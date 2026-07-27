@@ -762,6 +762,7 @@ export default function CollectionDetailPage() {
 
       addSection('Care Schedule', [
         ['Last Watered', tree.last_watered],
+        ['Fertiliser Used', tree.fertiliser_used],
         ['Last Fertilised', tree.last_fertilised],
         ['Next Fertilise Due', tree.next_fertilise_due],
         ['Last Repotted', tree.last_repotted],
@@ -971,7 +972,7 @@ export default function CollectionDetailPage() {
 
         <Section title="Care Schedule">
           <Field label="Last Watered"><input type="date" value={tree.last_watered || ''} onChange={e => set('last_watered', e.target.value)} style={inputStyle} /></Field>
-          <div />
+          <Field label="Fertiliser Used"><input type="text" value={tree.fertiliser_used || ''} onChange={e => set('fertiliser_used', e.target.value)} style={inputStyle} /></Field>
           <Field label="Last Fertilised"><input type="date" value={tree.last_fertilised || ''} onChange={e => set('last_fertilised', e.target.value)} style={inputStyle} /></Field>
           <Field label="Next Fertilise Due">
             <input type="date" value={tree.next_fertilise_due || ''} onChange={e => set('next_fertilise_due', e.target.value)}
