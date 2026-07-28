@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 const inputClass = "w-full border rounded px-4 py-3 text-base min-h-[48px]"
@@ -50,6 +51,12 @@ export default function BlogAdmin() {
 
   return (
     <main className="max-w-2xl mx-auto p-4">
+      <Link
+        href="/"
+        style={{ display: 'inline-block', fontSize: 14, color: '#6b7280', marginBottom: 16, textDecoration: 'none' }}
+      >
+        &larr; Dashboard
+      </Link>
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-semibold">Blog Posts</h1>
         <button onClick={() => setEditingPostId('new')} className="bg-blue-600 text-white px-4 py-2 rounded text-sm">+ New Post</button>
