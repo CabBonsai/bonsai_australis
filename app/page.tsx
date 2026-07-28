@@ -10,13 +10,64 @@ const CARE_TYPES = [
   { key: 'date_check_wire', label: 'Wire check' },
 ]
 
+type Todo = {
+  id: string
+  text: string
+  is_done: boolean
+  created_at: string
+}
+
 export default function Home() {
   const [trees, setTrees] = useState<any[]>([])
   const [researchTrees, setResearchTrees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const [todos, setTodos] = useState<Todo[]>([])
+  const [todosLoading, setTodosLoading] = useState(true)
+  const [newTodoText, setNewTodoText] = useState('')
+  const [addingTodo, setAddingTodo] = useState(false)
+
   useEffect(() => { fetchDashboard() }, [])
+  useEffect(() => { fetchTodos() }, [])
+
+  async function fetchTodos() {
+    setTodosLoading(true)
+    const { data } = await supabase
+      .from('todos')
+      .select('*')
+      .order('created_at', { ascending: true })
+    setTodos(data || [])
+    setTodosLoading(false)
+  }
+
+  async function addTodo() {
+    const text = newTodoText.trim()
+    if (!text) return
+    setAddingTodo(true)
+    const { data, error } = await supabase
+      .from('todos')
+      .insert({ text })
+      .select()
+      .single()
+    setAddingTodo(false)
+    if (error) { alert('Could not add item: ' + error.message); return }
+    setNewTodoText('')
+    setTodos(prev => [...prev, data])
+  }
+
+  async function toggleTodo(id: string, currentlyDone: boolean) {
+    setTodos(prev => prev.map(t => t.id === id ? { ...t, is_done: !currentlyDone } : t))
+    await supabase
+      .from('todos')
+      .update({ is_done: !currentlyDone, completed_at: !currentlyDone ? new Date().toISOString() : null })
+      .eq('id', id)
+  }
+
+  async function deleteTodo(id: string) {
+    setTodos(prev => prev.filter(t => t.id !== id))
+    await supabase.from('todos').delete().eq('id', id)
+  }
 
   async function fetchDashboard() {
     setLoading(true)
@@ -164,6 +215,9 @@ export default function Home() {
     return new Date(dateStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
+  const openTodos = todos.filter(t => !t.is_done)
+  const doneTodos = todos.filter(t => t.is_done)
+
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '8px' }}>
@@ -193,7 +247,7 @@ export default function Home() {
           <Link href="/blog-admin" style={{ fontSize: '13px', background: '#c026d3', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Blog Admin
           </Link>
-	  <Link href="/research-projects" style={{ fontSize: '13px', background: '#059669', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+          <Link href="/research-projects" style={{ fontSize: '13px', background: '#059669', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Research Projects
           </Link>
           <Link href="/community-submissions" style={{ fontSize: '13px', background: '#b91c1c', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
@@ -218,6 +272,87 @@ export default function Home() {
 
       {error && <p style={{ color: '#dc2626', marginBottom: '16px' }}>Error: {error}</p>}
       {loading && <p style={{ color: '#9ca3af' }}>Loading...</p>}
+
+      <section style={{ marginBottom: '28px', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px' }}>
+        <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 12px', color: '#374151' }}>
+          To-do
+        </h2>
+
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+          <input
+            type="text"
+            value={newTodoText}
+            onChange={e => setNewTodoText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addTodo() }}
+            placeholder="Add an item..."
+            style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', fontSize: '14px' }}
+          />
+          <button
+            onClick={addTodo}
+            disabled={addingTodo || !newTodoText.trim()}
+            style={{ background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 16px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', opacity: (addingTodo || !newTodoText.trim()) ? 0.5 : 1 }}
+          >
+            Add
+          </button>
+        </div>
+
+        {todosLoading && <p style={{ fontSize: '13px', color: '#9ca3af' }}>Loading...</p>}
+
+        {!todosLoading && openTodos.length === 0 && doneTodos.length === 0 && (
+          <p style={{ fontSize: '13px', color: '#9ca3af', margin: 0 }}>Nothing on the list.</p>
+        )}
+
+        {openTodos.map(todo => (
+          <div
+            key={todo.id}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}
+          >
+            <input
+              type="checkbox"
+              checked={false}
+              onChange={() => toggleTodo(todo.id, todo.is_done)}
+              style={{ width: '18px', height: '18px', flexShrink: 0 }}
+            />
+            <span style={{ flex: 1, fontSize: '14px' }}>{todo.text}</span>
+            <button
+              onClick={() => deleteTodo(todo.id)}
+              style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '16px', cursor: 'pointer', padding: '2px 6px' }}
+              aria-label="Delete"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+
+        {doneTodos.length > 0 && (
+          <details style={{ marginTop: '10px' }}>
+            <summary style={{ fontSize: '12px', color: '#9ca3af', cursor: 'pointer' }}>
+              Completed ({doneTodos.length})
+            </summary>
+            {doneTodos.map(todo => (
+              <div
+                key={todo.id}
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={true}
+                  onChange={() => toggleTodo(todo.id, todo.is_done)}
+                  style={{ width: '18px', height: '18px', flexShrink: 0 }}
+                />
+                <span style={{ flex: 1, fontSize: '14px', color: '#9ca3af', textDecoration: 'line-through' }}>{todo.text}</span>
+                <button
+                  onClick={() => deleteTodo(todo.id)}
+                  style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '16px', cursor: 'pointer', padding: '2px 6px' }}
+                  aria-label="Delete"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </details>
+        )}
+      </section>
 
       {!loading && !error && (
         <>
