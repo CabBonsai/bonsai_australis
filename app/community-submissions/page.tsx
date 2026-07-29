@@ -124,17 +124,15 @@ export default function CommunitySubmissionsAdmin() {
   }
 
   async function updateStatus(id: number, status: 'approved' | 'rejected') {
-    const { error: updateError } = await supabase
-      .from('community_submissions')
-      .update({
-        status,
-        admin_notes: adminNotesDraft[id] ?? undefined,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq('id', id)
+    const res = await fetch('/api/community-submissions/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status, admin_notes: adminNotesDraft[id] }),
+    })
+    const result = await res.json()
 
-    if (updateError) {
-      setError(updateError.message)
+    if (!res.ok) {
+      setError(result.error || 'Update failed')
       return
     }
     setSubmissions(prev => prev.filter(s => s.id !== id))
@@ -144,13 +142,15 @@ export default function CommunitySubmissionsAdmin() {
   async function deleteSubmission(id: number) {
     if (!confirm('Permanently delete this submission? This cannot be undone.')) return
 
-    const { error: deleteError } = await supabase
-      .from('community_submissions')
-      .delete()
-      .eq('id', id)
+    const res = await fetch('/api/community-submissions/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    const result = await res.json()
 
-    if (deleteError) {
-      setError(deleteError.message)
+    if (!res.ok) {
+      setError(result.error || 'Delete failed')
       return
     }
     setSubmissions(prev => prev.filter(s => s.id !== id))
