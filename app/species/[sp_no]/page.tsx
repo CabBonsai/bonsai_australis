@@ -660,8 +660,8 @@ export default function SpeciesDetail() {
       if (suitability) {
         if (reportType === 'basic') {
           addSection('Bonsai Suitability', [
-            ['Suitability (Final Score)', suitability.final_bonsai_score],
-            ['Difficulty', suitability.difficulty],
+            ['Suitability (Final Score) (1 = Poor, 100 = Elite)', suitability.final_bonsai_score],
+            ['Difficulty (0 = Hardest, 100 = Easiest)', suitability.difficulty],
             ['Recommended Styles', suitability.recommended_bonsai_styles],
             ['Tier', suitability.bonsai_tier],
           ])
@@ -670,8 +670,8 @@ export default function SpeciesDetail() {
             ? 'Provisional / Family Default'
             : (suitability.research_status || 'Verified')
           addSection('Bonsai Suitability Profile', [
-            ['Suitability (Final Score)', suitability.final_bonsai_score],
-            ['Difficulty', suitability.difficulty],
+            ['Suitability (Final Score) (1 = Poor, 100 = Elite)', suitability.final_bonsai_score],
+            ['Difficulty (0 = Hardest, 100 = Easiest)', suitability.difficulty],
             ['Recommended Styles', suitability.recommended_bonsai_styles],
             ['Confidence', confidenceLabel],
             ['Vigor', suitability.vigor],
