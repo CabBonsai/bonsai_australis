@@ -300,7 +300,7 @@ export default function CommunitySubmissionsAdmin() {
                     </div>
                   )}
 
-                  {s.status === 'rejected' && (
+                  {(s.status === 'rejected' || s.status === 'approved') && (
                     <button
                       onClick={() => deleteSubmission(s.id)}
                       style={{ width: '100%', fontSize: '13px', fontWeight: 600, background: '#7f1d1d', color: 'white', padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
