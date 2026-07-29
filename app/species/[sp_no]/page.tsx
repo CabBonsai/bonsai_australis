@@ -874,7 +874,7 @@ export default function SpeciesDetail() {
             ['Full Sun (A)', placement.exposure_full_sun],
             ['Morning Sun (B)', placement.exposure_morning_sun],
             ['Dappled Shade (C)', placement.exposure_dappled_shade],
-            ['Full Sun, Windy (D)', placement.exposure_full_shade],
+            ['Full Shade (G)', placement.exposure_full_shade],
             ['Variable, Cold Drainage (E)', placement.exposure_variable_e],
             ['Variable, Sheltered (F)', placement.exposure_variable_f],
             ['SEQ Notes', placement.seq_notes],
@@ -894,6 +894,7 @@ export default function SpeciesDetail() {
             ['D', 'Full sun, 6-8hrs — consistent strong airflow, wind tunnel'],
             ['E', 'Variable, 3-5hrs — cold air drainage, stagnant air (frost pocket)'],
             ['F', 'Variable, 2-6hrs — sheltered, minimal airflow'],
+            ['G', 'Full shade, 0-2hrs — still air, high humidity, deep shade'],
           ]
           zoneDefs.forEach(([letter, desc]) => {
             checkPageBreak(11)
