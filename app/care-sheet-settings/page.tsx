@@ -5,6 +5,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
 interface CareSheetSettings {
@@ -69,16 +70,46 @@ export default function CareSheetSettingsPage() {
     callUpdate({ resetCount: true });
   };
 
+  const backLink = (
+    <Link
+      href="/"
+      style={{
+        display: 'inline-block',
+        fontSize: '13px',
+        background: '#f3f4f6',
+        color: '#374151',
+        padding: '6px 12px',
+        borderRadius: '6px',
+        textDecoration: 'none',
+        marginBottom: '1.5rem',
+      }}
+    >
+      ← Back to Dashboard
+    </Link>
+  );
+
   if (loading) {
-    return <div style={{ padding: '2rem' }}>Loading care sheet settings…</div>;
+    return (
+      <div style={{ padding: '2rem' }}>
+        {backLink}
+        <div>Loading care sheet settings…</div>
+      </div>
+    );
   }
 
   if (error && !settings) {
-    return <div style={{ padding: '2rem', color: '#b3261e' }}>Error: {error}</div>;
+    return (
+      <div style={{ padding: '2rem' }}>
+        {backLink}
+        <div style={{ color: '#b3261e' }}>Error: {error}</div>
+      </div>
+    );
   }
 
   return (
     <div style={{ padding: '2rem', maxWidth: 560 }}>
+      {backLink}
+
       <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>
         Care Sheet Generator — Settings
       </h1>
