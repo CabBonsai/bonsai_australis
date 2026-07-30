@@ -743,6 +743,8 @@ export default function SpeciesDetail() {
         ['Symptoms', toxicity?.symptoms],
         ['Severity Notes', toxicity?.severity_notes],
         ['First Aid Notes', toxicity?.first_aid_notes],
+        ['Status', toxicity?.research_status],
+        ['Notes', toxicity?.research_notes],
       ])
 
       if (reportType === 'advanced') {
