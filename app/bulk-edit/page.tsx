@@ -17,28 +17,28 @@ const TABLES: Record<string, TableConfig> = {
   seasonal: {
     label: 'Seasonal',
     table: 'seasonal_maintenance',
-    columns: ['sp_no', 'spring_maintenance_guide', 'summer_maintenance_guide', 'autumn_maintenance_guide', 'winter_maintenance_guide', 'general_maintenance_notes', 'spring_care', 'summer_care', 'autumn_care', 'winter_care', 'research_status', 'data_source', 'research_notes'],
+    columns: ['sp_no', 'spring_maintenance_guide', 'summer_maintenance_guide', 'autumn_maintenance_guide', 'winter_maintenance_guide', 'general_maintenance_notes', 'spring_care', 'summer_care', 'autumn_care', 'winter_care', 'research_status', 'data_source', 'research_notes', 'needs_verification'],
     types: {
       sp_no: 'number', spring_maintenance_guide: 'text', summer_maintenance_guide: 'text',
       autumn_maintenance_guide: 'text', winter_maintenance_guide: 'text', general_maintenance_notes: 'text',
       spring_care: 'text', summer_care: 'text', autumn_care: 'text', winter_care: 'text',
-      research_status: 'text', data_source: 'text', research_notes: 'text',
+      research_status: 'text', data_source: 'text', research_notes: 'text', needs_verification: 'bool',
     },
   },
   fertiliser: {
     label: 'Fertiliser',
     table: 'fertilisation',
-    columns: ['sp_no', 'p_tolerance', 'n_requirement', 'preferred_fertiliser_types', 'avoid_fertilisers', 'recommended_products', 'notes_schema', 'research_status', 'data_source', 'research_notes'],
+    columns: ['sp_no', 'species', 'p_tolerance', 'n_requirement', 'preferred_fertiliser_types', 'avoid_fertilisers', 'recommended_products', 'notes_schema', 'research_status', 'data_source', 'research_notes', 'needs_verification'],
     types: {
-      sp_no: 'number', p_tolerance: 'text', n_requirement: 'text', preferred_fertiliser_types: 'text',
+      sp_no: 'number', species: 'text', p_tolerance: 'text', n_requirement: 'text', preferred_fertiliser_types: 'text',
       avoid_fertilisers: 'text', recommended_products: 'text', notes_schema: 'text',
-      research_status: 'text', data_source: 'text', research_notes: 'text',
+      research_status: 'text', data_source: 'text', research_notes: 'text', needs_verification: 'bool',
     },
   },
   pruning: {
     label: 'Pruning',
     table: 'pruning_protocols',
-    columns: ['sp_no', 'pruning_core_rules', 'structural_pruning_timing', 'structural_pruning_method', 'structural_pruning_limits', 'post_flowering_pruning_timing', 'post_flowering_pruning_method', 'maintenance_pruning_timing', 'maintenance_pruning_method', 'old_wood_management', 'seasonal_timing_seq', 'recommended_techniques', 'common_mistakes', 'apical_management_strategy', 'branch_selection_rules', 'light_penetration_strategy', 'refinement_method', 'notes', 'research_status', 'data_source', 'research_notes'],
+    columns: ['sp_no', 'pruning_core_rules', 'structural_pruning_timing', 'structural_pruning_method', 'structural_pruning_limits', 'post_flowering_pruning_timing', 'post_flowering_pruning_method', 'maintenance_pruning_timing', 'maintenance_pruning_method', 'old_wood_management', 'seasonal_timing_seq', 'recommended_techniques', 'common_mistakes', 'apical_management_strategy', 'branch_selection_rules', 'light_penetration_strategy', 'refinement_method', 'notes', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification'],
     types: {
       sp_no: 'number', pruning_core_rules: 'text', structural_pruning_timing: 'text', structural_pruning_method: 'text',
       structural_pruning_limits: 'text', post_flowering_pruning_timing: 'text', post_flowering_pruning_method: 'text',
@@ -46,12 +46,13 @@ const TABLES: Record<string, TableConfig> = {
       seasonal_timing_seq: 'text', recommended_techniques: 'text', common_mistakes: 'text',
       apical_management_strategy: 'text', branch_selection_rules: 'text', light_penetration_strategy: 'text',
       refinement_method: 'text', notes: 'text', research_status: 'text', data_source: 'text', research_notes: 'text',
+      reference_urls: 'text', needs_verification: 'bool',
     },
   },
   nebari: {
     label: 'Nebari',
     table: 'nebari_root',
-    columns: ['sp_no', 'root_architecture_type', 'natural_nebari_form', 'root_depth_tendency', 'root_spread_behaviour', 'development_speed', 'years_to_initial_nebari', 'years_to_mature_nebari', 'climate_influence_seq', 'taproot_removal_tolerance', 'radial_root_pruning_response', 'root_reduction_tolerance', 'fine_root_production', 'root_rot_susceptibility', 'ground_layering_suitability', 'tourniquet_method_suitability', 'root_grafting_success_rate', 'nebari_fusion_potential', 'best_techniques_for_species', 'typical_nebari_faults', 'underlying_causes', 'corrective_strategies', 'preferred_pot_depth', 'preferred_pot_width', 'surface_substrate_preference', 'moisture_preference', 'heat_sensitivity_at_root_base', 'ultimate_nebari_quality_potential', 'expected_mature_nebari_form', 'maintenance_requirements', 'ageing_notes', 'notes_for_future_development', 'research_status', 'data_source', 'research_notes'],
+    columns: ['sp_no', 'root_architecture_type', 'natural_nebari_form', 'root_depth_tendency', 'root_spread_behaviour', 'development_speed', 'years_to_initial_nebari', 'years_to_mature_nebari', 'climate_influence_seq', 'taproot_removal_tolerance', 'radial_root_pruning_response', 'root_reduction_tolerance', 'fine_root_production', 'root_rot_susceptibility', 'ground_layering_suitability', 'tourniquet_method_suitability', 'root_grafting_success_rate', 'nebari_fusion_potential', 'best_techniques_for_species', 'typical_nebari_faults', 'underlying_causes', 'corrective_strategies', 'preferred_pot_depth', 'preferred_pot_width', 'surface_substrate_preference', 'moisture_preference', 'heat_sensitivity_at_root_base', 'ultimate_nebari_quality_potential', 'expected_mature_nebari_form', 'maintenance_requirements', 'ageing_notes', 'notes_for_future_development', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification'],
     types: {
       sp_no: 'number', root_architecture_type: 'text', natural_nebari_form: 'text', root_depth_tendency: 'text',
       root_spread_behaviour: 'text', development_speed: 'text', years_to_initial_nebari: 'text', years_to_mature_nebari: 'text',
@@ -63,6 +64,7 @@ const TABLES: Record<string, TableConfig> = {
       surface_substrate_preference: 'text', moisture_preference: 'text', heat_sensitivity_at_root_base: 'text',
       ultimate_nebari_quality_potential: 'text', expected_mature_nebari_form: 'text', maintenance_requirements: 'text',
       ageing_notes: 'text', notes_for_future_development: 'text', research_status: 'text', data_source: 'text', research_notes: 'text',
+      reference_urls: 'text', needs_verification: 'bool',
     },
   },
   barkchar: {
@@ -92,7 +94,7 @@ const TABLES: Record<string, TableConfig> = {
   regional: {
     label: 'Regional',
     table: 'regional_suitability',
-    columns: ['sp_no', 'tropical_suitability', 'tropical_notes', 'tropical_risk', 'tropical_training_adjustments', 'tropical_soil_modifier', 'tropical_watering_modifier', 'subtropical_suitability', 'subtropical_notes', 'subtropical_risk', 'subtropical_training_adjustments', 'subtropical_soil_modifier', 'subtropical_watering_modifier', 'temperate_suitability', 'temperate_notes', 'temperate_risk', 'temperate_training_adjustments', 'temperate_soil_modifier', 'temperate_watering_modifier', 'cold_suitability', 'cold_notes', 'cold_risk', 'cold_training_adjustments', 'cold_soil_modifier', 'cold_watering_modifier', 'availability_australia', 'availability_notes', 'nursery_availability'],
+    columns: ['sp_no', 'tropical_suitability', 'tropical_notes', 'tropical_risk', 'tropical_training_adjustments', 'tropical_soil_modifier', 'tropical_watering_modifier', 'subtropical_suitability', 'subtropical_notes', 'subtropical_risk', 'subtropical_training_adjustments', 'subtropical_soil_modifier', 'subtropical_watering_modifier', 'temperate_suitability', 'temperate_notes', 'temperate_risk', 'temperate_training_adjustments', 'temperate_soil_modifier', 'temperate_watering_modifier', 'cold_suitability', 'cold_notes', 'cold_risk', 'cold_training_adjustments', 'cold_soil_modifier', 'cold_watering_modifier', 'availability_australia', 'availability_notes', 'nursery_availability', 'wild_collection_status', 'research_status', 'data_source', 'research_notes', 'needs_verification'],
     types: {
       sp_no: 'number', tropical_suitability: 'text', tropical_notes: 'text', tropical_risk: 'text',
       tropical_training_adjustments: 'text', tropical_soil_modifier: 'text', tropical_watering_modifier: 'text',
@@ -102,7 +104,8 @@ const TABLES: Record<string, TableConfig> = {
       temperate_training_adjustments: 'text', temperate_soil_modifier: 'text', temperate_watering_modifier: 'text',
       cold_suitability: 'text', cold_notes: 'text', cold_risk: 'text', cold_training_adjustments: 'text',
       cold_soil_modifier: 'text', cold_watering_modifier: 'text', availability_australia: 'text',
-      availability_notes: 'text', nursery_availability: 'text',
+      availability_notes: 'text', nursery_availability: 'text', wild_collection_status: 'text',
+      research_status: 'text', data_source: 'text', research_notes: 'text', needs_verification: 'bool',
     },
   },
   suitability: {
@@ -120,7 +123,7 @@ const TABLES: Record<string, TableConfig> = {
       data_source: 'text', research_notes: 'text', needs_verification: 'bool',
     },
   },
-tubestock: {
+  tubestock: {
     label: 'Tubestock',
     table: 'tubestock_development',
     columns: ['sp_no', 'species', 'establishment_period_weeks', 'survival_rate_notes', 'common_failures', 'tubestock_potting_mix', 'first_pot_size', 'potting_on_schedule', 'initial_potting_timing', 'watering_frequency', 'fertilising_regime', 'recommended_fertiliser', 'growth_rate_expected', 'first_pruning_timing', 'first_structure_timing', 'root_establishment_notes', 'nursery_to_training_pot', 'revegetation_planting_notes', 'establishment_in_ground', 'weed_competition_tolerance', 'irrigation_requirement', 'species_specific_notes', 'record_complete', 'last_updated', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification'],
@@ -136,7 +139,7 @@ tubestock: {
       reference_urls: 'text', needs_verification: 'bool',
     },
   },
-advcare: {
+  advcare: {
     label: 'Adv Care',
     table: 'advanced_expert',
     columns: ['sp_no', 'species_reference', 'ph_target', 'acquisition_raw_material', 'aesthetics_exhibition_philosophy', 'advanced_structural_engineering', 'morphology_notes', 'cambial_notes', 'seasonal_physiology', 'energy_model', 'backbudding_notes', 'ramification_stages', 'root_notes', 'hormonal_model', 'needle_control', 'climate_notes', 'styling_biomechanics', 'development_years_1_3', 'development_years_4_6', 'development_years_7_8', 'development_years_9_10', 'repotting_season_notes', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification'],
@@ -168,26 +171,40 @@ advcare: {
       data_source: 'text', research_notes: 'text', reference_urls: 'text', needs_verification: 'bool',
     },
   },
-toxicity: {
+  toxicity: {
     label: 'Toxicity',
     table: 'toxicity',
-    columns: ['sp_no', 'species', 'toxicity_level', 'toxic_to_humans', 'toxic_to_pets', 'toxic_to_livestock', 'toxic_parts', 'toxic_principle', 'symptoms', 'severity_notes', 'first_aid_notes', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification'],
+    columns: ['sp_no', 'species', 'toxicity_level', 'toxic_to_humans', 'toxic_to_pets', 'toxic_to_livestock', 'toxic_parts', 'toxic_principle', 'symptoms', 'severity_notes', 'first_aid_notes', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification', 'last_updated'],
     types: {
       sp_no: 'number', species: 'text', toxicity_level: 'text', toxic_to_humans: 'bool',
       toxic_to_pets: 'bool', toxic_to_livestock: 'bool', toxic_parts: 'text', toxic_principle: 'text',
       symptoms: 'text', severity_notes: 'text', first_aid_notes: 'text', research_status: 'text',
       data_source: 'text', research_notes: 'text', reference_urls: 'text', needs_verification: 'bool',
+      last_updated: 'text',
     },
   },
   placement: {
     label: 'Placement',
     table: 'placement_matrix',
-    columns: ['sp_no', 'species', 'exposure_full_sun', 'exposure_morning_sun', 'exposure_dappled_shade', 'exposure_full_shade', 'exposure_variable_e', 'exposure_variable_f', 'seq_notes', 'national_notes', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification'],
+    columns: ['sp_no', 'species', 'exposure_full_sun', 'exposure_full_sun_windy', 'exposure_morning_sun', 'exposure_dappled_shade', 'exposure_full_shade', 'exposure_variable_e', 'exposure_variable_f', 'seq_notes', 'national_notes', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification', 'last_updated'],
     types: {
-      sp_no: 'number', species: 'text', exposure_full_sun: 'text', exposure_morning_sun: 'text',
+      sp_no: 'number', species: 'text', exposure_full_sun: 'text', exposure_full_sun_windy: 'text', exposure_morning_sun: 'text',
       exposure_dappled_shade: 'text', exposure_full_shade: 'text', exposure_variable_e: 'text',
       exposure_variable_f: 'text', seq_notes: 'text', national_notes: 'text', research_status: 'text',
       data_source: 'text', research_notes: 'text', reference_urls: 'text', needs_verification: 'bool',
+      last_updated: 'text',
+    },
+  },
+  potstyle: {
+    label: 'Pot & Style',
+    table: 'pot_style_matching',
+    columns: ['sp_no', 'species', 'habitat_geology_type', 'recommended_pot_colour', 'recommended_pot_texture', 'recommended_pot_shape', 'recommended_pot_depth', 'glazed_or_unglazed', 'recommended_bonsai_style', 'style_notes', 'companion_plants', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification', 'last_updated'],
+    types: {
+      sp_no: 'number', species: 'text', habitat_geology_type: 'text', recommended_pot_colour: 'text',
+      recommended_pot_texture: 'text', recommended_pot_shape: 'text', recommended_pot_depth: 'text',
+      glazed_or_unglazed: 'text', recommended_bonsai_style: 'text', style_notes: 'text', companion_plants: 'text',
+      research_status: 'text', data_source: 'text', research_notes: 'text', reference_urls: 'text',
+      needs_verification: 'bool', last_updated: 'text',
     },
   },
   varcare: {
@@ -203,32 +220,37 @@ toxicity: {
   varoverrides: {
     label: 'Var Overrides',
     table: 'variant_overrides',
-    columns: ['sp_no', 'variant_name', 'override_repotting_cycles', 'override_soil_preferences', 'override_fertilisation_patterns'],
+    columns: ['sp_no', 'variant_name', 'override_repotting_cycles', 'override_soil_preferences', 'override_fertilisation_patterns', 'override_watering_times', 'override_watering_notes', 'override_winter_protection', 'override_important_species_info', 'override_detailed_general_overview'],
     types: {
       sp_no: 'number', variant_name: 'text', override_repotting_cycles: 'text',
       override_soil_preferences: 'text', override_fertilisation_patterns: 'text',
+      override_watering_times: 'text', override_watering_notes: 'text', override_winter_protection: 'text',
+      override_important_species_info: 'text', override_detailed_general_overview: 'text',
     },
   },
   species: {
     label: 'Species',
     table: 'species',
-    columns: ['sp_no', 'species', 'pure_species', 'species_epithet', 'cultivar', 'species_genus', 'common_name', 'species_family', 'tree_type', 'australian_native', 'species_origin', 'species_notes', 'natural_habitat'],
+    columns: ['sp_no', 'species', 'pure_species', 'species_epithet', 'cultivar', 'species_genus', 'common_name', 'species_family', 'tree_type', 'australian_native', 'species_origin', 'species_notes', 'natural_habitat', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification', 'taxon_type', 'review_status', 'review_notes', 'verified_by', 'last_researched', 'reference_photo', 'image_url'],
     types: {
       sp_no: 'number', species: 'text', pure_species: 'bool', species_epithet: 'text',
       cultivar: 'text', species_genus: 'text', common_name: 'text', species_family: 'text',
       tree_type: 'text', australian_native: 'bool', species_origin: 'text',
-      species_notes: 'text', natural_habitat: 'text',
+      species_notes: 'text', natural_habitat: 'text', research_status: 'text', data_source: 'text',
+      research_notes: 'text', reference_urls: 'text', needs_verification: 'bool', taxon_type: 'text',
+      review_status: 'text', review_notes: 'text', verified_by: 'text', last_researched: 'text',
+      reference_photo: 'text', image_url: 'text',
     },
   },
   variants: {
     label: 'Variants',
     table: 'variants',
-    columns: ['sp_no', 'parent_sp_no', 'variant_name', 'common_name', 'rating', 'variant_type', 'botanical_rank', 'is_hybrid', 'hybrid_parent_1', 'hybrid_parent_2', 'notes', 'species_origin', 'natural_habitat', 'species_notes'],
+    columns: ['sp_no', 'parent_sp_no', 'variant_name', 'common_name', 'rating', 'variant_type', 'botanical_rank', 'is_hybrid', 'hybrid_parent_1', 'hybrid_parent_2', 'notes', 'species_origin', 'natural_habitat', 'species_notes', 'image_url'],
     types: {
       sp_no: 'number', parent_sp_no: 'number', variant_name: 'text', common_name: 'text',
       rating: 'text', variant_type: 'text', botanical_rank: 'text', is_hybrid: 'bool',
       hybrid_parent_1: 'text', hybrid_parent_2: 'text', notes: 'text',
-      species_origin: 'text', natural_habitat: 'text', species_notes: 'text',
+      species_origin: 'text', natural_habitat: 'text', species_notes: 'text', image_url: 'text',
     },
   },
 }
