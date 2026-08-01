@@ -1225,14 +1225,20 @@ export default function SpeciesDetail() {
         <textarea value={species.research_notes || ''} onChange={(e) => updateSpecies('research_notes', e.target.value)} style={{width:'100%',minHeight:'110px',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'14px 16px',fontSize:'17px',lineHeight:1.65,fontFamily:'inherit',color:'#2b2620',background:'#fffefb',resize:'vertical',outline:'none'}} rows={4} placeholder="Voice-to-text notes go here..." />
       </div>
       {tubestockInv.length > 0 && (
-        <div style={{background:'#f3efe2',border:'1px solid #ded4bd',borderRadius:'10px',padding:'12px 16px',marginBottom:'18px'}}>
-          <p style={{fontSize:'13px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'8px'}}>In Tubestock</p>
-          {tubestockInv.map((t: any) => (
-            <p key={t.id} style={{fontSize:'15px',color:'#2b2620',margin:'4px 0'}}>
-              Qty {t.quantity} &middot; {t.status} &middot; {t.source || 'source unknown'} &middot; {t.acquisition_date || 'date unknown'}
-              {t.tubestock_number ? ` \u00b7 Tag: ${t.tubestock_number}` : ''}
-            </p>
-          ))}
+        <div style={{background:'#f3efe2',border:'1px solid #ded4bd',borderRadius:'10px',padding:'14px 18px',marginBottom:'18px'}}>
+          <p style={{fontSize:'12px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',margin:'0 0 8px'}}>
+            In Your Tubestock ({tubestockInv.length})
+          </p>
+          <div style={{display:'flex',flexWrap:'wrap',gap:'8px'}}>
+            {tubestockInv.map((t: any) => (
+              <a key={t.id} href={`/tubestock-admin?id=${t.id}`} style={{display:'block',background:'#fffefb',border:'1px solid #e2dac2',borderRadius:'8px',padding:'6px 12px',textDecoration:'none',color:'#2b2620',fontSize:'13px',fontWeight:600}}>
+                {t.tubestock_number || `Batch #${t.id}`}
+                <span style={{fontWeight:400,color:'#8a7f5f',marginLeft:'6px'}}>
+                  Qty {t.quantity} &middot; {t.status}
+                </span>
+              </a>
+            ))}
+          </div>
         </div>
       )}
       <Section title="Species Info">

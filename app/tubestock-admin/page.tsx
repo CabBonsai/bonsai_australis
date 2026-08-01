@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 const inputStyle: React.CSSProperties = {
@@ -48,7 +49,16 @@ function padTag(n: number) {
   return String(n).padStart(3, '0')
 }
 
-export default function TubestockAdmin() {
+export default function TubestockAdminPage() {
+  return (
+    <Suspense fallback={<main style={{ maxWidth: '700px', margin: '0 auto', padding: '16px' }}><p style={{ color: '#9ca3af' }}>Loading...</p></main>}>
+      <TubestockAdmin />
+    </Suspense>
+  )
+}
+
+function TubestockAdmin() {
+  const searchParams = useSearchParams()
   const [rows, setRows] = useState<Tubestock[]>([])
   const [speciesMap, setSpeciesMap] = useState<Record<number, SpeciesInfo>>({})
   const [variantMap, setVariantMap] = useState<Record<number, SpeciesInfo>>({})
@@ -59,8 +69,25 @@ export default function TubestockAdmin() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   const [linkedIds, setLinkedIds] = useState<Set<number>>(new Set())
+  const [deepLinkApplied, setDeepLinkApplied] = useState(false)
 
   useEffect(() => { fetchAll() }, [])
+
+  // Supports deep-linking from elsewhere in the app (e.g. /tubestock-admin?id=20
+  // from the species page's "In Your Tubestock" panel) — jumps straight into
+  // that batch's editor once the row list has loaded, instead of landing on
+  // the generic list view. Only applies once — otherwise clicking "Back to
+  // list" would immediately reopen the same item, since the query param
+  // stays in the URL.
+  useEffect(() => {
+    if (deepLinkApplied) return
+    const idParam = searchParams.get('id')
+    if (idParam && rows.length > 0) {
+      const id = Number(idParam)
+      if (rows.some(r => r.id === id)) setEditingId(id)
+      setDeepLinkApplied(true)
+    }
+  }, [searchParams, rows, deepLinkApplied])
 
   async function fetchAll() {
     setLoading(true)
