@@ -262,6 +262,9 @@ export default function Home() {
           <Link href="/care-sheet-settings" style={{ fontSize: '13px', background: '#55702a', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Care Sheet Settings
           </Link>
+          <Link href="/genus-browser" style={{ fontSize: '13px', background: '#8a7f5f', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Genus Browser
+          </Link>
           <button
             onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login' }}
             style={{ fontSize: '13px', background: '#e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
