@@ -494,8 +494,15 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 4px' }}>{selectedSpeciesName}</h1>
       {selectedCommonName && !editingSpecies && <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px' }}>{selectedCommonName}</p>}
       {selectedSpNo && !editingSpecies && (
-        <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 4px' }}>
-          sp_no {selectedSpNo}{selectedVariantSpNo ? ` \u00b7 variant sp_no ${selectedVariantSpNo}` : ''}
+        <p style={{ fontSize: '13px', color: '#9ca3af', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '12px' }}>
+            sp_no {selectedSpNo}{selectedVariantSpNo ? ` \u00b7 variant sp_no ${selectedVariantSpNo}` : ''}
+          </span>
+          {row.sp_no && (
+            <a href={`/species/${row.sp_no}`} style={{ fontSize: '13px', color: '#55702a', fontWeight: 600, textDecoration: 'none' }}>
+              View Species Info →
+            </a>
+          )}
         </p>
       )}
       {(selectedSpNo !== row.sp_no || selectedVariantSpNo !== row.variant_sp_no) && !editingSpecies && (
