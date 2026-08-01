@@ -22,13 +22,28 @@ export default function SpeciesList() {
     return () => clearTimeout(timeout)
   }, [search, topMode, nativeFilter])
 
+  // Ranks confidence tiers so genuinely-researched species surface above
+  // genus-wide estimates, regardless of raw score. The vast majority of
+  // scored species (~4,100 of ~7,100) are still Genus-inferred bulk
+  // defaults — without this, the Top 300 list is dominated by hundreds of
+  // identically-scored, unresearched species and buries the small number
+  // that have had real individual research.
+  function tierPriority(researchStatus: string | null) {
+    const s = (researchStatus || '').toLowerCase()
+    if (s === 'verified' || s === 'completed') return 0
+    if (s.startsWith('provisional')) return 1
+    if (s === 'in progress' || s === 'data gaps (see below)') return 2
+    if (s === 'genus-inferred') return 3
+    return 4
+  }
+
   async function fetchTop300() {
     setLoading(true)
     const cols = 'sp_no, species, common_name, species_family, australian_native, research_status, reference_photo'
 
     let allowedSpNos: number[] | null = null
     if (nativeFilter !== 'all') {
-      let nativeQuery = supabase.from('species').select('sp_no')
+      let nativeQuery = supabase.from('species').select('sp_no').limit(10000)
       nativeQuery = nativeFilter === 'native'
         ? nativeQuery.eq('australian_native', true)
         : nativeQuery.eq('australian_native', false)
@@ -42,14 +57,18 @@ export default function SpeciesList() {
       allowedSpNos = (nativeRows || []).map(r => r.sp_no)
     }
 
+    // Fetch every scored row (not just the top 300 by raw score) so the
+    // confidence-tier sort below can surface genuinely-researched species
+    // that a pure-score cutoff would otherwise miss. Explicit high limit —
+    // PostgREST silently caps unlimited queries at 1000 rows, and there are
+    // ~7,100 scored species total.
     let scoreQuery = supabase
       .from('bonsai_suitability')
-      .select('sp_no, final_bonsai_score, bonsai_tier, needs_verification')
+      .select('sp_no, final_bonsai_score, bonsai_tier, needs_verification, research_status')
       .not('final_bonsai_score', 'is', null)
-      .order('final_bonsai_score', { ascending: false })
-      .limit(300)
+      .limit(10000)
     if (allowedSpNos !== null) scoreQuery = scoreQuery.in('sp_no', allowedSpNos)
-    const { data: scoreRows, error: scoreErr } = await scoreQuery
+    const { data: allScoreRows, error: scoreErr } = await scoreQuery
 
     if (scoreErr) {
       setError(scoreErr.message)
@@ -57,6 +76,14 @@ export default function SpeciesList() {
       setLoading(false)
       return
     }
+
+    const scoreRows = (allScoreRows || [])
+      .sort((a, b) => {
+        const tierDiff = tierPriority(a.research_status) - tierPriority(b.research_status)
+        if (tierDiff !== 0) return tierDiff
+        return (b.final_bonsai_score ?? 0) - (a.final_bonsai_score ?? 0)
+      })
+      .slice(0, 300)
 
     const spNos = (scoreRows || []).map(r => r.sp_no)
     const { data: speciesRows, error: speciesErr } = await supabase
@@ -74,7 +101,12 @@ export default function SpeciesList() {
     const scoreBySpNo = new Map((scoreRows || []).map(r => [r.sp_no, r]))
     const merged = (speciesRows || [])
       .map(s => ({ ...s, ...scoreBySpNo.get(s.sp_no) }))
-      .sort((a, b) => (b.final_bonsai_score ?? 0) - (a.final_bonsai_score ?? 0))
+      .sort((a, b) => {
+        const tierDiff = tierPriority(a.research_status) - tierPriority(b.research_status)
+        if (tierDiff !== 0) return tierDiff
+        return (b.final_bonsai_score ?? 0) - (a.final_bonsai_score ?? 0)
+      })
+
 
     setSpecies(merged)
     setError(null)
