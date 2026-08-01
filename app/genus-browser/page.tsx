@@ -28,15 +28,19 @@ export default function GenusBrowser() {
 
   async function fetchGenusList() {
     setLoadingGenera(true)
-    const { data, error } = await supabase.from('species').select('species_genus')
+    // Previously fetched species_genus for every one of the 8,448 species rows
+    // and deduped client-side — silently truncated by PostgREST's 1000-row
+    // default limit (no .limit() was set), which returned only the first
+    // ~1000 rows in sp_no order, almost entirely Acacia (the largest single
+    // genus in the database). Using a dedicated database function instead
+    // returns only the ~1,240 distinct genus names directly.
+    const { data, error } = await supabase.rpc('get_distinct_genera')
     if (error) {
       setError(error.message)
       setLoadingGenera(false)
       return
     }
-    const unique = Array.from(new Set((data || []).map(r => r.species_genus).filter(Boolean))) as string[]
-    unique.sort((a, b) => a.localeCompare(b))
-    setAllGenera(unique)
+    setAllGenera((data || []).map((r: any) => r.genus))
     setLoadingGenera(false)
   }
 
@@ -50,6 +54,7 @@ export default function GenusBrowser() {
       .from('species')
       .select('sp_no, species, common_name')
       .eq('species_genus', genus)
+      .limit(3000)
       .order('species', { ascending: true })
 
     if (speciesErr) {
@@ -62,7 +67,7 @@ export default function GenusBrowser() {
 
     // Variants under those species
     const { data: variantRows, error: variantErr } = speciesSpNos.length > 0
-      ? await supabase.from('variants').select('sp_no, variant_name, parent_sp_no').in('parent_sp_no', speciesSpNos)
+      ? await supabase.from('variants').select('sp_no, variant_name, parent_sp_no').in('parent_sp_no', speciesSpNos).limit(3000)
       : { data: [] as any[], error: null }
 
     if (variantErr) {
@@ -79,6 +84,7 @@ export default function GenusBrowser() {
           .from('bonsai_suitability')
           .select('sp_no, final_bonsai_score, bonsai_tier, difficulty, needs_verification')
           .in('sp_no', allSpNos)
+          .limit(3000)
       : { data: [] as any[], error: null }
 
     if (scoreErr) {
