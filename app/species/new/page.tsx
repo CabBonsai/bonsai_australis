@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
 export const dynamic = 'force-dynamic'
 
 export default function NewSpeciesPage() {
@@ -30,30 +29,35 @@ export default function NewSpeciesPage() {
     setSaving(true)
     setError('')
 
-    const { data, error: insertError } = await supabase
-      .from('species')
-      .insert({
-        species: form.species.trim(),
-        common_name: form.common_name.trim() || 'Unknown',
-        species_genus: form.species_genus.trim() || form.species.split(' ')[0],
-        species_epithet: form.species_epithet.trim(),
-        species_family: form.species_family.trim(),
-        tree_type: form.tree_type.trim(),
-        australian_native: form.australian_native,
-        pure_species: form.pure_species,
-        research_status: 'Not Started',
-      })
-      .select()
-      .single()
+    const res = await fetch('/api/admin-table', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'species',
+        rows: [{
+          species: form.species.trim(),
+          common_name: form.common_name.trim() || 'Unknown',
+          species_genus: form.species_genus.trim() || form.species.split(' ')[0],
+          species_epithet: form.species_epithet.trim(),
+          species_family: form.species_family.trim(),
+          tree_type: form.tree_type.trim(),
+          australian_native: form.australian_native,
+          pure_species: form.pure_species,
+          research_status: 'Not Started',
+        }],
+      }),
+    })
 
     setSaving(false)
 
-    if (insertError) {
-      setError('Error creating species: ' + insertError.message)
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}))
+      setError('Error creating species: ' + (errData.error || `Request failed (${res.status})`))
       return
     }
 
-    window.location.href = `/species/${data.sp_no}`
+    const data = await res.json()
+    window.location.href = `/species/${data[0].sp_no}`
   }
 
   const inputClass = "w-full border rounded-lg px-3 py-2 text-base"

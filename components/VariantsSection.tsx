@@ -208,7 +208,7 @@ function VariantCard({ variant, suitability, overrides, onDelete, onSaved }: {
   async function handleDelete() {
     if (!confirm(`Delete variant "${v.variant_name}"? This cannot be undone.`)) return
     await fetch(`/api/variant-overrides?id=${v.sp_no}`, { method: 'DELETE' })
-    await supabase.from('bonsai_suitability').delete().eq('sp_no', v.sp_no)
+    await fetch(`/api/admin-table?table=bonsai_suitability&id=${v.sp_no}`, { method: 'DELETE' })
     await fetch(`/api/variants?id=${v.sp_no}`, { method: 'DELETE' })
     onDelete(v.sp_no)
   }

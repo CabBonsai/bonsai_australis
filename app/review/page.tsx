@@ -30,12 +30,14 @@ export default function ReviewQueue() {
 
   async function markConfirmed(sp_no: number) {
     setConfirming(sp_no)
-    const { error } = await supabase
-      .from('species')
-      .update({ review_status: 'confirmed' })
-      .eq('sp_no', sp_no)
-    if (error) {
-      alert('Error: ' + error.message)
+    const res = await fetch('/api/admin-table', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: 'species', id: sp_no, review_status: 'confirmed' }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert('Error: ' + (data.error || `Request failed (${res.status})`))
     } else {
       setSpecies(prev => prev.filter(s => s.sp_no !== sp_no))
     }
