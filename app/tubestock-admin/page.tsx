@@ -12,6 +12,7 @@ type Tubestock = {
   id: number
   tubestock_number: string | null
   sp_no: number | null
+  variant_sp_no: number | null
   species_name_text: string | null
   quantity: number
   source: string | null
@@ -50,6 +51,7 @@ function padTag(n: number) {
 export default function TubestockAdmin() {
   const [rows, setRows] = useState<Tubestock[]>([])
   const [speciesMap, setSpeciesMap] = useState<Record<number, SpeciesInfo>>({})
+  const [variantMap, setVariantMap] = useState<Record<number, SpeciesInfo>>({})
   const [projects, setProjects] = useState<Project[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -88,6 +90,14 @@ export default function TubestockAdmin() {
       setSpeciesMap(map)
     }
 
+    const variantSpNos = [...new Set(tubestockRows.map((r: Tubestock) => r.variant_sp_no).filter(Boolean))] as number[]
+    if (variantSpNos.length > 0) {
+      const { data: vData } = await supabase.from('variants').select('sp_no, variant_name, common_name').in('sp_no', variantSpNos)
+      const vMap: Record<number, SpeciesInfo> = {}
+      for (const v of vData || []) vMap[v.sp_no] = { species: v.variant_name, common_name: v.common_name }
+      setVariantMap(vMap)
+    }
+
     // API route doesn't support filtering by status or server-side ordering —
     // fetch all research projects and filter/sort client-side instead.
     const projRes = await fetch('/api/research-projects')
@@ -109,6 +119,7 @@ export default function TubestockAdmin() {
   }
 
   function label(row: Tubestock) {
+    if (row.variant_sp_no && variantMap[row.variant_sp_no]) return variantMap[row.variant_sp_no].species
     if (row.sp_no && speciesMap[row.sp_no]) return speciesMap[row.sp_no].species
     return row.species_name_text || 'Unlinked species'
   }
@@ -117,7 +128,7 @@ export default function TubestockAdmin() {
     if (!search.trim()) return true
     const q = search.toLowerCase()
     const name = label(r)
-    const common = (r.sp_no && speciesMap[r.sp_no]?.common_name) || ''
+    const common = (r.variant_sp_no && variantMap[r.variant_sp_no]?.common_name) || (r.sp_no && speciesMap[r.sp_no]?.common_name) || ''
     return (
       name.toLowerCase().includes(q) ||
       common.toLowerCase().includes(q) ||
@@ -139,7 +150,7 @@ export default function TubestockAdmin() {
     return (
       <TubestockEditor
         row={row}
-        speciesInfo={row.sp_no ? speciesMap[row.sp_no] : undefined}
+        speciesInfo={row.variant_sp_no ? variantMap[row.variant_sp_no] : (row.sp_no ? speciesMap[row.sp_no] : undefined)}
         displayLabel={label(row)}
         projects={projects}
         isLinkedToResearch={linkedIds.has(row.id)}
@@ -171,7 +182,7 @@ export default function TubestockAdmin() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {filtered.map(row => {
-          const info = row.sp_no ? speciesMap[row.sp_no] : undefined
+          const info = row.variant_sp_no ? variantMap[row.variant_sp_no] : (row.sp_no ? speciesMap[row.sp_no] : undefined)
           return (
             <button
               key={row.id}
@@ -226,6 +237,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
   const [growingOnNotes, setGrowingOnNotes] = useState(row.growing_on_notes || '')
   const [targetCriteria, setTargetCriteria] = useState(row.target_criteria || '')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('')
@@ -236,8 +248,9 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
   // capability the create form already has.
   const [editingSpecies, setEditingSpecies] = useState(false)
   const [speciesQuery, setSpeciesQuery] = useState('')
-  const [speciesResults, setSpeciesResults] = useState<{ sp_no: number, species: string, common_name: string | null, isVariant?: boolean }[]>([])
+  const [speciesResults, setSpeciesResults] = useState<{ sp_no: number, species: string, common_name: string | null, isVariant?: boolean, parent_sp_no?: number | null }[]>([])
   const [selectedSpNo, setSelectedSpNo] = useState<number | null>(row.sp_no)
+  const [selectedVariantSpNo, setSelectedVariantSpNo] = useState<number | null>(row.variant_sp_no)
   const [selectedSpeciesName, setSelectedSpeciesName] = useState(speciesInfo?.species || displayLabel)
   const [selectedCommonName, setSelectedCommonName] = useState(speciesInfo?.common_name || '')
   const [speciesNameText, setSpeciesNameText] = useState(row.species_name_text || '')
@@ -248,17 +261,27 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
     const timer = setTimeout(async () => {
       const [speciesRes, variantRes] = await Promise.all([
         supabase.from('species').select('sp_no, species, common_name').or(`species.ilike.%${speciesQuery}%,common_name.ilike.%${speciesQuery}%`).limit(8),
-        supabase.from('variants').select('sp_no, variant_name, common_name').ilike('variant_name', `%${speciesQuery}%`).limit(8),
+        supabase.from('variants').select('sp_no, variant_name, common_name, parent_sp_no').ilike('variant_name', `%${speciesQuery}%`).limit(8),
       ])
-      const speciesResults = (speciesRes.data || []).map(s => ({ sp_no: s.sp_no, species: s.species, common_name: s.common_name, isVariant: false }))
-      const variantResults = (variantRes.data || []).map(v => ({ sp_no: v.sp_no, species: v.variant_name, common_name: v.common_name, isVariant: true }))
+      const speciesResults = (speciesRes.data || []).map(s => ({ sp_no: s.sp_no, species: s.species, common_name: s.common_name, isVariant: false, parent_sp_no: null as number | null }))
+      const variantResults = (variantRes.data || []).map(v => ({ sp_no: v.sp_no, species: v.variant_name, common_name: v.common_name, isVariant: true, parent_sp_no: v.parent_sp_no }))
       setSpeciesResults([...speciesResults, ...variantResults])
     }, 250)
     return () => clearTimeout(timer)
   }, [speciesQuery, editingSpecies])
 
-  function pickSpecies(s: { sp_no: number, species: string, common_name: string | null }) {
-    setSelectedSpNo(s.sp_no)
+  // Picking a variant needs to store BOTH its own sp_no (variant_sp_no) and its
+  // parent species' sp_no (sp_no) — tubestock.sp_no has a foreign key to the
+  // species table only, so it can never hold a variant's own sp_no directly.
+  // This mirrors the same sp_no/variant_sp_no pattern collection already uses.
+  function pickSpecies(s: { sp_no: number, species: string, common_name: string | null, isVariant?: boolean, parent_sp_no?: number | null }) {
+    if (s.isVariant && s.parent_sp_no) {
+      setSelectedSpNo(s.parent_sp_no)
+      setSelectedVariantSpNo(s.sp_no)
+    } else {
+      setSelectedSpNo(s.sp_no)
+      setSelectedVariantSpNo(null)
+    }
     setSelectedSpeciesName(s.species)
     setSelectedCommonName(s.common_name && s.common_name !== 'Unknown' ? s.common_name : '')
     setSpeciesQuery('')
@@ -277,6 +300,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sp_no: row.sp_no,
+        variant_sp_no: row.variant_sp_no,
         display_name: placeholderName,
         tree_name: `${placeholderName} (from tubestock)`,
         acquired_date: new Date().toISOString().slice(0, 10),
@@ -317,12 +341,14 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
 
   async function handleSaveNotes() {
     setSaving(true)
-    await fetch('/api/tubestock', {
+    setSaveError(null)
+    const res = await fetch('/api/tubestock', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: row.id,
         sp_no: selectedSpNo,
+        variant_sp_no: selectedVariantSpNo,
         species_name_text: selectedSpNo ? null : (speciesNameText.trim() || null),
         quantity,
         health_notes: healthNotes || null,
@@ -331,6 +357,11 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       }),
     })
     setSaving(false)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setSaveError(data.error || `Save failed (${res.status})`)
+      return
+    }
     onDone()
   }
 
@@ -432,7 +463,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 4px' }}>{selectedSpeciesName}</h1>
       {selectedCommonName && !editingSpecies && <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px' }}>{selectedCommonName}</p>}
       {selectedSpNo && !editingSpecies && <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 4px' }}>sp_no {selectedSpNo}</p>}
-      {selectedSpNo !== row.sp_no && !editingSpecies && (
+      {(selectedSpNo !== row.sp_no || selectedVariantSpNo !== row.variant_sp_no) && !editingSpecies && (
         <p style={{ fontSize: '12px', color: '#d97706', margin: '0 0 4px', fontWeight: 600 }}>Not saved yet — tap "Save changes" below</p>
       )}
 
@@ -450,7 +481,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
               <span style={{ fontSize: '14px', fontWeight: 600 }}>
                 {selectedSpeciesName}{selectedCommonName ? ` \u2014 ${selectedCommonName}` : ''}
               </span>
-              <button onClick={() => { setSelectedSpNo(null); setSelectedSpeciesName(''); setSelectedCommonName('') }} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '12px', cursor: 'pointer' }}>
+              <button onClick={() => { setSelectedSpNo(null); setSelectedVariantSpNo(null); setSelectedSpeciesName(''); setSelectedCommonName('') }} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '12px', cursor: 'pointer' }}>
                 Clear
               </button>
             </div>
@@ -550,6 +581,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       >
         {saving ? 'Saving...' : 'Save changes'}
       </button>
+      {saveError && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '-4px', marginBottom: '10px' }}>Error: {saveError}</p>}
 
       {row.status === 'growing_on' && row.quantity > 0 && !showProjectPicker && (
         <>
@@ -625,8 +657,9 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
 
 function TubestockCreateForm({ onDone, onCancel }: { onDone: () => void, onCancel: () => void }) {
   const [speciesQuery, setSpeciesQuery] = useState('')
-  const [speciesResults, setSpeciesResults] = useState<{ sp_no: number, species: string, common_name: string | null, isVariant?: boolean }[]>([])
+  const [speciesResults, setSpeciesResults] = useState<{ sp_no: number, species: string, common_name: string | null, isVariant?: boolean, parent_sp_no?: number | null }[]>([])
   const [selectedSpNo, setSelectedSpNo] = useState<number | null>(null)
+  const [selectedVariantSpNo, setSelectedVariantSpNo] = useState<number | null>(null)
   const [selectedSpeciesLabel, setSelectedSpeciesLabel] = useState('')
   const [speciesNameText, setSpeciesNameText] = useState('')
   const [tubestockNumber, setTubestockNumber] = useState('')
@@ -645,17 +678,23 @@ function TubestockCreateForm({ onDone, onCancel }: { onDone: () => void, onCance
     const timer = setTimeout(async () => {
       const [speciesRes, variantRes] = await Promise.all([
         supabase.from('species').select('sp_no, species, common_name').or(`species.ilike.%${speciesQuery}%,common_name.ilike.%${speciesQuery}%`).limit(8),
-        supabase.from('variants').select('sp_no, variant_name, common_name').ilike('variant_name', `%${speciesQuery}%`).limit(8),
+        supabase.from('variants').select('sp_no, variant_name, common_name, parent_sp_no').ilike('variant_name', `%${speciesQuery}%`).limit(8),
       ])
-      const speciesResults = (speciesRes.data || []).map(s => ({ sp_no: s.sp_no, species: s.species, common_name: s.common_name, isVariant: false }))
-      const variantResults = (variantRes.data || []).map(v => ({ sp_no: v.sp_no, species: v.variant_name, common_name: v.common_name, isVariant: true }))
+      const speciesResults = (speciesRes.data || []).map(s => ({ sp_no: s.sp_no, species: s.species, common_name: s.common_name, isVariant: false, parent_sp_no: null as number | null }))
+      const variantResults = (variantRes.data || []).map(v => ({ sp_no: v.sp_no, species: v.variant_name, common_name: v.common_name, isVariant: true, parent_sp_no: v.parent_sp_no }))
       setSpeciesResults([...speciesResults, ...variantResults])
     }, 250)
     return () => clearTimeout(timer)
   }, [speciesQuery, selectedSpNo])
 
-  function pickSpecies(s: { sp_no: number, species: string, common_name: string | null }) {
-    setSelectedSpNo(s.sp_no)
+  function pickSpecies(s: { sp_no: number, species: string, common_name: string | null, isVariant?: boolean, parent_sp_no?: number | null }) {
+    if (s.isVariant && s.parent_sp_no) {
+      setSelectedSpNo(s.parent_sp_no)
+      setSelectedVariantSpNo(s.sp_no)
+    } else {
+      setSelectedSpNo(s.sp_no)
+      setSelectedVariantSpNo(null)
+    }
     setSelectedSpeciesLabel(s.species + (s.common_name && s.common_name !== 'Unknown' ? ` \u2014 ${s.common_name}` : ''))
     setSpeciesQuery('')
     setSpeciesResults([])
@@ -663,6 +702,7 @@ function TubestockCreateForm({ onDone, onCancel }: { onDone: () => void, onCance
 
   function clearSpecies() {
     setSelectedSpNo(null)
+    setSelectedVariantSpNo(null)
     setSelectedSpeciesLabel('')
   }
 
@@ -684,6 +724,7 @@ function TubestockCreateForm({ onDone, onCancel }: { onDone: () => void, onCance
       body: JSON.stringify({
         tubestock_number: tubestockNumber.trim() || null,
         sp_no: selectedSpNo,
+        variant_sp_no: selectedVariantSpNo,
         species_name_text: selectedSpNo ? null : speciesNameText.trim(),
         quantity,
         source: source.trim() || null,
