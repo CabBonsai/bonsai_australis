@@ -236,7 +236,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
   // capability the create form already has.
   const [editingSpecies, setEditingSpecies] = useState(false)
   const [speciesQuery, setSpeciesQuery] = useState('')
-  const [speciesResults, setSpeciesResults] = useState<{ sp_no: number, species: string, common_name: string | null }[]>([])
+  const [speciesResults, setSpeciesResults] = useState<{ sp_no: number, species: string, common_name: string | null, isVariant?: boolean }[]>([])
   const [selectedSpNo, setSelectedSpNo] = useState<number | null>(row.sp_no)
   const [selectedSpeciesLabel, setSelectedSpeciesLabel] = useState(speciesInfo?.species || '')
   const [speciesNameText, setSpeciesNameText] = useState(row.species_name_text || '')
@@ -245,12 +245,13 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
     if (!editingSpecies) return
     if (speciesQuery.trim().length < 2) { setSpeciesResults([]); return }
     const timer = setTimeout(async () => {
-      const { data } = await supabase
-        .from('species')
-        .select('sp_no, species, common_name')
-        .or(`species.ilike.%${speciesQuery}%,common_name.ilike.%${speciesQuery}%`)
-        .limit(8)
-      setSpeciesResults(data || [])
+      const [speciesRes, variantRes] = await Promise.all([
+        supabase.from('species').select('sp_no, species, common_name').or(`species.ilike.%${speciesQuery}%,common_name.ilike.%${speciesQuery}%`).limit(8),
+        supabase.from('variants').select('sp_no, variant_name, common_name').ilike('variant_name', `%${speciesQuery}%`).limit(8),
+      ])
+      const speciesResults = (speciesRes.data || []).map(s => ({ sp_no: s.sp_no, species: s.species, common_name: s.common_name, isVariant: false }))
+      const variantResults = (variantRes.data || []).map(v => ({ sp_no: v.sp_no, species: v.variant_name, common_name: v.common_name, isVariant: true }))
+      setSpeciesResults([...speciesResults, ...variantResults])
     }, 250)
     return () => clearTimeout(timer)
   }, [speciesQuery, editingSpecies])
@@ -464,6 +465,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
                       style={{ padding: '8px 10px', fontSize: '13px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
                     >
                       {s.species}{s.common_name && s.common_name !== 'Unknown' ? ` — ${s.common_name}` : ''}
+                      {s.isVariant && <span style={{ fontSize: '11px', fontWeight: 600, color: '#7c3aed', marginLeft: '6px' }}>variant</span>}
                       <span style={{ color: '#9ca3af', marginLeft: '6px' }}>sp_no {s.sp_no}</span>
                     </div>
                   ))}
@@ -616,7 +618,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
 
 function TubestockCreateForm({ onDone, onCancel }: { onDone: () => void, onCancel: () => void }) {
   const [speciesQuery, setSpeciesQuery] = useState('')
-  const [speciesResults, setSpeciesResults] = useState<{ sp_no: number, species: string, common_name: string | null }[]>([])
+  const [speciesResults, setSpeciesResults] = useState<{ sp_no: number, species: string, common_name: string | null, isVariant?: boolean }[]>([])
   const [selectedSpNo, setSelectedSpNo] = useState<number | null>(null)
   const [selectedSpeciesLabel, setSelectedSpeciesLabel] = useState('')
   const [speciesNameText, setSpeciesNameText] = useState('')
@@ -634,12 +636,13 @@ function TubestockCreateForm({ onDone, onCancel }: { onDone: () => void, onCance
     if (selectedSpNo !== null) return // don't search once a species is picked
     if (speciesQuery.trim().length < 2) { setSpeciesResults([]); return }
     const timer = setTimeout(async () => {
-      const { data } = await supabase
-        .from('species')
-        .select('sp_no, species, common_name')
-        .or(`species.ilike.%${speciesQuery}%,common_name.ilike.%${speciesQuery}%`)
-        .limit(8)
-      setSpeciesResults(data || [])
+      const [speciesRes, variantRes] = await Promise.all([
+        supabase.from('species').select('sp_no, species, common_name').or(`species.ilike.%${speciesQuery}%,common_name.ilike.%${speciesQuery}%`).limit(8),
+        supabase.from('variants').select('sp_no, variant_name, common_name').ilike('variant_name', `%${speciesQuery}%`).limit(8),
+      ])
+      const speciesResults = (speciesRes.data || []).map(s => ({ sp_no: s.sp_no, species: s.species, common_name: s.common_name, isVariant: false }))
+      const variantResults = (variantRes.data || []).map(v => ({ sp_no: v.sp_no, species: v.variant_name, common_name: v.common_name, isVariant: true }))
+      setSpeciesResults([...speciesResults, ...variantResults])
     }, 250)
     return () => clearTimeout(timer)
   }, [speciesQuery, selectedSpNo])
@@ -730,6 +733,7 @@ function TubestockCreateForm({ onDone, onCancel }: { onDone: () => void, onCance
                   style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: '#fff', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontSize: '13px' }}
                 >
                   {s.species}{s.common_name && s.common_name !== 'Unknown' ? ` \u2014 ${s.common_name}` : ''}
+                  {s.isVariant && <span style={{ fontSize: '11px', fontWeight: 600, color: '#7c3aed', marginLeft: '6px' }}>variant</span>}
                   <span style={{ color: '#9ca3af', marginLeft: '6px' }}>sp_no {s.sp_no}</span>
                 </button>
               ))}
