@@ -24,6 +24,15 @@ async function adminPatch(table: string, id: any, fields: Record<string, any>) {
   return { error: null }
 }
 
+// Percentage of the 10 core tables (matching species_completeness's own set)
+// that are genuinely researched, using needs_verification === false as the
+// project's established "reliable filter" for real research vs Family Default.
+// A missing row counts as incomplete, same as a Family Default row would.
+function completenessPercent(rows: any[]) {
+  const done = rows.filter(r => r && r.needs_verification === false).length
+  return Math.round((done / rows.length) * 100)
+}
+
 function Section({ title, children }: { title: string, children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   return (
@@ -1201,7 +1210,12 @@ export default function SpeciesDetail() {
       )}
       <Section title="Species Info">
         <div>
-          <label style={{display:'block',fontSize:'13px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'6px'}}>Research status</label>
+          <label style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',fontSize:'13px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'6px'}}>
+            <span>Research status</span>
+            <span style={{textTransform:'none',letterSpacing:'normal',fontWeight:400}}>
+              {completenessPercent([species, suitability, careGuide, seasonal, fertilisation, pruning, nebari, regional, tubestockDev, advanced])}% researched
+            </span>
+          </label>
           <select value={species.research_status || "Not Started"} onChange={e => updateSpecies("research_status", e.target.value)} style={{width:'100%',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'12px 16px',fontSize:'17px',color:'#2b2620',background:'#fffefb',outline:'none'}}>
             <option value="Not Started">Not Started</option>
             <option value="In Progress">In Progress</option>
