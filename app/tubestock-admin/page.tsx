@@ -199,7 +199,11 @@ export default function TubestockAdmin() {
                   {label(row)}
                 </p>
                 {info?.common_name && <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{info.common_name}</p>}
-                {row.sp_no && <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>sp_no {row.sp_no}</p>}
+                {row.sp_no && (
+                  <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>
+                    sp_no {row.sp_no}{row.variant_sp_no ? ` \u00b7 variant sp_no ${row.variant_sp_no}` : ''}
+                  </p>
+                )}
                 <p style={{ fontSize: '12px', color: '#9ca3af', margin: '4px 0 0' }}>
                   Qty {row.quantity}{row.source ? ` \u00b7 ${row.source}` : ''}{row.acquisition_date ? ` \u00b7 ${row.acquisition_date}` : ''}
                 </p>
@@ -462,7 +466,11 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       <p style={{ fontSize: '13px', color: '#9ca3af', fontFamily: 'monospace', margin: '0 0 4px' }}>{batchCode}</p>
       <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 4px' }}>{selectedSpeciesName}</h1>
       {selectedCommonName && !editingSpecies && <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px' }}>{selectedCommonName}</p>}
-      {selectedSpNo && !editingSpecies && <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 4px' }}>sp_no {selectedSpNo}</p>}
+      {selectedSpNo && !editingSpecies && (
+        <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 4px' }}>
+          sp_no {selectedSpNo}{selectedVariantSpNo ? ` \u00b7 variant sp_no ${selectedVariantSpNo}` : ''}
+        </p>
+      )}
       {(selectedSpNo !== row.sp_no || selectedVariantSpNo !== row.variant_sp_no) && !editingSpecies && (
         <p style={{ fontSize: '12px', color: '#d97706', margin: '0 0 4px', fontWeight: 600 }}>Not saved yet — tap "Save changes" below</p>
       )}
