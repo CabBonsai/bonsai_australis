@@ -370,9 +370,13 @@ export default function BulkEditPage() {
       return merged
     })
 
-    // `variants` and `variant_overrides` have RLS locked down (no anon writes) —
-    // route through the service-role API instead of a direct client upsert.
-    // Every other table in this tool is unaffected and keeps writing directly.
+    // All tables in this tool have RLS locked down as of session 23 (no anon
+    // writes — the previous "public" role write policies were closed after
+    // discovering the Standing Audit Kit's check only ever matched literal
+    // role 'anon', silently missing every 'public'-granted policy). `variants`
+    // and `variant_overrides` already had dedicated service-role routes from
+    // an earlier session; every other table now routes through the new
+    // generic /api/admin-table proxy instead.
     let error: any = null
     if (config.table === 'variants' || config.table === 'variant_overrides') {
       const apiPath = config.table === 'variants' ? '/api/variants' : '/api/variant-overrides'
@@ -386,10 +390,15 @@ export default function BulkEditPage() {
         error = { message: data.error }
       }
     } else {
-      const result = await supabase
-        .from(config.table)
-        .upsert(upsertRows, { onConflict: 'sp_no' })
-      error = result.error
+      const res = await fetch('/api/admin-table', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: config.table, rows: upsertRows }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        error = { message: data.error || `Request failed (${res.status})` }
+      }
     }
 
     setApplying(false)

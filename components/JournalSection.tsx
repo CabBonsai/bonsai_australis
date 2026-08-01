@@ -52,9 +52,12 @@ function JournalEntryCard({ entry, onSaved, onDelete }: { entry: any, onSaved: (
   async function handleSave() {
     setSaving(true)
     setMessage(null)
-    const { error } = await supabase
-      .from('journal_entries')
-      .update({
+    const res = await fetch('/api/admin-table', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'journal_entries',
+        id: local.entry_id,
         entry_date: local.entry_date,
         title: local.title,
         body_text: local.body_text,
@@ -62,11 +65,12 @@ function JournalEntryCard({ entry, onSaved, onDelete }: { entry: any, onSaved: (
         publish_status: local.publish_status,
         target_publish_date: local.target_publish_date || null,
         tags: local.tags,
-      })
-      .eq('entry_id', local.entry_id)
+      }),
+    })
     setSaving(false)
-    if (error) {
-      setMessage('Error: ' + error.message)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setMessage('Error: ' + (data.error || `Request failed (${res.status})`))
     } else {
       setMessage('Saved')
       onSaved()
@@ -76,8 +80,8 @@ function JournalEntryCard({ entry, onSaved, onDelete }: { entry: any, onSaved: (
 
   async function handleDelete() {
     if (!confirm('Delete this journal entry permanently?')) return
-    const { error } = await supabase.from('journal_entries').delete().eq('entry_id', local.entry_id)
-    if (!error) onDelete(local.entry_id)
+    const res = await fetch(`/api/admin-table?table=journal_entries&id=${encodeURIComponent(local.entry_id)}`, { method: 'DELETE' })
+    if (res.ok) onDelete(local.entry_id)
   }
 
   return (
@@ -196,16 +200,24 @@ export default function JournalSection({ collectionId, spNo }: { collectionId: s
 
   async function handleAddEntry() {
     setAdding(true)
-    const { error } = await supabase.from('journal_entries').insert({
-      collection_id: collectionId,
-      sp_no: spNo,
-      entry_date: new Date().toISOString().split('T')[0],
-      title: 'New entry',
-      publish_status: 'private',
+    const res = await fetch('/api/admin-table', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'journal_entries',
+        rows: [{
+          collection_id: collectionId,
+          sp_no: spNo,
+          entry_date: new Date().toISOString().split('T')[0],
+          title: 'New entry',
+          publish_status: 'private',
+        }],
+      }),
     })
     setAdding(false)
-    if (error) {
-      alert('Error adding entry: ' + error.message)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert('Error adding entry: ' + (data.error || `Request failed (${res.status})`))
     } else {
       fetchEntries()
     }

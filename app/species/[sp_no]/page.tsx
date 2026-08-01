@@ -6,6 +6,24 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import VariantsSection from '@/components/VariantsSection'
 
+// Routes writes through /api/admin-table (service role, RLS bypass) instead
+// of the anon client directly — these tables no longer have anon UPDATE
+// policies as of session 23's RLS lockdown. Returns an { error } shape
+// compatible with the existing Promise.all(saves) / results.filter(r=>r.error)
+// pattern below, so the rest of handleSave needed no other changes.
+async function adminPatch(table: string, id: any, fields: Record<string, any>) {
+  const res = await fetch('/api/admin-table', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ table, id, ...fields }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    return { error: { message: data.error || `Request failed (${res.status})` } }
+  }
+  return { error: null }
+}
+
 function Section({ title, children }: { title: string, children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   return (
@@ -260,7 +278,7 @@ export default function SpeciesDetail() {
     setSaving(true)
     setSaveMessage(null)
     const saves: any[] = [
-      supabase.from('species').update({
+      adminPatch('species', spNo, {
         species: species.species,
         common_name: species.common_name,
         species_genus: species.species_genus,
@@ -277,9 +295,9 @@ export default function SpeciesDetail() {
         reference_photo: species.reference_photo,
         review_status: species.review_status,
         review_notes: species.review_notes,
-      }).eq('sp_no', spNo),
+      }),
     ]
-    if (suitability) saves.push(supabase.from('bonsai_suitability').update({
+    if (suitability) saves.push(adminPatch('bonsai_suitability', spNo, {
       bonsai_suitability: suitability.bonsai_suitability,
       difficulty: suitability.difficulty,
       recommended_bonsai_styles: suitability.recommended_bonsai_styles,
@@ -302,8 +320,8 @@ export default function SpeciesDetail() {
       native_bonus: suitability.native_bonus,
       final_bonsai_score: suitability.final_bonsai_score,
       bonsai_tier: suitability.bonsai_tier,
-    }).eq('sp_no', spNo))
-    if (careGuide) saves.push(supabase.from('care_guide').update({
+    }))
+    if (careGuide) saves.push(adminPatch('care_guide', spNo, {
       growth_season: careGuide.growth_season,
       growth_season_notes: careGuide.growth_season_notes,
       growth_plan: careGuide.growth_plan,
@@ -333,16 +351,16 @@ export default function SpeciesDetail() {
       pruning_season: careGuide.pruning_season,
       repotting_season: careGuide.repotting_season,
       repotting_freq_yrs: careGuide.repotting_freq_yrs,
-    }).eq('sp_no', spNo))
-    if (fertilisation) saves.push(supabase.from('fertilisation').update({
+    }))
+    if (fertilisation) saves.push(adminPatch('fertilisation', spNo, {
       p_tolerance: fertilisation.p_tolerance,
       n_requirement: fertilisation.n_requirement,
       preferred_fertiliser_types: fertilisation.preferred_fertiliser_types,
       avoid_fertilisers: fertilisation.avoid_fertilisers,
       recommended_products: fertilisation.recommended_products,
       notes_schema: fertilisation.notes_schema,
-    }).eq('sp_no', spNo))
-    if (pruning) saves.push(supabase.from('pruning_protocols').update({
+    }))
+    if (pruning) saves.push(adminPatch('pruning_protocols', spNo, {
       pruning_core_rules: pruning.pruning_core_rules,
       structural_pruning_timing: pruning.structural_pruning_timing,
       structural_pruning_method: pruning.structural_pruning_method,
@@ -360,8 +378,8 @@ export default function SpeciesDetail() {
       light_penetration_strategy: pruning.light_penetration_strategy,
       refinement_method: pruning.refinement_method,
       notes: pruning.notes,
-    }).eq('sp_no', spNo))
-    if (nebari) saves.push(supabase.from('nebari_root').update({
+    }))
+    if (nebari) saves.push(adminPatch('nebari_root', spNo, {
       root_architecture_type: nebari.root_architecture_type,
       natural_nebari_form: nebari.natural_nebari_form,
       root_depth_tendency: nebari.root_depth_tendency,
@@ -393,8 +411,8 @@ export default function SpeciesDetail() {
       maintenance_requirements: nebari.maintenance_requirements,
       ageing_notes: nebari.ageing_notes,
       notes_for_future_development: nebari.notes_for_future_development,
-    }).eq('sp_no', spNo))
-    if (barkChar) saves.push(supabase.from('bark_character').update({
+    }))
+    if (barkChar) saves.push(adminPatch('bark_character', spNo, {
       bark_texture_type: barkChar.bark_texture_type,
       natural_bark_character: barkChar.natural_bark_character,
       development_speed: barkChar.development_speed,
@@ -410,14 +428,14 @@ export default function SpeciesDetail() {
       maintenance_requirements: barkChar.maintenance_requirements,
       ageing_notes: barkChar.ageing_notes,
       notes_for_future_development: barkChar.notes_for_future_development,
-    }).eq('sp_no', spNo))
-    if (taperMove) saves.push(supabase.from('taper_movement').update({
+    }))
+    if (taperMove) saves.push(adminPatch('taper_movement', spNo, {
       natural_taper_tendency: taperMove.natural_taper_tendency,
       trunk_movement_potential: taperMove.trunk_movement_potential,
       best_techniques_for_species: taperMove.best_techniques_for_species,
       notes: taperMove.notes,
-    }).eq('sp_no', spNo))
-    if (tubestockDev) saves.push(supabase.from('tubestock_development').update({
+    }))
+    if (tubestockDev) saves.push(adminPatch('tubestock_development', spNo, {
       establishment_period_weeks: tubestockDev.establishment_period_weeks,
       survival_rate_notes: tubestockDev.survival_rate_notes,
       common_failures: tubestockDev.common_failures,
@@ -438,8 +456,8 @@ export default function SpeciesDetail() {
       weed_competition_tolerance: tubestockDev.weed_competition_tolerance,
       irrigation_requirement: tubestockDev.irrigation_requirement,
       species_specific_notes: tubestockDev.species_specific_notes,
-    }).eq('sp_no', spNo))
-    if (seasonal) saves.push(supabase.from('seasonal_maintenance').update({
+    }))
+    if (seasonal) saves.push(adminPatch('seasonal_maintenance', spNo, {
       spring_maintenance_guide: seasonal.spring_maintenance_guide,
       summer_maintenance_guide: seasonal.summer_maintenance_guide,
       autumn_maintenance_guide: seasonal.autumn_maintenance_guide,
@@ -449,8 +467,8 @@ export default function SpeciesDetail() {
       summer_care: seasonal.summer_care,
       autumn_care: seasonal.autumn_care,
       winter_care: seasonal.winter_care,
-    }).eq('sp_no', spNo))
-    if (advanced) saves.push(supabase.from('advanced_expert').update({
+    }))
+    if (advanced) saves.push(adminPatch('advanced_expert', spNo, {
       ph_target: advanced.ph_target,
       acquisition_raw_material: advanced.acquisition_raw_material,
       aesthetics_exhibition_philosophy: advanced.aesthetics_exhibition_philosophy,
@@ -471,8 +489,8 @@ export default function SpeciesDetail() {
       development_years_4_6: advanced.development_years_4_6,
       development_years_7_8: advanced.development_years_7_8,
       development_years_9_10: advanced.development_years_9_10,
-    }).eq('sp_no', spNo))
-    if (regional) saves.push(supabase.from('regional_suitability').update({
+    }))
+    if (regional) saves.push(adminPatch('regional_suitability', spNo, {
       tropical_suitability: regional.tropical_suitability,
       tropical_notes: regional.tropical_notes,
       tropical_risk: regional.tropical_risk,
@@ -501,8 +519,8 @@ export default function SpeciesDetail() {
       availability_notes: regional.availability_notes,
       nursery_availability: regional.nursery_availability,
       wild_collection_status: regional.wild_collection_status,
-    }).eq('sp_no', spNo))
-    if (placement) saves.push(supabase.from('placement_matrix').update({
+    }))
+    if (placement) saves.push(adminPatch('placement_matrix', spNo, {
       species: placement.species,
       exposure_full_sun: placement.exposure_full_sun,
       exposure_morning_sun: placement.exposure_morning_sun,
@@ -512,8 +530,8 @@ export default function SpeciesDetail() {
       exposure_variable_f: placement.exposure_variable_f,
       seq_notes: placement.seq_notes,
       national_notes: placement.national_notes,
-    }).eq('sp_no', spNo))
-    if (toxicity) saves.push(supabase.from('toxicity').update({
+    }))
+    if (toxicity) saves.push(adminPatch('toxicity', spNo, {
       species: toxicity.species,
       toxicity_level: toxicity.toxicity_level,
       toxic_to_humans: toxicity.toxic_to_humans,
@@ -524,7 +542,7 @@ export default function SpeciesDetail() {
       symptoms: toxicity.symptoms,
       severity_notes: toxicity.severity_notes,
       first_aid_notes: toxicity.first_aid_notes,
-    }).eq('sp_no', spNo))
+    }))
     const results = await Promise.all(saves)
     const errors = results.filter((r: any) => r.error).map((r: any) => r.error.message)
     if (errors.length > 0) {
@@ -1302,20 +1320,20 @@ export default function SpeciesDetail() {
           <Field label="Survival rate notes" value={tubestockDev.survival_rate_notes} onChange={v => updateTubestockDev('survival_rate_notes', v)} type="textarea" />
           <Field label="Common failures" value={tubestockDev.common_failures} onChange={v => updateTubestockDev('common_failures', v)} type="textarea" />
           <Field label="Tubestock potting mix" value={tubestockDev.tubestock_potting_mix} onChange={v => updateTubestockDev('tubestock_potting_mix', v)} type="textarea" />
-          <Field label="First pot size" value={tubestockDev.first_pot_size} onChange={v => updateTubestockDev('first_pot_size', v)} />
+          <Field label="First pot size" value={tubestockDev.first_pot_size} onChange={v => updateTubestockDev('first_pot_size', v)} type="textarea" />
           <Field label="Potting-on schedule" value={tubestockDev.potting_on_schedule} onChange={v => updateTubestockDev('potting_on_schedule', v)} type="textarea" />
-          <Field label="Initial potting timing" value={tubestockDev.initial_potting_timing} onChange={v => updateTubestockDev('initial_potting_timing', v)} />
-          <Field label="Watering frequency" value={tubestockDev.watering_frequency} onChange={v => updateTubestockDev('watering_frequency', v)} />
+          <Field label="Initial potting timing" value={tubestockDev.initial_potting_timing} onChange={v => updateTubestockDev('initial_potting_timing', v)} type="textarea" />
+          <Field label="Watering frequency" value={tubestockDev.watering_frequency} onChange={v => updateTubestockDev('watering_frequency', v)} type="textarea" />
           <Field label="Fertilising regime" value={tubestockDev.fertilising_regime} onChange={v => updateTubestockDev('fertilising_regime', v)} type="textarea" />
-          <Field label="Recommended fertiliser" value={tubestockDev.recommended_fertiliser} onChange={v => updateTubestockDev('recommended_fertiliser', v)} />
+          <Field label="Recommended fertiliser" value={tubestockDev.recommended_fertiliser} onChange={v => updateTubestockDev('recommended_fertiliser', v)} type="textarea" />
           <Field label="Growth rate expected" value={tubestockDev.growth_rate_expected} onChange={v => updateTubestockDev('growth_rate_expected', v)} type="textarea" />
-          <Field label="First pruning timing" value={tubestockDev.first_pruning_timing} onChange={v => updateTubestockDev('first_pruning_timing', v)} />
-          <Field label="First structure timing" value={tubestockDev.first_structure_timing} onChange={v => updateTubestockDev('first_structure_timing', v)} />
+          <Field label="First pruning timing" value={tubestockDev.first_pruning_timing} onChange={v => updateTubestockDev('first_pruning_timing', v)} type="textarea" />
+          <Field label="First structure timing" value={tubestockDev.first_structure_timing} onChange={v => updateTubestockDev('first_structure_timing', v)} type="textarea" />
           <Field label="Root establishment notes" value={tubestockDev.root_establishment_notes} onChange={v => updateTubestockDev('root_establishment_notes', v)} type="textarea" />
           <Field label="Nursery to training pot" value={tubestockDev.nursery_to_training_pot} onChange={v => updateTubestockDev('nursery_to_training_pot', v)} type="textarea" />
           <Field label="Revegetation planting notes" value={tubestockDev.revegetation_planting_notes} onChange={v => updateTubestockDev('revegetation_planting_notes', v)} type="textarea" />
           <Field label="Establishment in ground" value={tubestockDev.establishment_in_ground} onChange={v => updateTubestockDev('establishment_in_ground', v)} type="textarea" />
-          <Field label="Weed competition tolerance" value={tubestockDev.weed_competition_tolerance} onChange={v => updateTubestockDev('weed_competition_tolerance', v)} />
+          <Field label="Weed competition tolerance" value={tubestockDev.weed_competition_tolerance} onChange={v => updateTubestockDev('weed_competition_tolerance', v)} type="textarea" />
           <Field label="Irrigation requirement" value={tubestockDev.irrigation_requirement} onChange={v => updateTubestockDev('irrigation_requirement', v)} type="textarea" />
           <Field label="Species-specific notes" value={tubestockDev.species_specific_notes} onChange={v => updateTubestockDev('species_specific_notes', v)} type="textarea" />
         </Section>
