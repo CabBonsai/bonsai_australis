@@ -230,15 +230,49 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
   const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<number | ''>('')
 
+  // Species can only be set at creation time in the original version of this
+  // form — there was no way to correct a wrong species on an existing batch
+  // short of culling it and starting over. This adds the same species-search
+  // capability the create form already has.
+  const [editingSpecies, setEditingSpecies] = useState(false)
+  const [speciesQuery, setSpeciesQuery] = useState('')
+  const [speciesResults, setSpeciesResults] = useState<{ sp_no: number, species: string, common_name: string | null }[]>([])
+  const [selectedSpNo, setSelectedSpNo] = useState<number | null>(row.sp_no)
+  const [selectedSpeciesLabel, setSelectedSpeciesLabel] = useState(speciesInfo?.species || '')
+  const [speciesNameText, setSpeciesNameText] = useState(row.species_name_text || '')
+
+  useEffect(() => {
+    if (!editingSpecies) return
+    if (speciesQuery.trim().length < 2) { setSpeciesResults([]); return }
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('species')
+        .select('sp_no, species, common_name')
+        .or(`species.ilike.%${speciesQuery}%,common_name.ilike.%${speciesQuery}%`)
+        .limit(8)
+      setSpeciesResults(data || [])
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [speciesQuery, editingSpecies])
+
+  function pickSpecies(s: { sp_no: number, species: string, common_name: string | null }) {
+    setSelectedSpNo(s.sp_no)
+    setSelectedSpeciesLabel(s.species + (s.common_name && s.common_name !== 'Unknown' ? ` \u2014 ${s.common_name}` : ''))
+    setSpeciesQuery('')
+    setSpeciesResults([])
+    setEditingSpecies(false)
+  }
+
   const batchCode = row.tubestock_number || `TS${String(row.id).padStart(4, '0')}`
   const plantTags = Array.from({ length: row.quantity }, (_, i) => `${batchCode}/${padTag(row.quantity - i)}`)
   const nextTag = row.quantity > 0 ? `${batchCode}/${padTag(row.quantity)}` : null
 
   async function createCollectionRow(tag: string | null) {
     const placeholderName = speciesInfo?.species || row.species_name_text || 'Unnamed'
-    return supabase
-      .from('collection')
-      .insert({
+    const res = await fetch('/api/collection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         sp_no: row.sp_no,
         display_name: placeholderName,
         tree_name: `${placeholderName} (from tubestock)`,
@@ -248,9 +282,14 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
         in_collection: true,
         notes: `Promoted from tubestock batch ${tag || batchCode}.`,
         origin_tubestock_tag: tag || batchCode,
-      })
-      .select('collection_id')
-      .single()
+      }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      return { data: null, error: { message: err.error || `Request failed (${res.status})` } }
+    }
+    const data = await res.json()
+    return { data, error: null }
   }
 
   async function decrementTubestock(collectionId: string | null) {
@@ -280,6 +319,8 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: row.id,
+        sp_no: selectedSpNo,
+        species_name_text: selectedSpNo ? null : (speciesNameText.trim() || null),
         quantity,
         health_notes: healthNotes || null,
         growing_on_notes: growingOnNotes || null,
@@ -386,8 +427,62 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
 
       <p style={{ fontSize: '13px', color: '#9ca3af', fontFamily: 'monospace', margin: '0 0 4px' }}>{batchCode}</p>
       <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 4px' }}>{displayLabel}</h1>
-      {speciesInfo?.common_name && <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px' }}>{speciesInfo.common_name}</p>}
-      {row.sp_no && <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 12px' }}>sp_no {row.sp_no}</p>}
+      {speciesInfo?.common_name && !editingSpecies && <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px' }}>{speciesInfo.common_name}</p>}
+      {row.sp_no && !editingSpecies && <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 4px' }}>sp_no {row.sp_no}</p>}
+
+      {!editingSpecies ? (
+        <button
+          onClick={() => setEditingSpecies(true)}
+          style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '13px', cursor: 'pointer', padding: 0, marginBottom: '12px' }}
+        >
+          Change species
+        </button>
+      ) : (
+        <div style={{ marginBottom: '16px', padding: '12px', background: '#f9fafb', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+          {selectedSpeciesLabel ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 600 }}>{selectedSpeciesLabel}</span>
+              <button onClick={() => { setSelectedSpNo(null); setSelectedSpeciesLabel('') }} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '12px', cursor: 'pointer' }}>
+                Clear
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                type="text"
+                placeholder="Search species..."
+                value={speciesQuery}
+                onChange={e => setSpeciesQuery(e.target.value)}
+                style={{ ...inputStyle, marginBottom: '6px' }}
+              />
+              {speciesResults.length > 0 && (
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', maxHeight: '160px', overflowY: 'auto', marginBottom: '6px' }}>
+                  {speciesResults.map(s => (
+                    <div
+                      key={s.sp_no}
+                      onClick={() => pickSpecies(s)}
+                      style={{ padding: '8px 10px', fontSize: '13px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
+                    >
+                      {s.species}{s.common_name && s.common_name !== 'Unknown' ? ` — ${s.common_name}` : ''}
+                      <span style={{ color: '#9ca3af', marginLeft: '6px' }}>sp_no {s.sp_no}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <input
+                type="text"
+                placeholder="Or type a species name not yet in the database..."
+                value={speciesNameText}
+                onChange={e => setSpeciesNameText(e.target.value)}
+                style={inputStyle}
+              />
+            </>
+          )}
+          <button onClick={() => setEditingSpecies(false)} style={{ marginTop: '8px', background: 'none', border: 'none', color: '#6b7280', fontSize: '12px', cursor: 'pointer', padding: 0 }}>
+            Done
+          </button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <span style={{
