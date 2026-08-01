@@ -238,7 +238,8 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
   const [speciesQuery, setSpeciesQuery] = useState('')
   const [speciesResults, setSpeciesResults] = useState<{ sp_no: number, species: string, common_name: string | null, isVariant?: boolean }[]>([])
   const [selectedSpNo, setSelectedSpNo] = useState<number | null>(row.sp_no)
-  const [selectedSpeciesLabel, setSelectedSpeciesLabel] = useState(speciesInfo?.species || '')
+  const [selectedSpeciesName, setSelectedSpeciesName] = useState(speciesInfo?.species || displayLabel)
+  const [selectedCommonName, setSelectedCommonName] = useState(speciesInfo?.common_name || '')
   const [speciesNameText, setSpeciesNameText] = useState(row.species_name_text || '')
 
   useEffect(() => {
@@ -258,7 +259,8 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
 
   function pickSpecies(s: { sp_no: number, species: string, common_name: string | null }) {
     setSelectedSpNo(s.sp_no)
-    setSelectedSpeciesLabel(s.species + (s.common_name && s.common_name !== 'Unknown' ? ` \u2014 ${s.common_name}` : ''))
+    setSelectedSpeciesName(s.species)
+    setSelectedCommonName(s.common_name && s.common_name !== 'Unknown' ? s.common_name : '')
     setSpeciesQuery('')
     setSpeciesResults([])
     setEditingSpecies(false)
@@ -427,9 +429,12 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       </button>
 
       <p style={{ fontSize: '13px', color: '#9ca3af', fontFamily: 'monospace', margin: '0 0 4px' }}>{batchCode}</p>
-      <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 4px' }}>{displayLabel}</h1>
-      {speciesInfo?.common_name && !editingSpecies && <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px' }}>{speciesInfo.common_name}</p>}
-      {row.sp_no && !editingSpecies && <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 4px' }}>sp_no {row.sp_no}</p>}
+      <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 4px' }}>{selectedSpeciesName}</h1>
+      {selectedCommonName && !editingSpecies && <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px' }}>{selectedCommonName}</p>}
+      {selectedSpNo && !editingSpecies && <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 4px' }}>sp_no {selectedSpNo}</p>}
+      {selectedSpNo !== row.sp_no && !editingSpecies && (
+        <p style={{ fontSize: '12px', color: '#d97706', margin: '0 0 4px', fontWeight: 600 }}>Not saved yet — tap "Save changes" below</p>
+      )}
 
       {!editingSpecies ? (
         <button
@@ -440,10 +445,12 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
         </button>
       ) : (
         <div style={{ marginBottom: '16px', padding: '12px', background: '#f9fafb', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-          {selectedSpeciesLabel ? (
+          {selectedSpNo ? (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 600 }}>{selectedSpeciesLabel}</span>
-              <button onClick={() => { setSelectedSpNo(null); setSelectedSpeciesLabel('') }} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '12px', cursor: 'pointer' }}>
+              <span style={{ fontSize: '14px', fontWeight: 600 }}>
+                {selectedSpeciesName}{selectedCommonName ? ` \u2014 ${selectedCommonName}` : ''}
+              </span>
+              <button onClick={() => { setSelectedSpNo(null); setSelectedSpeciesName(''); setSelectedCommonName('') }} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '12px', cursor: 'pointer' }}>
                 Clear
               </button>
             </div>
