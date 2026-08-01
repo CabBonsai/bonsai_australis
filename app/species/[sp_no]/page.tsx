@@ -224,6 +224,7 @@ export default function SpeciesDetail() {
   const [regional, setRegional] = useState<any>(null)
   const [placement, setPlacement] = useState<any>(null)
   const [toxicity, setToxicity] = useState<any>(null)
+  const [collectionTrees, setCollectionTrees] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -232,7 +233,7 @@ export default function SpeciesDetail() {
 
   useEffect(() => {
     async function fetchAll() {
-      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, barkRes, taperRes, tubDevRes, tubInvRes, seasRes, advRes, regRes, placeRes, toxRes, prevRes, nextRes] = await Promise.all([
+      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, barkRes, taperRes, tubDevRes, tubInvRes, seasRes, advRes, regRes, placeRes, toxRes, collRes, prevRes, nextRes] = await Promise.all([
         supabase.from('species').select('*').eq('sp_no', spNo).single(),
         supabase.from('bonsai_suitability').select('*').eq('sp_no', spNo).single(),
         supabase.from('care_guide').select('*').eq('sp_no', spNo).single(),
@@ -251,6 +252,7 @@ export default function SpeciesDetail() {
         supabase.from('regional_suitability').select('*').eq('sp_no', spNo).single(),
         supabase.from('placement_matrix').select('*').eq('sp_no', spNo).single(),
         supabase.from('toxicity').select('*').eq('sp_no', spNo).single(),
+        supabase.from('collection').select('collection_id, display_name, tree_name, image_url, status, health_status, variant_sp_no').eq('sp_no', spNo).order('display_name', { ascending: true }),
         supabase.from('species').select('sp_no').lt('sp_no', spNo).order('sp_no', { ascending: false }).limit(1).single(),
         supabase.from('species').select('sp_no').gt('sp_no', spNo).order('sp_no', { ascending: true }).limit(1).single(),
       ])
@@ -270,6 +272,7 @@ export default function SpeciesDetail() {
       if (!regRes.error) setRegional(regRes.data)
       if (!placeRes.error) setPlacement(placeRes.data)
       if (!toxRes.error) setToxicity(toxRes.data)
+      if (!collRes.error) setCollectionTrees(collRes.data || [])
       setPrevNext({ prev: prevRes.data?.sp_no ?? null, next: nextRes.data?.sp_no ?? null })
       setLoading(false)
     }
@@ -1198,6 +1201,22 @@ export default function SpeciesDetail() {
           {generatingReport === 'spotlight' ? 'Generating...' : '✨ Spotlight PDF'}
         </button>
       </div>
+      {collectionTrees.length > 0 && (
+        <div style={{background:'#f0f4e8',border:'1px solid #cfdcb0',borderRadius:'10px',padding:'14px 18px',marginBottom:'22px'}}>
+          <p style={{fontSize:'12px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'#5c7a2a',margin:'0 0 8px'}}>
+            In Your Collection ({collectionTrees.length})
+          </p>
+          <div style={{display:'flex',flexWrap:'wrap',gap:'8px'}}>
+            {collectionTrees.map(t => (
+              <a key={t.collection_id} href={`/collection/${t.collection_id}`} style={{display:'flex',alignItems:'center',gap:'8px',background:'#fffefb',border:'1px solid #e2dac2',borderRadius:'8px',padding:'6px 12px',textDecoration:'none',color:'#2b2620',fontSize:'13px',fontWeight:600}}>
+                {t.image_url && <img src={t.image_url} alt="" style={{width:'28px',height:'28px',objectFit:'cover',borderRadius:'4px'}} />}
+                {t.display_name || t.tree_name || 'Unnamed Tree'}
+                {t.variant_sp_no && <span style={{fontSize:'11px',fontWeight:500,color:'#9ca3af'}}>variant</span>}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
       <h1 style={{fontSize:'32px',fontWeight:700,color:'#2b2620',letterSpacing:'-0.01em'}}>{species.species}</h1>
       <p style={{fontSize:'14px',color:'#a89e7a',marginBottom:'20px'}}>sp_no: {species.sp_no}</p>
       <SpeciesPhotoField value={species.reference_photo || ''} onChange={v => updateSpecies('reference_photo', v)} />
