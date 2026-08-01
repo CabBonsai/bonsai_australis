@@ -25,12 +25,20 @@ async function adminPatch(table: string, id: any, fields: Record<string, any>) {
 }
 
 // Percentage of the 10 core tables (matching species_completeness's own set)
-// that are genuinely researched, using needs_verification === false as the
-// project's established "reliable filter" for real research vs Family Default.
-// A missing row counts as incomplete, same as a Family Default row would.
-function completenessPercent(rows: any[]) {
-  const done = rows.filter(r => r && r.needs_verification === false).length
-  return Math.round((done / rows.length) * 100)
+// that are genuinely, fully researched. Most tables use needs_verification
+// === false (the project's established filter for "genuinely researched").
+// bonsai_suitability is checked more strictly via final_bonsai_score, since
+// the Reconciliation Rule trigger only populates that once all 10 BAMSR
+// traits are filled — a row can have needs_verification=false while still
+// carrying real trait gaps (e.g. nebari/longevity left honestly unscored),
+// and that shouldn't count as fully complete.
+function completenessPercent(species: any, suitability: any, otherRows: any[]) {
+  const speciesDone = species && species.needs_verification === false
+  const suitabilityDone = suitability && suitability.final_bonsai_score !== null && suitability.final_bonsai_score !== undefined
+  const otherDone = otherRows.filter(r => r && r.needs_verification === false).length
+  const done = (speciesDone ? 1 : 0) + (suitabilityDone ? 1 : 0) + otherDone
+  const total = 2 + otherRows.length
+  return Math.round((done / total) * 100)
 }
 
 function Section({ title, children }: { title: string, children: React.ReactNode }) {
@@ -1213,7 +1221,7 @@ export default function SpeciesDetail() {
           <label style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',fontSize:'13px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'6px'}}>
             <span>Research status</span>
             <span style={{textTransform:'none',letterSpacing:'normal',fontWeight:400}}>
-              {completenessPercent([species, suitability, careGuide, seasonal, fertilisation, pruning, nebari, regional, tubestockDev, advanced])}% researched
+              {completenessPercent(species, suitability, [careGuide, seasonal, fertilisation, pruning, nebari, regional, tubestockDev, advanced])}% researched
             </span>
           </label>
           <select value={species.research_status || "Not Started"} onChange={e => updateSpecies("research_status", e.target.value)} style={{width:'100%',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'12px 16px',fontSize:'17px',color:'#2b2620',background:'#fffefb',outline:'none'}}>
