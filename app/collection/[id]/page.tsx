@@ -823,9 +823,16 @@ export default function CollectionDetailPage() {
         <h1 style={{ width: '100%', fontSize: '32px', fontWeight: 700, color: '#2b2620', borderBottom: '1px solid #e2dac2', paddingBottom: '10px', marginBottom: '2px', letterSpacing: '-0.01em' }}>
           {tree.display_name || 'Unnamed Tree'}
         </h1>
-        <p style={{ fontSize: '13px', color: '#a89e7a', margin: '0 0 8px' }}>
-          sp_no: {tree.sp_no ?? '— not set —'}
-          {tree.variant_sp_no ? ` · variant sp_no: ${tree.variant_sp_no}` : ''}
+        <p style={{ fontSize: '13px', color: '#a89e7a', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <span>
+            sp_no: {tree.sp_no ?? '— not set —'}
+            {tree.variant_sp_no ? ` · variant sp_no: ${tree.variant_sp_no}` : ''}
+          </span>
+          {tree.sp_no && (
+            <a href={`/species/${tree.sp_no}`} style={{ fontSize: '13px', color: '#55702a', fontWeight: 600, textDecoration: 'none' }}>
+              View Species Info →
+            </a>
+          )}
         </p>
         <input
           type="text"
