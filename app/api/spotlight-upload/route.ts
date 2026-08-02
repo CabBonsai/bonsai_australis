@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { supabaseServer } from '@/lib/supabaseServer'
 
 // Service-role upload route for the spotlight-reports bucket. Added session 24
 // after the RLS/storage-policy audit found spotlight-reports had a public
@@ -9,29 +9,23 @@ import { createClient } from '@supabase/supabase-js'
 // supabase.storage.from('spotlight-reports').upload(...) call (previously in
 // app/species/[sp_no]/page.tsx's generateSpotlightPDF), so uploads/replacements
 // only happen server-side, behind the existing admin-app password gate
-// (middleware.ts), using the service role key rather than the anon key.
+// (middleware.ts / admin_auth cookie), using the service role key rather than
+// the anon key. Uses the shared supabaseServer client (lib/supabaseServer.ts),
+// same as /api/admin-table, rather than creating a separate client here.
 //
 // After deploying this route and confirming Species of the Week still works,
 // the public/anon INSERT and UPDATE policies on spotlight-reports in
 // storage.objects should be dropped, since nothing needs to write to that
 // bucket directly from the browser anymore.
-//
-// NOTE: env var names below (NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-// match the convention described for /api/admin-table in session 23's notes --
-// double check they match exactly what that route actually uses before deploying,
-// in case the real names differ.
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export async function POST(req: NextRequest) {
   try {
-    const { storagePath, pdfBase64 } = await req.json()
+    const formData = await req.formData()
+    const storagePath = formData.get('storagePath') as string | null
+    const file = formData.get('file') as File | null
 
-    if (!storagePath || !pdfBase64) {
-      return NextResponse.json({ error: 'storagePath and pdfBase64 are required' }, { status: 400 })
+    if (!storagePath || !file) {
+      return NextResponse.json({ error: 'storagePath and file are required' }, { status: 400 })
     }
 
     // Sanity check so this route can't be pointed at an arbitrary storage
@@ -41,9 +35,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid storage path format' }, { status: 400 })
     }
 
-    const buffer = Buffer.from(pdfBase64, 'base64')
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
 
-    const { error: uploadError } = await supabaseAdmin.storage
+    const { error: uploadError } = await supabaseServer.storage
       .from('spotlight-reports')
       .upload(storagePath, buffer, { contentType: 'application/pdf', upsert: true })
 
@@ -51,7 +46,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: uploadError.message }, { status: 500 })
     }
 
-    const { data: urlData } = supabaseAdmin.storage.from('spotlight-reports').getPublicUrl(storagePath)
+    const { data: urlData } = supabaseServer.storage.from('spotlight-reports').getPublicUrl(storagePath)
 
     return NextResponse.json({ publicUrl: urlData.publicUrl })
   } catch (e: any) {
