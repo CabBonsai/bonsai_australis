@@ -1151,19 +1151,29 @@ export default function SpeciesDetail() {
       doc.text(disclaimerLines, margin, y)
       doc.setTextColor(0, 0, 0)
 
-      // Upload to Storage rather than local download — one static file, linked from the public site.
+      // Upload via service-role API route (session 24) — spotlight-reports no
+      // longer has a public/anon storage write policy, so this goes through
+      // an authenticated server route instead of the browser's anon client.
       const fileSlug = (species.species || 'species').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
       const pdfBlob = doc.output('blob')
       const storagePath = `${spNo}_${fileSlug}_spotlight.pdf`
-      const { error: uploadError } = await supabase.storage
-        .from('spotlight-reports')
-        .upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
-      if (uploadError) {
-        alert('Upload failed: ' + uploadError.message + '\n\nMake sure the "spotlight-reports" bucket exists in Supabase Storage and is set to Public.')
+      const pdfBase64: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(pdfBlob)
+      })
+      const uploadRes = await fetch('/api/spotlight-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storagePath, pdfBase64 }),
+      })
+      const uploadJson = await uploadRes.json()
+      if (!uploadRes.ok) {
+        alert('Upload failed: ' + (uploadJson.error || `Request failed (${uploadRes.status})`))
         return
       }
-      const { data: urlData } = supabase.storage.from('spotlight-reports').getPublicUrl(storagePath)
-      const publicUrl = urlData.publicUrl
+      const publicUrl = uploadJson.publicUrl
       try {
         await navigator.clipboard.writeText(publicUrl)
         alert('Spotlight PDF generated and link copied to clipboard:\n\n' + publicUrl)
