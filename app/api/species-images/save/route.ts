@@ -17,7 +17,7 @@ import { supabaseServer } from "@/lib/supabaseServer";
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies();
-  if (cookieStore.get("admin_auth")?.value !== "true") {
+  if (cookieStore.get("admin_auth")?.value !== process.env.ADMIN_PASSWORD) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

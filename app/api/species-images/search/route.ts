@@ -21,7 +21,7 @@ const OPENVERSE_BASE = "https://api.openverse.org/v1/images/";
 export async function GET(req: NextRequest) {
   // Admin auth check — same cookie convention as the rest of bonsai-admin's API routes.
   const cookieStore = await cookies();
-  if (cookieStore.get("admin_auth")?.value !== "true") {
+  if (cookieStore.get("admin_auth")?.value !== process.env.ADMIN_PASSWORD) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
