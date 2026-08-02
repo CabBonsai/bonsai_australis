@@ -1007,7 +1007,7 @@ export default function SpeciesDetail() {
         try {
           const res = await fetch(species.reference_photo)
           const blob = await res.blob()
-          const photoDataUrl: string = await new Promise((resolve, reject) => {
+          const rawDataUrl: string = await new Promise((resolve, reject) => {
             const reader = new FileReader()
             reader.onloadend = () => resolve(reader.result as string)
             reader.onerror = reject
@@ -1017,13 +1017,30 @@ export default function SpeciesDetail() {
           await new Promise((resolve, reject) => {
             img.onload = resolve
             img.onerror = reject
-            img.src = photoDataUrl
+            img.src = rawDataUrl
           })
           const maxPhotoHeight = 220
           const scale = Math.min(contentWidth / img.width, maxPhotoHeight / img.height)
           const w = img.width * scale
           const h = img.height * scale
-          doc.addImage(photoDataUrl, margin + (contentWidth - w) / 2, y, w, h)
+          // Downscale the actual pixel data via canvas before embedding --
+          // jsPDF's addImage draws the source at the given display size but
+          // does NOT resample the underlying pixel data, so a high-resolution
+          // phone photo was being embedded at full size regardless of how
+          // small it appeared on the page. That bloated the finished PDF and,
+          // combined with the base64 upload step, could push large-photo
+          // spotlight PDFs over the server's request size limit. Render at a
+          // fixed, print-reasonable pixel size instead.
+          const targetDpi = 150
+          const pxWidth = Math.max(1, Math.round((w / 72) * targetDpi))
+          const pxHeight = Math.max(1, Math.round((h / 72) * targetDpi))
+          const canvas = document.createElement('canvas')
+          canvas.width = pxWidth
+          canvas.height = pxHeight
+          const ctx = canvas.getContext('2d')!
+          ctx.drawImage(img, 0, 0, pxWidth, pxHeight)
+          const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.82)
+          doc.addImage(resizedDataUrl, margin + (contentWidth - w) / 2, y, w, h)
           y += h + 16
         } catch (e) { console.warn('Photo failed to load for spotlight PDF', e) }
       }
@@ -1154,19 +1171,19 @@ export default function SpeciesDetail() {
       // Upload via service-role API route (session 24) — spotlight-reports no
       // longer has a public/anon storage write policy, so this goes through
       // an authenticated server route instead of the browser's anon client.
+      // Sent as raw multipart form data, not base64-encoded JSON — base64
+      // inflates payload size by ~33%, which combined with an embedded photo
+      // could push the request over the server's size limit (found on
+      // Brachychiton rupestris, which has a reference photo attached).
       const fileSlug = (species.species || 'species').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
       const pdfBlob = doc.output('blob')
       const storagePath = `${spNo}_${fileSlug}_spotlight.pdf`
-      const pdfBase64: string = await new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve((reader.result as string).split(',')[1])
-        reader.onerror = reject
-        reader.readAsDataURL(pdfBlob)
-      })
+      const uploadFormData = new FormData()
+      uploadFormData.append('storagePath', storagePath)
+      uploadFormData.append('file', pdfBlob, storagePath)
       const uploadRes = await fetch('/api/spotlight-upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storagePath, pdfBase64 }),
+        body: uploadFormData,
       })
       const uploadJson = await uploadRes.json()
       if (!uploadRes.ok) {
