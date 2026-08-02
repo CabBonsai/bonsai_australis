@@ -45,7 +45,7 @@ export default function ImageManagerPage() {
     setError(null);
     setResults([]);
     try {
-      const res = await fetch(`/api/species-images/search?q=${encodeURIComponent(speciesName + " bonsai")}`);
+      const res = await fetch(`/api/species-images/search?q=${encodeURIComponent(speciesName)}`);
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Search failed.");
