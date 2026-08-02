@@ -254,7 +254,10 @@ export default function Home() {
             Community Submissions
           </Link>
           <Link href="/tubestock-admin" style={{ fontSize: '13px', background: '#84670d', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
-            Tubestock
+           Tubestock
+          </Link>
+          <Link href="/image-manager" style={{ fontSize: '13px', background: '#d97706', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Image Manager
           </Link>
           <Link href="/species-of-the-week" style={{ fontSize: '13px', background: '#d9a02b', color: '#2b2620', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}>
             ✨ Species of the Week
