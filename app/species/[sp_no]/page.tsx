@@ -575,6 +575,10 @@ export default function SpeciesDetail() {
   }
 
   async function generatePDF(reportType: 'basic' | 'advanced') {
+    if (species?.is_deprecated) {
+      alert(`This species record is deprecated -- use sp_no ${species.canonical_sp_no ?? '(see deprecated_note)'} instead. Reports cannot be generated from a deprecated record.`)
+      return
+    }
     setGeneratingReport(reportType)
     try {
       const { jsPDF } = await import('jspdf')
@@ -960,6 +964,10 @@ export default function SpeciesDetail() {
   // uploaded to Supabase Storage (bucket: spotlight-reports) instead of downloaded locally,
   // since the intent is one static file to link from the public site, not a local copy.
   async function generateSpotlightPDF() {
+    if (species?.is_deprecated) {
+      alert(`This species record is deprecated -- use sp_no ${species.canonical_sp_no ?? '(see deprecated_note)'} instead. Spotlight PDFs cannot be generated from a deprecated record.`)
+      return
+    }
     setGeneratingReport('spotlight')
     try {
       const { jsPDF } = await import('jspdf')
@@ -1210,6 +1218,46 @@ export default function SpeciesDetail() {
 
   return (
     <div style={{width:'100%',boxSizing:'border-box',maxWidth:'1500px',margin:'0 auto',padding:'24px 24px 96px',background:'#faf7f1',minHeight:'100vh'}}>
+      {species.is_deprecated && (
+        <div style={{
+          background: '#fee2e2',
+          border: '2px solid #dc2626',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+        }}>
+          <div>
+            <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#991b1b' }}>
+              ⚠️ This species record is deprecated
+            </p>
+            <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#7f1d1d' }}>
+              {species.deprecated_note || 'This is a duplicate/superseded record and should not be used or updated independently.'}
+            </p>
+          </div>
+          {species.canonical_sp_no && (
+            <Link
+              href={`/species/${species.canonical_sp_no}`}
+              style={{
+                flexShrink: 0,
+                background: '#dc2626',
+                color: '#fff',
+                padding: '10px 18px',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '14px',
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Go to sp_no {species.canonical_sp_no} &rarr;
+            </Link>
+          )}
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <Link href="/" style={{color:'#5c7a2a',fontSize:'14px',fontWeight:600,textDecoration:'none'}}>&larr; Back to list</Link>
         <div style={{ display: 'flex', gap: '14px' }}>
