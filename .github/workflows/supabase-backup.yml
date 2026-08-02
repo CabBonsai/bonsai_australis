@@ -36,6 +36,9 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -e
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          which pg_dump
+          pg_dump --version
           TIMESTAMP=$(date -u +"%Y-%m-%d_%H%M")
           DUMP_FILE="bonsai_australis_${TIMESTAMP}.dump"
           mkdir -p dumps
