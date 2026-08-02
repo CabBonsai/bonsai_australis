@@ -22,9 +22,14 @@ jobs:
           path: backups-repo
 
       - name: Install PostgreSQL client
+        # Supabase runs Postgres 17.x; the default Ubuntu runner's apt
+        # package is pg_dump 16, which refuses to dump a newer server.
+        # Add the official PGDG apt repo to get a matching client version.
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
 
       - name: Create timestamped dump
         env:
