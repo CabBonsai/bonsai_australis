@@ -25,18 +25,48 @@ export default function SpeciesImageGallery({ spNo }: { spNo: string }) {
   const [images, setImages] = useState<SpeciesImage[]>([])
   const [loading, setLoading] = useState(true)
   const [removingId, setRemovingId] = useState<string | null>(null)
+  const [settingId, setSettingId] = useState<string | null>(null)
+  const [currentRefUrl, setCurrentRefUrl] = useState<string | null>(null)
 
   async function load() {
-    const { data } = await supabase
-      .from('species_images')
-      .select('id, image_url, thumbnail_url, photographer, licence, attribution_text, source_page_url')
-      .eq('sp_no', spNo)
-      .order('imported_at', { ascending: false })
-    setImages(data || [])
+    const [imagesRes, speciesRes] = await Promise.all([
+      supabase
+        .from('species_images')
+        .select('id, image_url, thumbnail_url, photographer, licence, attribution_text, source_page_url')
+        .eq('sp_no', spNo)
+        .order('imported_at', { ascending: false }),
+      supabase.from('species').select('reference_photo').eq('sp_no', spNo).single(),
+    ])
+    setImages(imagesRes.data || [])
+    setCurrentRefUrl(speciesRes.data?.reference_photo || null)
     setLoading(false)
   }
 
   useEffect(() => { load() }, [spNo])
+
+  async function handleSetReference(img: SpeciesImage) {
+    setSettingId(img.id)
+    try {
+      const res = await fetch('/api/admin-table', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table: 'species',
+          id: spNo,
+          reference_photo: img.image_url,
+          reference_photo_attribution: img.attribution_text,
+        }),
+      })
+      if (res.ok) {
+        setCurrentRefUrl(img.image_url)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert('Set reference photo failed: ' + (data.error || res.status))
+      }
+    } finally {
+      setSettingId(null)
+    }
+  }
 
   async function handleRemove(id: string) {
     if (!confirm('Remove this image? This cannot be undone.')) return
@@ -61,16 +91,37 @@ export default function SpeciesImageGallery({ spNo }: { spNo: string }) {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '14px' }}>
-      {images.map(img => (
-        <div key={img.id} style={{ border: '1px solid #ded4bd', borderRadius: '10px', overflow: 'hidden', background: '#fffdf9' }}>
-          <img
-            src={img.thumbnail_url || img.image_url}
-            alt=""
-            style={{ width: '100%', height: '130px', objectFit: 'cover', display: 'block' }}
-          />
+      {images.map(img => {
+        const isCurrentRef = currentRefUrl === img.image_url
+        return (
+        <div key={img.id} style={{ border: isCurrentRef ? '2px solid #7a9c42' : '1px solid #ded4bd', borderRadius: '10px', overflow: 'hidden', background: '#fffdf9' }}>
+          <div style={{ position: 'relative' }}>
+            <img
+              src={img.thumbnail_url || img.image_url}
+              alt=""
+              style={{ width: '100%', height: '130px', objectFit: 'cover', display: 'block' }}
+            />
+            {isCurrentRef && (
+              <span style={{ position: 'absolute', top: '6px', left: '6px', fontSize: '10px', fontWeight: 700, background: '#7a9c42', color: '#fff', padding: '2px 8px', borderRadius: '999px' }}>
+                Reference photo
+              </span>
+            )}
+          </div>
           <div style={{ padding: '8px 10px' }}>
             <p style={{ fontSize: '12px', fontWeight: 600, color: '#3f5228', margin: '0 0 2px' }}>{img.licence}</p>
             <p style={{ fontSize: '11px', color: '#8a7f5f', margin: '0 0 8px' }}>{img.photographer || 'Unknown'}</p>
+            <button
+              onClick={() => handleSetReference(img)}
+              disabled={isCurrentRef || settingId === img.id}
+              style={{
+                width: '100%', padding: '5px 0', fontSize: '12px', fontWeight: 600, marginBottom: '6px',
+                background: isCurrentRef ? '#eef3e5' : '#eef4e0', color: isCurrentRef ? '#7a9c42' : '#3f5228',
+                border: '1px solid #cfe0b0', borderRadius: '6px', cursor: isCurrentRef ? 'default' : 'pointer',
+                opacity: settingId === img.id ? 0.5 : 1,
+              }}
+            >
+              {isCurrentRef ? 'Current reference' : settingId === img.id ? 'Setting...' : 'Set as reference'}
+            </button>
             <button
               onClick={() => handleRemove(img.id)}
               disabled={removingId === img.id}
@@ -85,7 +136,7 @@ export default function SpeciesImageGallery({ spNo }: { spNo: string }) {
             </button>
           </div>
         </div>
-      ))}
+      )})}
     </div>
   )
 }
