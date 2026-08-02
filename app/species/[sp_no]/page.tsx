@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import VariantsSection from '@/components/VariantsSection'
+import SpeciesImageGallery from '@/components/SpeciesImageGallery'
 
 // Routes writes through /api/admin-table (service role, RLS bypass) instead
 // of the anon client directly — these tables no longer have anon UPDATE
@@ -1580,6 +1581,9 @@ export default function SpeciesDetail() {
           <Field label="Development years 9-10" value={advanced.development_years_9_10} onChange={v => updateAdvanced('development_years_9_10', v)} type="textarea" />
         </Section>
       )}
+        <Section title="Photos">
+        <SpeciesImageGallery spNo={spNo as string} />
+      </Section>
       <Section title="Variants">
         <VariantsSection spNo={spNo as string} />
       </Section>
