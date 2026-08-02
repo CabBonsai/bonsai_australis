@@ -12,6 +12,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 type SearchResult = {
   external_id: string;
@@ -45,7 +46,7 @@ export default function ImageManagerPage() {
     setError(null);
     setResults([]);
     try {
-      const res = await fetch(`/api/species-images/search?q=${encodeURIComponent(speciesName)}`);
+      const res = await fetch(`/api/species-images/search?q=${encodeURIComponent(speciesName + " bonsai")}`);
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Search failed.");
@@ -97,7 +98,8 @@ export default function ImageManagerPage() {
 
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", padding: "32px 20px", fontFamily: "sans-serif" }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>Image Manager</h1>
+      <Link href="/" style={{ fontSize: 13, color: "#6b7280", textDecoration: "none" }}>&larr; Dashboard</Link>
+      <h1 style={{ fontSize: 24, fontWeight: 700, margin: "4px 0 4px" }}>Image Manager</h1>
       <p style={{ color: "#666", marginBottom: 24, fontSize: 14 }}>
         Search Openverse for licence-cleared images. Nothing saves automatically — review each
         result and approve individually.

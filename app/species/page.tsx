@@ -162,6 +162,9 @@ export default function SpeciesList() {
           <Link href="/species/new" style={{ fontSize: '13px', background: '#16a34a', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             + New Species
           </Link>
+          <Link href="/image-manager" style={{ fontSize: '13px', background: '#d97706', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Image Manager
+          </Link>
           <Link href="/collection" style={{ fontSize: '13px', background: '#2563eb', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             My Collection
           </Link>
