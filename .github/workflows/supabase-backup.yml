@@ -1,0 +1,72 @@
+name: Supabase Database Backup
+
+# Runs every Sunday at 16:00 UTC = 02:00 Brisbane time (Brisbane doesn't
+# observe daylight saving, so this offset is fixed year-round).
+# Also runnable manually any time via the Actions tab ("Run workflow" button)
+# — useful for testing this workflow, and worth doing once before a session
+# where you're about to run any bulk SQL correction.
+on:
+  schedule:
+    - cron: '0 16 * * 0'
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout backup repo
+        uses: actions/checkout@v4
+        with:
+          repository: CabBonsai/bonsai_db_backups
+          token: ${{ secrets.BACKUP_REPO_TOKEN }}
+          path: backups-repo
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Create timestamped dump
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -e
+          TIMESTAMP=$(date -u +"%Y-%m-%d_%H%M")
+          DUMP_FILE="bonsai_australis_${TIMESTAMP}.dump"
+          mkdir -p dumps
+          pg_dump "$SUPABASE_DB_URL" \
+            --format=custom \
+            --no-owner \
+            --no-privileges \
+            --schema=public \
+            --file="dumps/${DUMP_FILE}"
+          echo "DUMP_FILE=${DUMP_FILE}" >> "$GITHUB_ENV"
+
+      - name: Verify dump is non-empty before trusting it
+        run: |
+          set -e
+          SIZE=$(stat -c%s "dumps/${DUMP_FILE}")
+          echo "Dump size: ${SIZE} bytes"
+          if [ "$SIZE" -lt 1000 ]; then
+            echo "::error::Dump file suspiciously small (${SIZE} bytes) — aborting rather than committing a broken backup. Check the SUPABASE_DB_URL secret and connection type (must be Session pooler, not Transaction pooler or Direct connection — see README)."
+            exit 1
+          fi
+
+      - name: Copy dump into backup repo
+        run: |
+          mkdir -p backups-repo/dumps
+          cp "dumps/${DUMP_FILE}" "backups-repo/dumps/${DUMP_FILE}"
+
+      - name: Commit and push backup
+        working-directory: backups-repo
+        run: |
+          set -e
+          git config user.name "Bonsai Backup Bot"
+          git config user.email "actions@github.com"
+          git add "dumps/${DUMP_FILE}"
+          if git diff --cached --quiet; then
+            echo "Nothing to commit (unexpected — dump file didn't change git status)."
+            exit 1
+          fi
+          git commit -m "Automated backup: ${DUMP_FILE}"
+          git push
