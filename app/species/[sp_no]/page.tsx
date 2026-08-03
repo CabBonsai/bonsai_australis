@@ -1322,7 +1322,7 @@ export default function SpeciesDetail() {
           <label style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',fontSize:'13px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'6px'}}>
             <span>Research status</span>
             <span style={{textTransform:'none',letterSpacing:'normal',fontWeight:400}}>
-              {completenessPercent(species, suitability, [careGuide, seasonal, fertilisation, pruning, nebari, regional, tubestockDev, advanced])}% researched
+              {completenessPercent(species, suitability, [careGuide, seasonal, fertilisation, pruning, nebari, regional, tubestockDev, advanced])}% fields populated
             </span>
           </label>
           <select value={species.research_status || "Not Started"} onChange={e => updateSpecies("research_status", e.target.value)} style={{width:'100%',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'12px 16px',fontSize:'17px',color:'#2b2620',background:'#fffefb',outline:'none'}}>
