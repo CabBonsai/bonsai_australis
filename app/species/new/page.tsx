@@ -3,6 +3,24 @@
 import { useState } from 'react'
 export const dynamic = 'force-dynamic'
 
+// Supporting tables seeded with a bare {sp_no} row right after species
+// creation. Added [session 26 date] after finding that species created
+// through this form (like every species added via migrate_species.py)
+// were silently missing from all 7 of these tables - this form previously
+// only ever wrote to the species table itself. Only sp_no is required on
+// any of these tables; every other column defaults correctly (data_source
+// -> 'Family Default', research_status -> 'Not Started', needs_verification
+// -> true), so this produces the normal honest "not yet researched" state.
+const SUPPORTING_TABLES = [
+  'care_guide',
+  'bonsai_suitability',
+  'fertilisation',
+  'pruning_protocols',
+  'nebari_root',
+  'seasonal_maintenance',
+  'regional_suitability',
+]
+
 export default function NewSpeciesPage() {
   const [form, setForm] = useState({
     species: '',
@@ -57,7 +75,22 @@ export default function NewSpeciesPage() {
     }
 
     const data = await res.json()
-    window.location.href = `/species/${data[0].sp_no}`
+    const newSpNo = data[0].sp_no
+
+    // Seed the 7 supporting tables so this species behaves normally in the
+    // admin UI immediately, rather than silently missing rows until some
+    // later fix pass finds the gap.
+    await Promise.all(
+      SUPPORTING_TABLES.map(table =>
+        fetch('/api/admin-table', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table, rows: [{ sp_no: newSpNo }] }),
+        }).catch(err => console.error(`Failed to seed ${table} for sp_no ${newSpNo}:`, err))
+      )
+    )
+
+    window.location.href = `/species/${newSpNo}`
   }
 
   const inputClass = "w-full border rounded-lg px-3 py-2 text-base"
