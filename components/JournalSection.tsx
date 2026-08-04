@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { uploadPhoto } from '@/lib/uploadPhoto'
 
 function JournalPhotoField({ value, onChange }: { value: string, onChange: (v: string) => void }) {
   const [uploading, setUploading] = useState(false)
@@ -11,12 +12,10 @@ function JournalPhotoField({ value, onChange }: { value: string, onChange: (v: s
     if (!file) return
     setUploading(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
-      const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-      const { error } = await supabase.storage.from('tree-photos').upload(path, file)
-      if (error) { alert('Upload failed: ' + error.message); return }
-      const { data } = supabase.storage.from('tree-photos').getPublicUrl(path)
-      onChange(data.publicUrl)
+      const publicUrl = await uploadPhoto(file, 'tree-photos')
+      onChange(publicUrl)
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message)
     } finally {
       setUploading(false)
       e.target.value = ''

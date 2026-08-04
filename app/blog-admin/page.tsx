@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { uploadPhoto } from '@/lib/uploadPhoto'
 
 const inputClass = "w-full border rounded px-4 py-3 text-base min-h-[48px]"
 
@@ -128,12 +129,10 @@ function PostEditor({ post, onDone }: { post: Post | null, onDone: () => void })
     if (!file) return
     setUploading(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
-      const path = `blog_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-      const { error } = await supabase.storage.from('tree-photos').upload(path, file)
-      if (error) { alert('Upload failed: ' + error.message); return }
-      const { data } = supabase.storage.from('tree-photos').getPublicUrl(path)
-      setPhotos(prev => [...prev, data.publicUrl])
+      const publicUrl = await uploadPhoto(file, 'tree-photos', 'blog_')
+      setPhotos(prev => [...prev, publicUrl])
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message)
     } finally {
       setUploading(false)
       e.target.value = ''

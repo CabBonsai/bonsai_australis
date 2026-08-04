@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { uploadPhoto } from '@/lib/uploadPhoto'
 import JournalSection from '@/components/JournalSection'
 
 function Section({ title, defaultOpen, children }: { title: string, defaultOpen?: boolean, children: React.ReactNode }) {
@@ -142,15 +143,10 @@ function PhotoField({ label, value, onChange }: { label: string, value: string, 
     if (!file) return
     setUploading(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
-      const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-      const { error } = await supabase.storage.from('tree-photos').upload(path, file)
-      if (error) {
-        alert('Upload failed: ' + error.message)
-        return
-      }
-      const { data } = supabase.storage.from('tree-photos').getPublicUrl(path)
-      onChange(data.publicUrl)
+      const publicUrl = await uploadPhoto(file, 'tree-photos')
+      onChange(publicUrl)
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message)
     } finally {
       setUploading(false)
       e.target.value = ''
@@ -209,15 +205,10 @@ function HeroPhotoField({ value, onChange }: { value: string, onChange: (v: stri
     if (!file) return
     setUploading(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
-      const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-      const { error } = await supabase.storage.from('tree-photos').upload(path, file)
-      if (error) {
-        alert('Upload failed: ' + error.message)
-        return
-      }
-      const { data } = supabase.storage.from('tree-photos').getPublicUrl(path)
-      onChange(data.publicUrl)
+      const publicUrl = await uploadPhoto(file, 'tree-photos')
+      onChange(publicUrl)
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message)
     } finally {
       setUploading(false)
       e.target.value = ''
