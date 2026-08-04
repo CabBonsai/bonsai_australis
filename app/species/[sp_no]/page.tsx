@@ -575,12 +575,47 @@ export default function SpeciesDetail() {
   }
 
   async function generatePDF(reportType: 'basic' | 'advanced') {
-    if (species?.is_deprecated) {
-      alert(`This species record is deprecated -- use sp_no ${species.canonical_sp_no ?? '(see deprecated_note)'} instead. Reports cannot be generated from a deprecated record.`)
-      return
-    }
     setGeneratingReport(reportType)
     try {
+      // Re-fetch fresh from the database rather than trusting component state,
+      // which reflects the live form and can include unsaved edits not yet
+      // persisted via the Save button. Fixes a confirmed bug (session 26):
+      // a generated PDF showed research_status "In Progress" while the live
+      // database had "Not Started" for the same species, traced to this
+      // function previously closing over the same `species`/`suitability`/etc.
+      // state used by the editable form fields above, rather than re-fetching.
+      // These local consts shadow the outer state variables of the same name
+      // for the rest of this function, so nothing below needed to change.
+      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes, placeRes, toxRes] = await Promise.all([
+        supabase.from('species').select('*').eq('sp_no', spNo).single(),
+        supabase.from('bonsai_suitability').select('*').eq('sp_no', spNo).single(),
+        supabase.from('care_guide').select('*').eq('sp_no', spNo).single(),
+        supabase.from('fertilisation').select('*').eq('sp_no', spNo).single(),
+        supabase.from('pruning_protocols').select('*').eq('sp_no', spNo).single(),
+        supabase.from('nebari_root').select('*').eq('sp_no', spNo).single(),
+        supabase.from('seasonal_maintenance').select('*').eq('sp_no', spNo).single(),
+        supabase.from('advanced_expert').select('*').eq('sp_no', spNo).single(),
+        supabase.from('regional_suitability').select('*').eq('sp_no', spNo).single(),
+        supabase.from('placement_matrix').select('*').eq('sp_no', spNo).single(),
+        supabase.from('toxicity').select('*').eq('sp_no', spNo).single(),
+      ])
+      const species = speciesRes.data
+      const suitability = suitRes.data
+      const careGuide = careRes.data
+      const fertilisation = fertRes.data
+      const pruning = pruneRes.data
+      const nebari = nebRes.data
+      const seasonal = seasRes.data
+      const advanced = advRes.data
+      const regional = regRes.data
+      const placement = placeRes.data
+      const toxicity = toxRes.data
+
+      if (species?.is_deprecated) {
+        alert(`This species record is deprecated -- use sp_no ${species.canonical_sp_no ?? '(see deprecated_note)'} instead. Reports cannot be generated from a deprecated record.`)
+        return
+      }
+
       const { jsPDF } = await import('jspdf')
       const doc = new jsPDF({ unit: 'pt', format: 'a4' })
       const pageWidth = doc.internal.pageSize.getWidth()
@@ -964,12 +999,24 @@ export default function SpeciesDetail() {
   // uploaded to Supabase Storage (bucket: spotlight-reports) instead of downloaded locally,
   // since the intent is one static file to link from the public site, not a local copy.
   async function generateSpotlightPDF() {
-    if (species?.is_deprecated) {
-      alert(`This species record is deprecated -- use sp_no ${species.canonical_sp_no ?? '(see deprecated_note)'} instead. Spotlight PDFs cannot be generated from a deprecated record.`)
-      return
-    }
     setGeneratingReport('spotlight')
     try {
+      // Same fresh-fetch fix as generatePDF above (session 26) - re-fetch
+      // rather than trust component state, which can hold unsaved edits.
+      const [speciesRes, suitRes, careRes] = await Promise.all([
+        supabase.from('species').select('*').eq('sp_no', spNo).single(),
+        supabase.from('bonsai_suitability').select('*').eq('sp_no', spNo).single(),
+        supabase.from('care_guide').select('*').eq('sp_no', spNo).single(),
+      ])
+      const species = speciesRes.data
+      const suitability = suitRes.data
+      const careGuide = careRes.data
+
+      if (species?.is_deprecated) {
+        alert(`This species record is deprecated -- use sp_no ${species.canonical_sp_no ?? '(see deprecated_note)'} instead. Spotlight PDFs cannot be generated from a deprecated record.`)
+        return
+      }
+
       const { jsPDF } = await import('jspdf')
       const doc = new jsPDF({ unit: 'pt', format: 'a4' })
       const pageWidth = doc.internal.pageSize.getWidth()
