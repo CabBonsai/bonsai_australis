@@ -47,12 +47,21 @@ export default function NewSpeciesPage() {
     setSaving(true)
     setError('')
 
+    const spNoRes = await fetch('/api/next-sp-no')
+    if (!spNoRes.ok) {
+      setSaving(false)
+      setError('Could not determine next sp_no - try again')
+      return
+    }
+    const { next_sp_no: nextSpNo } = await spNoRes.json()
+
     const res = await fetch('/api/admin-table', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         table: 'species',
         rows: [{
+          sp_no: nextSpNo,
           species: form.species.trim(),
           common_name: form.common_name.trim() || 'Unknown',
           species_genus: form.species_genus.trim() || form.species.split(' ')[0],
