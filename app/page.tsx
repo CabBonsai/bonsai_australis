@@ -33,11 +33,15 @@ export default function Home() {
 
   async function fetchTodos() {
     setTodosLoading(true)
-    const { data } = await supabase
-      .from('todos')
-      .select('*')
-      .order('created_at', { ascending: true })
-    setTodos(data || [])
+    try {
+      const res = await fetch('/api/todos')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Failed to load todos')
+      // /api/todos returns newest-first; this page wants oldest-first
+      setTodos((data || []).slice().reverse())
+    } catch {
+      setTodos([])
+    }
     setTodosLoading(false)
   }
 
@@ -45,28 +49,34 @@ export default function Home() {
     const text = newTodoText.trim()
     if (!text) return
     setAddingTodo(true)
-    const { data, error } = await supabase
-      .from('todos')
-      .insert({ text })
-      .select()
-      .single()
+    try {
+      const res = await fetch('/api/todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Failed to add item')
+      setNewTodoText('')
+      setTodos(prev => [...prev, data])
+    } catch (e: any) {
+      alert('Could not add item: ' + e.message)
+    }
     setAddingTodo(false)
-    if (error) { alert('Could not add item: ' + error.message); return }
-    setNewTodoText('')
-    setTodos(prev => [...prev, data])
   }
 
   async function toggleTodo(id: string, currentlyDone: boolean) {
     setTodos(prev => prev.map(t => t.id === id ? { ...t, is_done: !currentlyDone } : t))
-    await supabase
-      .from('todos')
-      .update({ is_done: !currentlyDone, completed_at: !currentlyDone ? new Date().toISOString() : null })
-      .eq('id', id)
+    await fetch('/api/todos', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, is_done: !currentlyDone }),
+    })
   }
 
   async function deleteTodo(id: string) {
     setTodos(prev => prev.filter(t => t.id !== id))
-    await supabase.from('todos').delete().eq('id', id)
+    await fetch(`/api/todos?id=${id}`, { method: 'DELETE' })
   }
 
   async function fetchDashboard() {
