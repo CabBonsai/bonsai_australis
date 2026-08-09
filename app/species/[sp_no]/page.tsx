@@ -26,23 +26,6 @@ async function adminPatch(table: string, id: any, fields: Record<string, any>) {
   return { error: null }
 }
 
-// Percentage of the 10 core tables (matching species_completeness's own set)
-// that are genuinely, fully researched. Most tables use needs_verification
-// === false (the project's established filter for "genuinely researched").
-// bonsai_suitability is checked more strictly via final_bonsai_score, since
-// the Reconciliation Rule trigger only populates that once all 10 BAMSR
-// traits are filled — a row can have needs_verification=false while still
-// carrying real trait gaps (e.g. nebari/longevity left honestly unscored),
-// and that shouldn't count as fully complete.
-function completenessPercent(species: any, suitability: any, otherRows: any[]) {
-  const speciesDone = species && species.needs_verification === false
-  const suitabilityDone = suitability && suitability.final_bonsai_score !== null && suitability.final_bonsai_score !== undefined
-  const otherDone = otherRows.filter(r => r && r.needs_verification === false).length
-  const done = (speciesDone ? 1 : 0) + (suitabilityDone ? 1 : 0) + otherDone
-  const total = 2 + otherRows.length
-  return Math.round((done / total) * 100)
-}
-
 function Section({ title, children }: { title: string, children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   return (
@@ -225,6 +208,7 @@ export default function SpeciesDetail() {
   const [placement, setPlacement] = useState<any>(null)
   const [toxicity, setToxicity] = useState<any>(null)
   const [collectionTrees, setCollectionTrees] = useState<any[]>([])
+  const [completeness, setCompleteness] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -233,7 +217,7 @@ export default function SpeciesDetail() {
 
   useEffect(() => {
     async function fetchAll() {
-      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, barkRes, taperRes, tubDevRes, tubInvRes, seasRes, advRes, regRes, placeRes, toxRes, collRes, prevRes, nextRes] = await Promise.all([
+      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, barkRes, taperRes, tubDevRes, tubInvRes, seasRes, advRes, regRes, placeRes, toxRes, collRes, prevRes, nextRes, compRes] = await Promise.all([
         supabase.from('species').select('*').eq('sp_no', spNo).single(),
         supabase.from('bonsai_suitability').select('*').eq('sp_no', spNo).single(),
         supabase.from('care_guide').select('*').eq('sp_no', spNo).single(),
@@ -255,6 +239,7 @@ export default function SpeciesDetail() {
         supabase.from('collection').select('collection_id, display_name, tree_name, image_url, status, health_status, variant_sp_no').eq('sp_no', spNo).order('display_name', { ascending: true }),
         supabase.from('species').select('sp_no').lt('sp_no', spNo).order('sp_no', { ascending: false }).limit(1).single(),
         supabase.from('species').select('sp_no').gt('sp_no', spNo).order('sp_no', { ascending: true }).limit(1).single(),
+        supabase.from('species_completeness').select('overall_completeness, taxonomy_complete, scoring_complete, care_guide_complete, seasonal_complete, fertilisation_complete, pruning_complete, nebari_complete, regional_complete, tubestock_complete, advanced_complete').eq('sp_no', spNo).single(),
       ])
       if (speciesRes.error) setError(speciesRes.error.message)
       else setSpecies(speciesRes.data)
@@ -273,6 +258,7 @@ export default function SpeciesDetail() {
       if (!placeRes.error) setPlacement(placeRes.data)
       if (!toxRes.error) setToxicity(toxRes.data)
       if (!collRes.error) setCollectionTrees(collRes.data || [])
+      if (!compRes.error) setCompleteness(compRes.data)
       setPrevNext({ prev: prevRes.data?.sp_no ?? null, next: nextRes.data?.sp_no ?? null })
       setLoading(false)
     }
@@ -570,6 +556,16 @@ export default function SpeciesDetail() {
     } else {
       setSaveMessage('Saved!')
       setTimeout(() => setSaveMessage(null), 2000)
+      // The species_completeness trigger recalculates synchronously on the
+      // underlying table writes above, so it's already current by now —
+      // refetch to keep the badge in sync with the database rather than
+      // leaving it showing pre-save state.
+      const { data: compData, error: compError } = await supabase
+        .from('species_completeness')
+        .select('overall_completeness, taxonomy_complete, scoring_complete, care_guide_complete, seasonal_complete, fertilisation_complete, pruning_complete, nebari_complete, regional_complete, tubestock_complete, advanced_complete')
+        .eq('sp_no', spNo)
+        .single()
+      if (!compError) setCompleteness(compData)
     }
     setSaving(false)
   }
@@ -1368,7 +1364,7 @@ export default function SpeciesDetail() {
           <label style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',fontSize:'13px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'6px'}}>
             <span>Research status</span>
             <span style={{textTransform:'none',letterSpacing:'normal',fontWeight:400}}>
-              {completenessPercent(species, suitability, [careGuide, seasonal, fertilisation, pruning, nebari, regional, tubestockDev, advanced])}% fields populated
+              {completeness?.overall_completeness ?? '—'}% fields populated
             </span>
           </label>
           <select value={species.research_status || "Not Started"} onChange={e => updateSpecies("research_status", e.target.value)} style={{width:'100%',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'12px 16px',fontSize:'17px',color:'#2b2620',background:'#fffefb',outline:'none'}}>
