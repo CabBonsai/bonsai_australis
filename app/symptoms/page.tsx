@@ -82,7 +82,10 @@ export default function SymptomsAdmin() {
   }
 
   async function handleAddSymptom() {
-    if (!newSymptom.symptom_name.trim()) return
+    if (!newSymptom.symptom_name.trim()) {
+      alert('Symptom name is required.')
+      return
+    }
     setSavingId('new-symptom')
     try {
       await api('/api/symptoms', {
@@ -97,6 +100,7 @@ export default function SymptomsAdmin() {
       setAddingSymptom(false)
       await fetchSymptoms()
     } catch (e: any) {
+      alert('Could not save symptom: ' + e.message)
       setError(e.message)
     }
     setSavingId(null)
@@ -116,7 +120,14 @@ export default function SymptomsAdmin() {
 
   async function handleAddCause(symptomId: number) {
     const draft = newCauseDraft[symptomId]
-    if (!draft?.cause_name?.trim() || !draft?.likelihood) return
+    if (!draft?.cause_name?.trim()) {
+      alert('Cause name is required.')
+      return
+    }
+    if (!draft?.likelihood) {
+      alert('Pick a Likelihood (Common / Occasional / Rare) before saving.')
+      return
+    }
     setSavingId(`new-cause-${symptomId}`)
     try {
       await api('/api/symptom-causes', {
@@ -136,6 +147,7 @@ export default function SymptomsAdmin() {
       setNewCauseDraft(prev => ({ ...prev, [symptomId]: {} }))
       await fetchCauses(symptomId)
     } catch (e: any) {
+      alert('Could not save cause: ' + e.message)
       setError(e.message)
     }
     setSavingId(null)
