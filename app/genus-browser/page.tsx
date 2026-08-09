@@ -54,6 +54,7 @@ export default function GenusBrowser() {
       .from('species')
       .select('sp_no, species, common_name')
       .eq('species_genus', genus)
+      .eq('is_deprecated', false)
       .limit(3000)
       .order('species', { ascending: true })
 
@@ -67,7 +68,7 @@ export default function GenusBrowser() {
 
     // Variants under those species
     const { data: variantRows, error: variantErr } = speciesSpNos.length > 0
-      ? await supabase.from('variants').select('sp_no, variant_name, parent_sp_no').in('parent_sp_no', speciesSpNos).limit(3000)
+      ? await supabase.from('variants').select('sp_no, variant_name, parent_sp_no').eq('is_deprecated', false).in('parent_sp_no', speciesSpNos).limit(3000)
       : { data: [] as any[], error: null }
 
     if (variantErr) {

@@ -43,7 +43,7 @@ export default function SpeciesList() {
 
     let allowedSpNos: number[] | null = null
     if (nativeFilter !== 'all') {
-      let nativeQuery = supabase.from('species').select('sp_no').limit(10000)
+      let nativeQuery = supabase.from('species').select('sp_no').eq('is_deprecated', false).limit(10000)
       nativeQuery = nativeFilter === 'native'
         ? nativeQuery.eq('australian_native', true)
         : nativeQuery.eq('australian_native', false)
@@ -89,6 +89,7 @@ export default function SpeciesList() {
     const { data: speciesRows, error: speciesErr } = await supabase
       .from('species')
       .select(cols)
+      .eq('is_deprecated', false)
       .in('sp_no', spNos)
 
     if (speciesErr) {
@@ -123,7 +124,7 @@ export default function SpeciesList() {
     // numeric search term needs its own exact-match query, merged with the text search.
     const isNumeric = trimmed !== '' && /^\d+$/.test(trimmed)
 
-    let textQuery = supabase.from('species').select(cols).order('species', { ascending: true }).limit(50)
+    let textQuery = supabase.from('species').select(cols).eq('is_deprecated', false).order('species', { ascending: true }).limit(50)
     if (trimmed) {
       textQuery = textQuery.or(`species.ilike.%${trimmed}%,common_name.ilike.%${trimmed}%,species_genus.ilike.%${trimmed}%`)
     }
@@ -133,7 +134,7 @@ export default function SpeciesList() {
     const [textRes, spNoRes] = await Promise.all([
       textQuery,
       isNumeric
-        ? supabase.from('species').select(cols).eq('sp_no', Number(trimmed)).limit(50)
+        ? supabase.from('species').select(cols).eq('is_deprecated', false).eq('sp_no', Number(trimmed)).limit(50)
         : Promise.resolve({ data: [] as any[], error: null }),
     ])
 
