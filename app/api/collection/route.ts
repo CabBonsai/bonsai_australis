@@ -1,78 +1,96 @@
-// app/api/collection/route.ts
-//
-// Server-side proxy for the `collection` table (RLS now enabled, no anon
-// write policies — anon SELECT remains so the app can still read directly).
-// Uses the service role key to bypass RLS for INSERT/UPDATE/DELETE.
-//
-// Primary key column is `collection_id` (uuid).
-
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServer } from '@/lib/supabaseServer';
+import { createClient } from '@supabase/supabase-js';
 
-const ID_COLUMN = 'collection_id';
+// Service-role client — bypasses RLS. Never expose this key to the browser;
+// this file only runs server-side (Next.js Route Handler).
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-// GET /api/collection       -> all rows
-// GET /api/collection?id=x  -> single row
-export async function GET(req: NextRequest) {
-  const id = req.nextUrl.searchParams.get('id');
+// GET /api/todos — list all todos, newest first
+export async function GET() {
+  const { data, error } = await supabase
+    .from('todos')
+    .select('*')
+    .order('created_at', { ascending: false });
 
-  let query = supabaseServer.from('collection').select('*');
-  if (id) query = query.eq(ID_COLUMN, id).single();
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json({ todos: data });
 }
 
-// POST /api/collection  body: { ...columns }
-export async function POST(req: NextRequest) {
-  const body = await req.json();
+// POST /api/todos — create a todo
+// body: { text: string }
+export async function POST(request: NextRequest) {
+  const body = await request.json();
 
-  const { data, error } = await supabaseServer
-    .from('collection')
-    .insert(body)
+  if (!body?.text || typeof body.text !== 'string' || !body.text.trim()) {
+    return NextResponse.json({ error: '"text" is required' }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from('todos')
+    .insert({ text: body.text.trim(), is_done: false })
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
-}
-
-// PATCH /api/collection  body: { collection_id, ...fields to update }
-export async function PATCH(req: NextRequest) {
-  const body = await req.json();
-  const id = body[ID_COLUMN];
-
-  if (!id) {
-    return NextResponse.json({ error: `Missing ${ID_COLUMN} in request body` }, { status: 400 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const updates = { ...body };
-  delete updates[ID_COLUMN];
+  return NextResponse.json({ todo: data }, { status: 201 });
+}
 
-  const { data, error } = await supabaseServer
-    .from('collection')
+// PATCH /api/todos — update a todo (toggle done, edit text)
+// body: { id: string, text?: string, is_done?: boolean }
+export async function PATCH(request: NextRequest) {
+  const body = await request.json();
+
+  if (!body?.id || typeof body.id !== 'string') {
+    return NextResponse.json({ error: '"id" is required' }, { status: 400 });
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (typeof body.text === 'string') updates.text = body.text.trim();
+  if (typeof body.is_done === 'boolean') {
+    updates.is_done = body.is_done;
+    updates.completed_at = body.is_done ? new Date().toISOString() : null;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from('todos')
     .update(updates)
-    .eq(ID_COLUMN, id)
-    .select();
+    .eq('id', body.id)
+    .select()
+    .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
-}
-
-// DELETE /api/collection?id=x
-export async function DELETE(req: NextRequest) {
-  const id = req.nextUrl.searchParams.get('id');
-
-  if (!id) {
-    return NextResponse.json({ error: 'Missing id query param' }, { status: 400 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const { error } = await supabaseServer
-    .from('collection')
-    .delete()
-    .eq(ID_COLUMN, id);
+  return NextResponse.json({ todo: data });
+}
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+// DELETE /api/todos?id=... — delete a todo
+export async function DELETE(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get('id');
+
+  if (!id) {
+    return NextResponse.json({ error: '"id" query param is required' }, { status: 400 });
+  }
+
+  const { error } = await supabase.from('todos').delete().eq('id', id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
   return NextResponse.json({ success: true });
 }
