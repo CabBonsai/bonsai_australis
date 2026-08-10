@@ -885,14 +885,16 @@ export default function CollectionDetailPage() {
             <SpeciesAutocomplete value={tree.sp_no} onChange={(spNo, name) => { set('sp_no', spNo); setSpeciesName(name) }} />
           </Field>
           <Field label="Variation / Cultivar">
-            <VariantAutocomplete
-              spNo={tree.sp_no}
-              value={tree.variation_or_cultivar || ''}
-              onChange={(val, variantSpNo) => {
-                set('variation_or_cultivar', val)
-                set('variant_sp_no', variantSpNo)
-              }}
-            />
+            <div style={{ gridColumn: 'span 2' }} title={tree.variation_or_cultivar || ''}>
+              <VariantAutocomplete
+                spNo={tree.sp_no}
+                value={tree.variation_or_cultivar || ''}
+                onChange={(val, variantSpNo) => {
+                  set('variation_or_cultivar', val)
+                  set('variant_sp_no', variantSpNo)
+                }}
+              />
+            </div>
             <VariantCareInfo variantSpNo={tree.variant_sp_no} />
           </Field>
           <Field label="Style"><Dropdown value={tree.style} onChange={v => set('style', v)} options={STYLE_OPTIONS} category="style" /></Field>
@@ -964,8 +966,8 @@ export default function CollectionDetailPage() {
         <Section title="Growing Medium">
           <Field label="Pot Size"><input type="text" value={tree.pot_size || ''} onChange={e => set('pot_size', e.target.value)} style={inputStyle} /></Field>
           <Field label="Pot Type"><input type="text" value={tree.pot_type || ''} onChange={e => set('pot_type', e.target.value)} style={inputStyle} /></Field>
-          <Field label="Best Soil Mix"><input type="text" value={tree.best_soil_mix || ''} onChange={e => set('best_soil_mix', e.target.value)} style={inputStyle} /></Field>
-          <Field label="Soil Mix Used"><input type="text" value={tree.soil_mix_used || ''} onChange={e => set('soil_mix_used', e.target.value)} style={inputStyle} /></Field>
+          <Field label="Best Soil Mix"><textarea value={tree.best_soil_mix || ''} onChange={e => set('best_soil_mix', e.target.value)} style={{ ...inputStyle, minHeight: '72px', resize: 'vertical' }} rows={3} /></Field>
+          <Field label="Soil Mix Used"><textarea value={tree.soil_mix_used || ''} onChange={e => set('soil_mix_used', e.target.value)} style={{ ...inputStyle, minHeight: '72px', resize: 'vertical' }} rows={3} /></Field>
         </Section>
 
         <Section title="Care Schedule">
