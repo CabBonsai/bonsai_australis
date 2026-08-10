@@ -698,6 +698,13 @@ export default function SpeciesDetail() {
         fields.forEach(([label, value]) => {
           const formatted = formatVal(value)
           const isEmpty = formatted === '— not set —'
+          const labelText = `${label}:`
+          // Measure the actual label width instead of assuming it fits in a fixed
+          // column - long labels like "Suitability (Final Score) (1 = Poor, 100 =
+          // Elite)" were overflowing past the old fixed x=170 value column and
+          // overlapping the value text (e.g. "70.24" printing on top of "Elite):").
+          const labelWidth = doc.getTextWidth(labelText)
+          const valueX = margin + 5 + Math.max(labelWidth + 8, 165)
           // Subtract an extra safety margin here: jsPDF calculates wrapping using its
           // own internal assumed widths for the built-in 'helvetica' font, but doesn't
           // embed that font in the file - actual rendering relies on whatever font each
@@ -705,12 +712,12 @@ export default function SpeciesDetail() {
           // differences between viewers can compound enough to push text past the edge
           // even though jsPDF's own math said it would fit. Wrapping noticeably earlier
           // leaves headroom so that drift doesn't reach the true page edge in practice.
-          const lines = doc.splitTextToSize(formatted, pageWidth - margin * 2 - 170 - 30)
+          const lines = doc.splitTextToSize(formatted, pageWidth - valueX - margin - 30)
           checkPageBreak(14 * lines.length + 4)
           doc.setTextColor(60, 60, 60)
-          doc.text(`${label}:`, margin + 5, y)
+          doc.text(labelText, margin + 5, y)
           doc.setTextColor(isEmpty ? 180 : 20, isEmpty ? 180 : 20, isEmpty ? 180 : 20)
-          doc.text(lines, margin + 170, y)
+          doc.text(lines, valueX, y)
           y += 14 * lines.length
         })
         doc.setTextColor(0, 0, 0)
