@@ -239,6 +239,9 @@ export default function Home() {
           <Link href="/review" style={{ fontSize: '13px', background: '#f3f4f6', color: '#374151', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Review Queue
           </Link>
+          <Link href="/data-gaps" style={{ fontSize: '13px', background: '#f3f4f6', color: '#374151', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Data Gaps
+          </Link>
           <Link href="/species/new" style={{ fontSize: '13px', background: '#16a34a', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             + New Species
           </Link>
