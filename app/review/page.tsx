@@ -54,6 +54,12 @@ export default function ReviewQueue() {
         Species flagged during bulk research runs as uncertain or needing a manual check.
       </p>
 
+      <div style={{ fontSize: '13px', color: '#374151', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', lineHeight: '1.6' }}>
+        <strong>What this queue is:</strong> most entries here were flagged automatically because a native-status lookup against POWO (Plants of the World Online) couldn't match the species name — not because the species' bonsai/care research is incomplete or in question. The yellow note on each row explains the specific reason it's here.
+        <br /><br />
+        <strong>Edit</strong> takes you to the species page to fix or verify the flagged field yourself (e.g. confirm native status manually). <strong>Confirm</strong> clears the flag and removes the species from this list once you're satisfied it's correct — it does not change any data, only the review status.
+      </div>
+
       {error && <p style={{ color: '#dc2626', marginBottom: '16px' }}>Error: {error}</p>}
       {loading && <p style={{ color: '#9ca3af' }}>Loading...</p>}
 
