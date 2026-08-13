@@ -32,11 +32,14 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
   // Save never overwrites prior history the way the old single-form flow did.
   const [measurements, setMeasurements] = useState<Record<number, any[]>>({})
   const [loggingTreeId, setLoggingTreeId] = useState<number | null>(null)
+  const [editingMeasurementId, setEditingMeasurementId] = useState<number | null>(null)
   const [measDate, setMeasDate] = useState(new Date().toISOString().slice(0, 10))
   const [measCaliper, setMeasCaliper] = useState('')
   const [measHeight, setMeasHeight] = useState('')
   const [measNotes, setMeasNotes] = useState('')
   const [savingMeasurement, setSavingMeasurement] = useState(false)
+  const [deletingMeasurementId, setDeletingMeasurementId] = useState<number | null>(null)
+  const [generatingReport, setGeneratingReport] = useState(false)
 
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10))
   const [entryTreeId, setEntryTreeId] = useState<string>('') // '' = pod-wide
@@ -282,25 +285,46 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
 
   function openMeasurementLogger(treeRowId: number) {
     setLoggingTreeId(treeRowId)
+    setEditingMeasurementId(null)
     setMeasDate(new Date().toISOString().slice(0, 10))
     setMeasCaliper('')
     setMeasHeight('')
     setMeasNotes('')
   }
 
+  function openMeasurementEditor(treeRowId: number, m: any) {
+    setLoggingTreeId(treeRowId)
+    setEditingMeasurementId(m.id)
+    setMeasDate(m.measurement_date || '')
+    setMeasCaliper(m.caliper_mm ?? '')
+    setMeasHeight(m.height_mm ?? '')
+    setMeasNotes(m.notes || '')
+  }
+
   async function handleSaveMeasurement(treeRowId: number) {
     setSavingMeasurement(true)
-    const res = await fetch('/api/research-project-measurements', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        project_tree_id: treeRowId,
-        measurement_date: measDate,
-        caliper_mm: measCaliper === '' ? null : parseFloat(measCaliper),
-        height_mm: measHeight === '' ? null : parseFloat(measHeight),
-        notes: measNotes || null,
-      }),
-    })
+    const payload: any = {
+      measurement_date: measDate,
+      caliper_mm: measCaliper === '' ? null : parseFloat(measCaliper),
+      height_mm: measHeight === '' ? null : parseFloat(measHeight),
+      notes: measNotes || null,
+    }
+    let res
+    if (editingMeasurementId) {
+      // Correcting a mis-entered reading, not logging a new check-in.
+      res = await fetch('/api/research-project-measurements', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingMeasurementId, ...payload }),
+      })
+    } else {
+      payload.project_tree_id = treeRowId
+      res = await fetch('/api/research-project-measurements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+    }
     const data = await res.json()
     setSavingMeasurement(false)
     if (!res.ok) {
@@ -308,6 +332,20 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
       return
     }
     setLoggingTreeId(null)
+    setEditingMeasurementId(null)
+    fetchAll()
+  }
+
+  async function handleDeleteMeasurement(measurementId: number) {
+    if (!confirm('Delete this measurement entry? This cannot be undone.')) return
+    setDeletingMeasurementId(measurementId)
+    const res = await fetch(`/api/research-project-measurements?id=${measurementId}`, { method: 'DELETE' })
+    const data = await res.json()
+    setDeletingMeasurementId(null)
+    if (!res.ok) {
+      alert('Error deleting: ' + data.error)
+      return
+    }
     fetchAll()
   }
 
@@ -331,6 +369,264 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
     setEntryNote('')
     setEntryPhotoUrl('')
     fetchAll()
+  }
+
+  async function handleGenerateReport() {
+    setGeneratingReport(true)
+    try {
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const margin = 40
+      let y = 40
+
+      let logoDataUrl: string | null = null
+      try {
+        const res = await fetch('/logo.png')
+        const blob = await res.blob()
+        logoDataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+      } catch (e) {
+        console.warn('Logo failed to load', e)
+      }
+
+      function checkPageBreak(needed: number) {
+        if (y + needed > doc.internal.pageSize.getHeight() - 40) {
+          doc.addPage()
+          y = 40
+        }
+      }
+
+      // Measures each label's actual width rather than assuming a fixed
+      // column offset, avoiding the label-overlap bug fixed on the
+      // Collection report (long labels colliding with the value column).
+      function addKeyValueSection(title: string, fields: [string, any][]) {
+        checkPageBreak(30)
+        doc.setFontSize(13)
+        doc.setFont('helvetica', 'bold')
+        doc.setFillColor(245, 245, 245)
+        doc.rect(margin, y - 12, pageWidth - margin * 2, 18, 'F')
+        doc.text(title, margin + 5, y)
+        y += 20
+        doc.setFontSize(10)
+
+        const shown = fields.filter(([, v]) => v !== null && v !== undefined && v !== '')
+        if (shown.length === 0) {
+          doc.setFont('helvetica', 'italic')
+          doc.setTextColor(150, 150, 150)
+          doc.text('Nothing recorded.', margin + 5, y)
+          doc.setTextColor(0, 0, 0)
+          y += 16
+          return
+        }
+
+        shown.forEach(([label, value]) => {
+          doc.setFont('helvetica', 'bold')
+          const labelText = `${label}:`
+          const labelWidth = doc.getTextWidth(labelText)
+          const valueX = margin + 5 + labelWidth + 6
+          const lines = doc.splitTextToSize(String(value), pageWidth - margin - valueX)
+          checkPageBreak(13 * lines.length + 4)
+          doc.setTextColor(60, 60, 60)
+          doc.text(labelText, margin + 5, y)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(20, 20, 20)
+          doc.text(lines, valueX, y)
+          y += 13 * lines.length
+        })
+        doc.setTextColor(0, 0, 0)
+        y += 8
+      }
+
+      function addTreeSection(t: any) {
+        checkPageBreak(30)
+        doc.setFontSize(13)
+        doc.setFont('helvetica', 'bold')
+        doc.setFillColor(230, 240, 225)
+        doc.rect(margin, y - 12, pageWidth - margin * 2, 18, 'F')
+        doc.text(t.displayName || 'Unnamed tree', margin + 5, y)
+        y += 20
+
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(60, 60, 60)
+        if (t.speciesLabel) { doc.text(`Species: ${t.speciesLabel}`, margin + 5, y); y += 14 }
+        if (t.sourceLabel) { doc.text(`Source: ${t.sourceLabel}`, margin + 5, y); y += 14 }
+        doc.setTextColor(0, 0, 0)
+
+        if (t.baseline_date) {
+          checkPageBreak(14)
+          doc.text(
+            `Baseline (${t.baseline_date}): ${t.baseline_caliper_mm ?? '\u2014'}mm caliper, ${t.baseline_height_mm ?? '\u2014'}mm height`,
+            margin + 5, y
+          )
+          y += 14
+          if (t.baseline_notes) {
+            const lines = doc.splitTextToSize(t.baseline_notes, pageWidth - margin * 2 - 10)
+            checkPageBreak(12 * lines.length)
+            doc.setFont('helvetica', 'italic')
+            doc.setFontSize(9)
+            doc.text(lines, margin + 5, y)
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(10)
+            y += 12 * lines.length
+          }
+        } else {
+          doc.text('No baseline recorded.', margin + 5, y)
+          y += 14
+        }
+
+        const treeMeasurements = (measurements[t.id] || []).slice().sort((a: any, b: any) =>
+          a.measurement_date < b.measurement_date ? -1 : a.measurement_date > b.measurement_date ? 1 : 0
+        )
+
+        if (treeMeasurements.length > 0) {
+          y += 4
+          checkPageBreak(16)
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(9)
+          doc.text('Date', margin + 5, y)
+          doc.text('Caliper', margin + 145, y)
+          doc.text('Height', margin + 210, y)
+          doc.text('\u0394 Caliper', margin + 275, y)
+          doc.text('\u0394 Height', margin + 345, y)
+          doc.text('Notes', margin + 415, y)
+          y += 4
+          doc.setDrawColor(210)
+          doc.line(margin + 5, y, pageWidth - margin, y)
+          y += 12
+          doc.setFont('helvetica', 'normal')
+
+          const baseCaliper = t.baseline_caliper_mm !== null && t.baseline_caliper_mm !== undefined ? Number(t.baseline_caliper_mm) : null
+          const baseHeight = t.baseline_height_mm !== null && t.baseline_height_mm !== undefined ? Number(t.baseline_height_mm) : null
+
+          treeMeasurements.forEach((m: any) => {
+            const caliper = m.caliper_mm !== null && m.caliper_mm !== undefined ? Number(m.caliper_mm) : null
+            const height = m.height_mm !== null && m.height_mm !== undefined ? Number(m.height_mm) : null
+            const deltaCaliper = caliper !== null && baseCaliper !== null ? `+${(caliper - baseCaliper).toFixed(1)}` : '\u2014'
+            const deltaHeight = height !== null && baseHeight !== null ? `+${(height - baseHeight).toFixed(1)}` : '\u2014'
+            const notesLines = m.notes ? doc.splitTextToSize(m.notes, pageWidth - margin - (margin + 415)) : ['']
+            checkPageBreak(12 * Math.max(notesLines.length, 1))
+            doc.text(m.measurement_date, margin + 5, y)
+            doc.text(caliper !== null ? `${caliper}mm` : '\u2014', margin + 145, y)
+            doc.text(height !== null ? `${height}mm` : '\u2014', margin + 210, y)
+            doc.text(deltaCaliper !== '\u2014' ? `${deltaCaliper}mm` : '\u2014', margin + 275, y)
+            doc.text(deltaHeight !== '\u2014' ? `${deltaHeight}mm` : '\u2014', margin + 345, y)
+            if (m.notes) doc.text(notesLines, margin + 415, y)
+            y += 12 * Math.max(notesLines.length, 1)
+          })
+        } else {
+          doc.setFont('helvetica', 'italic')
+          doc.setFontSize(9)
+          doc.setTextColor(150, 150, 150)
+          doc.text('No measurements logged since baseline.', margin + 5, y)
+          doc.setTextColor(0, 0, 0)
+          doc.setFontSize(10)
+          y += 14
+        }
+
+        const treeJournal = journal.filter((j: any) => j.collection_id === t.collection_id && t.collection_id)
+        if (treeJournal.length > 0) {
+          y += 6
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(9)
+          checkPageBreak(12)
+          doc.text('Tree-specific journal entries:', margin + 5, y)
+          y += 12
+          doc.setFont('helvetica', 'normal')
+          treeJournal.forEach((j: any) => {
+            const lines = doc.splitTextToSize(`${j.entry_date} \u2014 ${j.note}`, pageWidth - margin * 2 - 10)
+            checkPageBreak(12 * lines.length)
+            doc.text(lines, margin + 5, y)
+            y += 12 * lines.length
+          })
+        }
+
+        y += 12
+      }
+
+      // Header
+      if (logoDataUrl) {
+        const logoSize = 60
+        doc.addImage(logoDataUrl, 'PNG', margin, y, logoSize, logoSize)
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Bonsai Australis', margin + logoSize + 15, y + 28)
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'normal')
+        doc.text('Research Project Report', margin + logoSize + 15, y + 46)
+        y += logoSize + 25
+      } else {
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Bonsai Australis \u2014 Research Project Report', margin, y + 10)
+        y += 35
+      }
+
+      doc.setDrawColor(180)
+      doc.line(margin, y, pageWidth - margin, y)
+      y += 20
+
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.text(project.title || 'Untitled Project', margin, y)
+      y += 18
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(80, 80, 80)
+      doc.text(
+        `Status: ${project.status || '\u2014'}${project.start_date ? `  \u00b7  Started ${project.start_date}` : ''}${project.end_date ? `  \u00b7  Ended ${project.end_date}` : ''}`,
+        margin, y
+      )
+      doc.setTextColor(0, 0, 0)
+      y += 20
+
+      addKeyValueSection('Hypothesis & Methodology', [
+        ['Hypothesis', project.hypothesis],
+        ['Methodology', project.methodology],
+      ])
+
+      // Per-tree results — the actual point of the report.
+      checkPageBreak(20)
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Results \u2014 ${trees.length} tree${trees.length === 1 ? '' : 's'}`, margin, y)
+      y += 18
+
+      trees.forEach((t: any) => addTreeSection(t))
+
+      // Pod-wide journal (entries with no specific tree attached).
+      const podWideJournal = journal.filter((j: any) => !j.collection_id)
+      if (podWideJournal.length > 0) {
+        checkPageBreak(30)
+        doc.setFontSize(13)
+        doc.setFont('helvetica', 'bold')
+        doc.setFillColor(245, 245, 245)
+        doc.rect(margin, y - 12, pageWidth - margin * 2, 18, 'F')
+        doc.text('Pod-Wide Journal', margin + 5, y)
+        y += 20
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        podWideJournal.forEach((j: any) => {
+          const lines = doc.splitTextToSize(`${j.entry_date} \u2014 ${j.note}`, pageWidth - margin * 2 - 10)
+          checkPageBreak(13 * lines.length)
+          doc.text(lines, margin + 5, y)
+          y += 13 * lines.length
+        })
+      }
+
+      const fileName = (project.title || 'research_project').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
+      doc.save(`${fileName}_report.pdf`)
+    } catch (e: any) {
+      alert('Error generating report: ' + e.message)
+    } finally {
+      setGeneratingReport(false)
+    }
   }
 
   if (loading) return <main style={{ maxWidth: '900px', margin: '0 auto', padding: '16px' }}><p style={{ color: '#9ca3af' }}>Loading...</p></main>
@@ -386,6 +682,9 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
               <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: (statusColor[project.status] || '#6b7280') + '22', color: statusColor[project.status] || '#6b7280', textTransform: 'capitalize' }}>
                 {project.status}
               </span>
+              <button onClick={handleGenerateReport} disabled={generatingReport} style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+                {generatingReport ? 'Generating...' : '\ud83d\udcc4 PDF Report'}
+              </button>
               <button onClick={openHeaderEditor} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', cursor: 'pointer', padding: 0 }}>Edit</button>
             </div>
           </div>
@@ -430,6 +729,16 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
                 </div>
                 {t.speciesLabel && <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{t.speciesLabel}</p>}
                 {t.sourceLabel && <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>{t.sourceLabel}</p>}
+                {t.collection_id && (
+                  <a href={`/collection/${t.collection_id}`} style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'none' }}>
+                    Fix name/species in Collection &rarr;
+                  </a>
+                )}
+                {t.tubestock_id && (
+                  <a href={`/tubestock-admin?id=${t.tubestock_id}`} style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'none' }}>
+                    Fix name/species in Tubestock &rarr;
+                  </a>
+                )}
               </div>
             </div>
 
@@ -470,6 +779,9 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
               </div>
             ) : loggingTreeId === t.id ? (
               <div style={{ marginTop: '10px' }}>
+                <p style={{ fontSize: '11px', fontWeight: '600', color: '#6b7280', margin: '0 0 6px' }}>
+                  {editingMeasurementId ? 'Correcting existing entry' : 'Log new measurement'}
+                </p>
                 <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Date</label>
                 <input type="date" value={measDate} onChange={e => setMeasDate(e.target.value)}
                   style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', boxSizing: 'border-box', marginBottom: '6px' }} />
@@ -483,7 +795,7 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
                 <textarea value={measNotes} onChange={e => setMeasNotes(e.target.value)} rows={2}
                   style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', boxSizing: 'border-box', marginBottom: '8px' }} />
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <button onClick={() => setLoggingTreeId(null)} style={{ flex: 1, padding: '6px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', color: '#6b7280', cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={() => { setLoggingTreeId(null); setEditingMeasurementId(null) }} style={{ flex: 1, padding: '6px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', color: '#6b7280', cursor: 'pointer' }}>Cancel</button>
                   <button onClick={() => handleSaveMeasurement(t.id)} disabled={savingMeasurement} style={{ flex: 1, padding: '6px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
                     {savingMeasurement ? 'Saving...' : 'Save'}
                   </button>
@@ -503,10 +815,18 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
                 {(measurements[t.id] || []).length > 0 && (
                   <div style={{ margin: '4px 0 6px', paddingLeft: '2px', borderLeft: '2px solid #f1f5f9' }}>
                     {(measurements[t.id] || []).map((m: any) => (
-                      <p key={m.id} style={{ margin: '0 0 2px', paddingLeft: '8px' }}>
-                        {m.measurement_date}: {m.caliper_mm ?? '\u2014'}mm caliper, {m.height_mm ?? '\u2014'}mm height
-                        {m.notes ? ` \u2014 ${m.notes}` : ''}
-                      </p>
+                      <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px', paddingLeft: '8px', marginBottom: '2px' }}>
+                        <p style={{ margin: 0 }}>
+                          {m.measurement_date}: {m.caliper_mm ?? '\u2014'}mm caliper, {m.height_mm ?? '\u2014'}mm height
+                          {m.notes ? ` \u2014 ${m.notes}` : ''}
+                        </p>
+                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                          <button onClick={() => openMeasurementEditor(t.id, m)} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '11px', cursor: 'pointer', padding: 0 }}>Edit</button>
+                          <button onClick={() => handleDeleteMeasurement(m.id)} disabled={deletingMeasurementId === m.id} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '11px', cursor: 'pointer', padding: 0 }}>
+                            {deletingMeasurementId === m.id ? '...' : 'Delete'}
+                          </button>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
