@@ -132,8 +132,10 @@ export default function Home() {
 
     if (rptRes.ok && rptData.length > 0) {
       const collectionIds = [...new Set(rptData.map((r: any) => r.collection_id).filter(Boolean))]
+      const tubestockIds = [...new Set(rptData.map((r: any) => r.tubestock_id).filter(Boolean))]
       const rptSpNos = [...new Set(rptData.map((r: any) => r.sp_no).filter(Boolean))]
       let collectionMap: Record<string, any> = {}
+      let tubestockMap: Record<number, any> = {}
       let projectMap: Record<number, string> = {}
       let rptSpeciesMap: Record<number, string> = {}
 
@@ -143,6 +145,17 @@ export default function Home() {
           .select('collection_id, display_name, tree_number')
           .in('collection_id', collectionIds)
         ;(collData || []).forEach((c: any) => { collectionMap[c.collection_id] = c })
+      }
+
+      if (tubestockIds.length > 0) {
+        // No .in() support on the tubestock API route (same limitation as
+        // /api/research-projects below) -- fetch all and filter client-side.
+        const tsRes = await fetch('/api/tubestock')
+        const allTubestock = tsRes.ok ? await tsRes.json() : []
+        const tsIdSet = new Set(tubestockIds)
+        ;(allTubestock || [])
+          .filter((t: any) => tsIdSet.has(t.id))
+          .forEach((t: any) => { tubestockMap[t.id] = t })
       }
 
       const projectIds = [...new Set(rptData.map((r: any) => r.project_id).filter(Boolean))]
@@ -167,13 +180,21 @@ export default function Home() {
         })
       }
 
-      setResearchTrees(rptData.map((r: any) => ({
-        ...r,
-        treeLabel: collectionMap[r.collection_id]?.display_name || 'Unnamed Tree',
-        treeNumber: collectionMap[r.collection_id]?.tree_number || null,
-        speciesLabel: rptSpeciesMap[r.sp_no] || '',
-        projectTitle: projectMap[r.project_id] || 'Research Project',
-      })))
+      setResearchTrees(rptData.map((r: any) => {
+        const coll = collectionMap[r.collection_id]
+        const ts = tubestockMap[r.tubestock_id]
+        return {
+          ...r,
+          // Research pod trees can be linked via collection_id OR
+          // tubestock_id (the tubestock table doesn't carry a display_name,
+          // just a tag like "TS0013") -- check both before giving up and
+          // falling back to "Unnamed Tree".
+          treeLabel: coll?.display_name || ts?.tubestock_number || 'Unnamed Tree',
+          treeNumber: coll?.tree_number || null,
+          speciesLabel: rptSpeciesMap[r.sp_no] || '',
+          projectTitle: projectMap[r.project_id] || 'Research Project',
+        }
+      }))
     }
 
     setError(null)
