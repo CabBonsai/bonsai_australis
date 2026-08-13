@@ -45,6 +45,8 @@ export default function WishlistPage() {
 
   const [genera, setGenera] = useState<string[]>([])
   const [selectedGenus, setSelectedGenus] = useState('')
+  const [genusQuery, setGenusQuery] = useState('')
+  const [genusDropdownOpen, setGenusDropdownOpen] = useState(false)
   const [speciesInGenus, setSpeciesInGenus] = useState<SpeciesRow[]>([])
   const [loadingSpecies, setLoadingSpecies] = useState(false)
 
@@ -124,8 +126,10 @@ export default function WishlistPage() {
     if (data && data[0]) setSelectedSupplierId(data[0].id)
   }
 
-  async function handleGenusChange(genus: string) {
+  async function selectGenus(genus: string) {
     setSelectedGenus(genus)
+    setGenusQuery(genus)
+    setGenusDropdownOpen(false)
     setChecked(new Set())
     setRowSize({})
     setRowPrice({})
@@ -145,6 +149,19 @@ export default function WishlistPage() {
     ;(data || []).forEach((s: any) => { map[s.sp_no] = s })
     setSpeciesMap(prev => ({ ...prev, ...map }))
   }
+
+  function clearGenus() {
+    setSelectedGenus('')
+    setGenusQuery('')
+    setSpeciesInGenus([])
+    setChecked(new Set())
+  }
+
+  // Filtered live as the person types -- capped so a broad query (or an
+  // empty one) doesn't try to render all 1,200+ genera into the DOM at once.
+  const genusMatches = genera
+    .filter(g => g.toLowerCase().includes(genusQuery.trim().toLowerCase()))
+    .slice(0, 40)
 
   function toggleChecked(spNo: number) {
     setChecked(prev => {
@@ -395,10 +412,59 @@ export default function WishlistPage() {
         {!selectedSupplierId && <p style={{ fontSize: '12px', color: '#dc2626', margin: '0 0 8px' }}>Select or add a supplier above first.</p>}
 
         <label style={labelStyle}>Genus</label>
-        <select value={selectedGenus} onChange={e => handleGenusChange(e.target.value)} style={{ ...inputStyle, marginBottom: '10px' }}>
-          <option value="">Select a genus...</option>
-          {genera.map(g => <option key={g} value={g}>{g}</option>)}
-        </select>
+        <div style={{ position: 'relative', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <input
+              type="text"
+              value={genusQuery}
+              onChange={e => { setGenusQuery(e.target.value); setSelectedGenus(''); setGenusDropdownOpen(true) }}
+              onFocus={() => setGenusDropdownOpen(true)}
+              onBlur={() => setTimeout(() => setGenusDropdownOpen(false), 150)}
+              placeholder="Type to search genus (e.g. Acacia)..."
+              style={inputStyle}
+            />
+            {(genusQuery || selectedGenus) && (
+              <button onClick={clearGenus} type="button" style={{ padding: '0 12px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '8px', color: '#6b7280', fontSize: '13px', cursor: 'pointer' }}>
+                &times;
+              </button>
+            )}
+          </div>
+
+          {genusDropdownOpen && genusQuery.trim() !== '' && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, marginTop: '4px',
+              background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px',
+              maxHeight: '260px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            }}>
+              {genusMatches.length === 0 && (
+                <p style={{ fontSize: '12px', color: '#9ca3af', padding: '10px' }}>No genus matches "{genusQuery}".</p>
+              )}
+              {genusMatches.map(g => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => selectGenus(g)}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px',
+                    background: g === selectedGenus ? '#16a34a22' : 'none', border: 'none',
+                    borderBottom: '1px solid #f1f5f9', fontSize: '13px', color: '#374151', cursor: 'pointer',
+                  }}
+                >
+                  {g}
+                </button>
+              ))}
+              {genera.filter(g => g.toLowerCase().includes(genusQuery.trim().toLowerCase())).length > 40 && (
+                <p style={{ fontSize: '11px', color: '#9ca3af', padding: '8px 12px', margin: 0 }}>
+                  More than 40 matches — keep typing to narrow it down.
+                </p>
+              )}
+            </div>
+          )}
+
+          {selectedGenus && !genusDropdownOpen && (
+            <p style={{ fontSize: '12px', color: '#16a34a', margin: '4px 0 0', fontWeight: 600 }}>Selected: {selectedGenus}</p>
+          )}
+        </div>
 
         {loadingSpecies && <p style={{ fontSize: '12px', color: '#9ca3af' }}>Loading species...</p>}
 
