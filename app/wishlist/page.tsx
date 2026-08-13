@@ -80,12 +80,26 @@ export default function WishlistPage() {
       setSelectedSupplierId(suppliersData[0].id)
     }
 
-    const { data: generaData } = await supabase
-      .from('species')
-      .select('species_genus')
-      .not('species_genus', 'is', null)
-      .order('species_genus', { ascending: true })
-    const uniqueGenera = Array.from(new Set((generaData || []).map((g: any) => g.species_genus))) as string[]
+    // Supabase caps a single select at 1000 rows. With ~8,450 species rows
+    // (Acacia alone is ~1,483), a plain select() silently truncated this to
+    // genera starting around "Ac..." -- anything alphabetically later
+    // (including Leptospermum) never made it into the dropdown. Paginate
+    // through the full table instead.
+    const allGenusValues: string[] = []
+    let genusFrom = 0
+    const PAGE_SIZE = 1000
+    while (true) {
+      const { data: page } = await supabase
+        .from('species')
+        .select('species_genus')
+        .not('species_genus', 'is', null)
+        .range(genusFrom, genusFrom + PAGE_SIZE - 1)
+      if (!page || page.length === 0) break
+      page.forEach((row: any) => allGenusValues.push(row.species_genus))
+      if (page.length < PAGE_SIZE) break
+      genusFrom += PAGE_SIZE
+    }
+    const uniqueGenera = Array.from(new Set(allGenusValues)).sort((a, b) => a.localeCompare(b))
     setGenera(uniqueGenera)
 
     const wishlistRes = await fetch('/api/wishlist-items')
@@ -136,17 +150,30 @@ export default function WishlistPage() {
     setRowNotes({})
     if (!genus) { setSpeciesInGenus([]); return }
     setLoadingSpecies(true)
-    const { data } = await supabase
-      .from('species')
-      .select('sp_no, species, common_name')
-      .eq('species_genus', genus)
-      .order('species', { ascending: true })
-    setSpeciesInGenus(data || [])
+    // Same 1000-row cap risk as the genus list -- Acacia alone has ~1,483
+    // species, so a plain select() would silently drop ~480 of them from
+    // the ticklist. Paginate here too.
+    const allRows: SpeciesRow[] = []
+    let spFrom = 0
+    const SP_PAGE_SIZE = 1000
+    while (true) {
+      const { data: page } = await supabase
+        .from('species')
+        .select('sp_no, species, common_name')
+        .eq('species_genus', genus)
+        .order('species', { ascending: true })
+        .range(spFrom, spFrom + SP_PAGE_SIZE - 1)
+      if (!page || page.length === 0) break
+      allRows.push(...(page as SpeciesRow[]))
+      if (page.length < SP_PAGE_SIZE) break
+      spFrom += SP_PAGE_SIZE
+    }
+    setSpeciesInGenus(allRows)
     setLoadingSpecies(false)
     // Merge into the species map so newly-ticked items display correctly
     // in the wishlist below without a refetch.
     const map: Record<number, SpeciesRow> = {}
-    ;(data || []).forEach((s: any) => { map[s.sp_no] = s })
+    allRows.forEach((s: any) => { map[s.sp_no] = s })
     setSpeciesMap(prev => ({ ...prev, ...map }))
   }
 
