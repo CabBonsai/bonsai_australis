@@ -56,6 +56,16 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
   const [headerEndDate, setHeaderEndDate] = useState('')
   const [savingHeader, setSavingHeader] = useState(false)
 
+  // Tree link edit mode — schedule fields on the research_project_trees row
+  // itself (next_measurement_date, measurement_interval_days). Not the
+  // species/collection/tubestock link — that's set at add-time and changing
+  // it is a re-link, not an edit, so it's deliberately out of scope here.
+  const [editingTreeId, setEditingTreeId] = useState<number | null>(null)
+  const [treeNextMeasDate, setTreeNextMeasDate] = useState('')
+  const [treeMeasIntervalDays, setTreeMeasIntervalDays] = useState('')
+  const [savingTreeEdit, setSavingTreeEdit] = useState(false)
+  const [removingTreeId, setRemovingTreeId] = useState<number | null>(null)
+
   useEffect(() => { if (projectId) fetchAll() }, [projectId])
 
   async function fetchAll() {
@@ -228,6 +238,48 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
     fetchAll()
   }
 
+  function openTreeEditor(t: any) {
+    setEditingTreeId(t.id)
+    setTreeNextMeasDate(t.next_measurement_date || '')
+    setTreeMeasIntervalDays(t.measurement_interval_days ?? '')
+  }
+
+  async function handleSaveTreeEdit(treeRowId: number) {
+    setSavingTreeEdit(true)
+    const res = await fetch('/api/research-project-trees', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: treeRowId,
+        next_measurement_date: treeNextMeasDate || null,
+        measurement_interval_days: treeMeasIntervalDays === '' ? null : parseInt(treeMeasIntervalDays, 10),
+      }),
+    })
+    const data = await res.json()
+    setSavingTreeEdit(false)
+    if (!res.ok) {
+      alert('Error saving: ' + data.error)
+      return
+    }
+    setEditingTreeId(null)
+    fetchAll()
+  }
+
+  async function handleRemoveTree(treeRowId: number, displayName: string) {
+    if (!confirm(`Remove "${displayName}" from this research project? This only unlinks it from the project — the tree itself (in Collection or Tubestock) is not affected, and its baseline/measurement history will be deleted along with the link.`)) {
+      return
+    }
+    setRemovingTreeId(treeRowId)
+    const res = await fetch(`/api/research-project-trees?id=${treeRowId}`, { method: 'DELETE' })
+    const data = await res.json()
+    setRemovingTreeId(null)
+    if (!res.ok) {
+      alert('Error removing: ' + data.error)
+      return
+    }
+    fetchAll()
+  }
+
   function openMeasurementLogger(treeRowId: number) {
     setLoggingTreeId(treeRowId)
     setMeasDate(new Date().toISOString().slice(0, 10))
@@ -367,11 +419,36 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
                 <div style={{ width: '48px', height: '48px', background: '#f1f5f9', borderRadius: '6px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>&#127807;</div>
               )}
               <div style={{ minWidth: 0, flex: 1 }}>
-                <p style={{ fontWeight: '600', fontSize: '14px', margin: 0 }}>{t.displayName}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
+                  <p style={{ fontWeight: '600', fontSize: '14px', margin: 0 }}>{t.displayName}</p>
+                  <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                    <button onClick={() => openTreeEditor(t)} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '11px', cursor: 'pointer', padding: 0 }}>Edit</button>
+                    <button onClick={() => handleRemoveTree(t.id, t.displayName)} disabled={removingTreeId === t.id} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '11px', cursor: 'pointer', padding: 0 }}>
+                      {removingTreeId === t.id ? 'Removing...' : 'Remove'}
+                    </button>
+                  </div>
+                </div>
                 {t.speciesLabel && <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{t.speciesLabel}</p>}
                 {t.sourceLabel && <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>{t.sourceLabel}</p>}
               </div>
             </div>
+
+            {editingTreeId === t.id && (
+              <div style={{ marginTop: '10px', background: '#f9fafb', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px' }}>
+                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Next measurement date</label>
+                <input type="date" value={treeNextMeasDate} onChange={e => setTreeNextMeasDate(e.target.value)}
+                  style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', boxSizing: 'border-box', marginBottom: '6px' }} />
+                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Measurement interval (days)</label>
+                <input type="number" value={treeMeasIntervalDays} onChange={e => setTreeMeasIntervalDays(e.target.value)}
+                  style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', boxSizing: 'border-box', marginBottom: '8px' }} />
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => setEditingTreeId(null)} style={{ flex: 1, padding: '6px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', color: '#6b7280', cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={() => handleSaveTreeEdit(t.id)} disabled={savingTreeEdit} style={{ flex: 1, padding: '6px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+                    {savingTreeEdit ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {editingBaselineId === t.id ? (
               <div style={{ marginTop: '10px' }}>
