@@ -43,17 +43,16 @@ export default function WishlistPage() {
   const [newSupplierNotes, setNewSupplierNotes] = useState('')
   const [savingSupplier, setSavingSupplier] = useState(false)
 
-  const [genera, setGenera] = useState<string[]>([])
-  const [selectedGenus, setSelectedGenus] = useState('')
-  const [genusQuery, setGenusQuery] = useState('')
-  const [genusDropdownOpen, setGenusDropdownOpen] = useState(false)
-  const [speciesInGenus, setSpeciesInGenus] = useState<SpeciesRow[]>([])
-  const [loadingSpecies, setLoadingSpecies] = useState(false)
-
-  const [checked, setChecked] = useState<Set<number>>(new Set())
-  const [rowSize, setRowSize] = useState<Record<number, string>>({})
-  const [rowPrice, setRowPrice] = useState<Record<number, string>>({})
-  const [rowNotes, setRowNotes] = useState<Record<number, string>>({})
+  // Species search for the "add plants seen" flow -- searches by species/
+  // common name directly (debounced, queried live) rather than genus-first,
+  // since genus-first is an extra unnecessary tap in a nursery aisle.
+  const [addQuery, setAddQuery] = useState('')
+  const [addResults, setAddResults] = useState<SpeciesRow[]>([])
+  const [searchingAdd, setSearchingAdd] = useState(false)
+  // Ticked species staged for this supplier visit, keyed by sp_no so they
+  // survive the search query changing (searching for a second species
+  // shouldn't lose the first one you already ticked).
+  const [staged, setStaged] = useState<Record<number, { sp: SpeciesRow; size: string; price: string; notes: string }>>({})
   const [addingToWishlist, setAddingToWishlist] = useState(false)
 
   const [wishlist, setWishlist] = useState<WishlistItem[]>([])
@@ -71,6 +70,26 @@ export default function WishlistPage() {
 
   useEffect(() => { fetchAll() }, [])
 
+  // Debounced live search -- queries the DB directly per keystroke (after a
+  // short pause) rather than filtering a client-side list, so this never
+  // hits the 1000-row cap regardless of how many species match.
+  useEffect(() => {
+    const q = addQuery.trim()
+    if (q.length < 2) { setAddResults([]); return }
+    setSearchingAdd(true)
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('species')
+        .select('sp_no, species, common_name')
+        .or(`species.ilike.%${q}%,common_name.ilike.%${q}%`)
+        .order('species', { ascending: true })
+        .limit(30)
+      setAddResults((data as SpeciesRow[]) || [])
+      setSearchingAdd(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [addQuery])
+
   async function fetchAll() {
     setLoading(true)
     const suppliersRes = await fetch('/api/plant-suppliers')
@@ -80,27 +99,10 @@ export default function WishlistPage() {
       setSelectedSupplierId(suppliersData[0].id)
     }
 
-    // Supabase caps a single select at 1000 rows. With ~8,450 species rows
-    // (Acacia alone is ~1,483), a plain select() silently truncated this to
-    // genera starting around "Ac..." -- anything alphabetically later
-    // (including Leptospermum) never made it into the dropdown. Paginate
-    // through the full table instead.
-    const allGenusValues: string[] = []
-    let genusFrom = 0
-    const PAGE_SIZE = 1000
-    while (true) {
-      const { data: page } = await supabase
-        .from('species')
-        .select('species_genus')
-        .not('species_genus', 'is', null)
-        .range(genusFrom, genusFrom + PAGE_SIZE - 1)
-      if (!page || page.length === 0) break
-      page.forEach((row: any) => allGenusValues.push(row.species_genus))
-      if (page.length < PAGE_SIZE) break
-      genusFrom += PAGE_SIZE
-    }
-    const uniqueGenera = Array.from(new Set(allGenusValues)).sort((a, b) => a.localeCompare(b))
-    setGenera(uniqueGenera)
+    // No longer fetching the full genus list here -- the add-plants flow
+    // now searches species directly (see the debounced addQuery effect
+    // above), which queries the DB per keystroke instead of needing a
+    // client-side list of everything up front.
 
     const wishlistRes = await fetch('/api/wishlist-items')
     const wishlistData = wishlistRes.ok ? await wishlistRes.json() : []
@@ -140,79 +142,41 @@ export default function WishlistPage() {
     if (data && data[0]) setSelectedSupplierId(data[0].id)
   }
 
-  async function selectGenus(genus: string) {
-    setSelectedGenus(genus)
-    setGenusQuery(genus)
-    setGenusDropdownOpen(false)
-    setChecked(new Set())
-    setRowSize({})
-    setRowPrice({})
-    setRowNotes({})
-    if (!genus) { setSpeciesInGenus([]); return }
-    setLoadingSpecies(true)
-    // Same 1000-row cap risk as the genus list -- Acacia alone has ~1,483
-    // species, so a plain select() would silently drop ~480 of them from
-    // the ticklist. Paginate here too.
-    const allRows: SpeciesRow[] = []
-    let spFrom = 0
-    const SP_PAGE_SIZE = 1000
-    while (true) {
-      const { data: page } = await supabase
-        .from('species')
-        .select('sp_no, species, common_name')
-        .eq('species_genus', genus)
-        .order('species', { ascending: true })
-        .range(spFrom, spFrom + SP_PAGE_SIZE - 1)
-      if (!page || page.length === 0) break
-      allRows.push(...(page as SpeciesRow[]))
-      if (page.length < SP_PAGE_SIZE) break
-      spFrom += SP_PAGE_SIZE
-    }
-    setSpeciesInGenus(allRows)
-    setLoadingSpecies(false)
-    // Merge into the species map so newly-ticked items display correctly
-    // in the wishlist below without a refetch.
-    const map: Record<number, SpeciesRow> = {}
-    allRows.forEach((s: any) => { map[s.sp_no] = s })
-    setSpeciesMap(prev => ({ ...prev, ...map }))
-  }
-
-  function clearGenus() {
-    setSelectedGenus('')
-    setGenusQuery('')
-    setSpeciesInGenus([])
-    setChecked(new Set())
-  }
-
-  // Filtered live as the person types -- capped so a broad query (or an
-  // empty one) doesn't try to render all 1,200+ genera into the DOM at once.
-  const genusMatches = genera
-    .filter(g => g.toLowerCase().includes(genusQuery.trim().toLowerCase()))
-    .slice(0, 40)
-
-  function toggleChecked(spNo: number) {
-    setChecked(prev => {
-      const next = new Set(prev)
-      if (next.has(spNo)) {
-        next.delete(spNo)
+  function toggleStaged(sp: SpeciesRow) {
+    setStaged(prev => {
+      const next = { ...prev }
+      if (next[sp.sp_no]) {
+        delete next[sp.sp_no]
       } else {
-        next.add(spNo)
-        if (!rowSize[spNo]) setRowSize(r => ({ ...r, [spNo]: SIZE_OPTIONS[0] }))
+        next[sp.sp_no] = { sp, size: SIZE_OPTIONS[0], price: '', notes: '' }
       }
       return next
     })
   }
 
+  function updateStaged(spNo: number, field: 'size' | 'price' | 'notes', value: string) {
+    setStaged(prev => prev[spNo] ? { ...prev, [spNo]: { ...prev[spNo], [field]: value } } : prev)
+  }
+
+  function removeStaged(spNo: number) {
+    setStaged(prev => {
+      const next = { ...prev }
+      delete next[spNo]
+      return next
+    })
+  }
+
   async function handleAddToWishlist() {
+    const stagedList = Object.values(staged)
     if (!selectedSupplierId) { alert('Select or add a supplier first.'); return }
-    if (checked.size === 0) { alert('Tick at least one species.'); return }
+    if (stagedList.length === 0) { alert('Tick at least one species.'); return }
     setAddingToWishlist(true)
-    const items = Array.from(checked).map(spNo => ({
+    const items = stagedList.map(s => ({
       supplier_id: selectedSupplierId,
-      sp_no: spNo,
-      size_category: rowSize[spNo] || SIZE_OPTIONS[0],
-      price: rowPrice[spNo] ? parseFloat(rowPrice[spNo]) : null,
-      notes: rowNotes[spNo] || null,
+      sp_no: s.sp.sp_no,
+      size_category: s.size || SIZE_OPTIONS[0],
+      price: s.price ? parseFloat(s.price) : null,
+      notes: s.notes || null,
     }))
     const res = await fetch('/api/wishlist-items', {
       method: 'POST',
@@ -222,10 +186,9 @@ export default function WishlistPage() {
     const data = await res.json()
     setAddingToWishlist(false)
     if (!res.ok) { alert('Error: ' + data.error); return }
-    setChecked(new Set())
-    setRowSize({})
-    setRowPrice({})
-    setRowNotes({})
+    setStaged({})
+    setAddQuery('')
+    setAddResults([])
     fetchAll()
   }
 
@@ -433,110 +396,82 @@ export default function WishlistPage() {
         )}
       </div>
 
-      {/* GENUS -> SPECIES TICKLIST */}
+      {/* SPECIES SEARCH -> STAGED SELECTION */}
       <div style={{ background: '#f9fafb', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
         <h2 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 10px' }}>Add plants seen</h2>
         {!selectedSupplierId && <p style={{ fontSize: '12px', color: '#dc2626', margin: '0 0 8px' }}>Select or add a supplier above first.</p>}
 
-        <label style={labelStyle}>Genus</label>
-        <div style={{ position: 'relative', marginBottom: '10px' }}>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <input
-              type="text"
-              value={genusQuery}
-              onChange={e => { setGenusQuery(e.target.value); setSelectedGenus(''); setGenusDropdownOpen(true) }}
-              onFocus={() => setGenusDropdownOpen(true)}
-              onBlur={() => setTimeout(() => setGenusDropdownOpen(false), 150)}
-              placeholder="Type to search genus (e.g. Acacia)..."
-              style={inputStyle}
-            />
-            {(genusQuery || selectedGenus) && (
-              <button onClick={clearGenus} type="button" style={{ padding: '0 12px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '8px', color: '#6b7280', fontSize: '13px', cursor: 'pointer' }}>
-                &times;
-              </button>
-            )}
+        <label style={labelStyle}>Species or common name</label>
+        <input
+          type="text"
+          value={addQuery}
+          onChange={e => setAddQuery(e.target.value)}
+          placeholder="Start typing e.g. Leptospermum, or a common name..."
+          style={{ ...inputStyle, marginBottom: '10px' }}
+        />
+
+        {searchingAdd && <p style={{ fontSize: '12px', color: '#9ca3af' }}>Searching...</p>}
+
+        {!searchingAdd && addQuery.trim().length >= 2 && addResults.length === 0 && (
+          <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px' }}>No species match "{addQuery}".</p>
+        )}
+
+        {!searchingAdd && addQuery.trim().length > 0 && addQuery.trim().length < 2 && (
+          <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px' }}>Keep typing (2+ letters)...</p>
+        )}
+
+        {addResults.length > 0 && (
+          <div style={{ marginBottom: '14px', border: '1px solid #e2e8f0', borderRadius: '8px', maxHeight: '220px', overflowY: 'auto', background: '#fff' }}>
+            {addResults.map(sp => (
+              <label key={sp.sp_no} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '9px 12px', borderBottom: '1px solid #f1f5f9' }}>
+                <input type="checkbox" checked={!!staged[sp.sp_no]} onChange={() => toggleStaged(sp)} style={{ width: '15px', height: '15px', flexShrink: 0 }} />
+                <span style={{ fontWeight: 600 }}>{sp.species}</span>
+                {sp.common_name && sp.common_name !== 'Unknown' && <span style={{ color: '#6b7280' }}>&mdash; {sp.common_name}</span>}
+              </label>
+            ))}
           </div>
+        )}
 
-          {genusDropdownOpen && genusQuery.trim() !== '' && (
-            <div style={{
-              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, marginTop: '4px',
-              background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px',
-              maxHeight: '260px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-            }}>
-              {genusMatches.length === 0 && (
-                <p style={{ fontSize: '12px', color: '#9ca3af', padding: '10px' }}>No genus matches "{genusQuery}".</p>
-              )}
-              {genusMatches.map(g => (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => selectGenus(g)}
-                  style={{
-                    display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px',
-                    background: g === selectedGenus ? '#16a34a22' : 'none', border: 'none',
-                    borderBottom: '1px solid #f1f5f9', fontSize: '13px', color: '#374151', cursor: 'pointer',
-                  }}
-                >
-                  {g}
-                </button>
-              ))}
-              {genera.filter(g => g.toLowerCase().includes(genusQuery.trim().toLowerCase())).length > 40 && (
-                <p style={{ fontSize: '11px', color: '#9ca3af', padding: '8px 12px', margin: 0 }}>
-                  More than 40 matches — keep typing to narrow it down.
-                </p>
-              )}
-            </div>
-          )}
-
-          {selectedGenus && !genusDropdownOpen && (
-            <p style={{ fontSize: '12px', color: '#16a34a', margin: '4px 0 0', fontWeight: 600 }}>Selected: {selectedGenus}</p>
-          )}
-        </div>
-
-        {loadingSpecies && <p style={{ fontSize: '12px', color: '#9ca3af' }}>Loading species...</p>}
-
-        {!loadingSpecies && speciesInGenus.length > 0 && (
+        {Object.keys(staged).length > 0 && (
           <div>
-            {speciesInGenus.map(sp => (
-              <div key={sp.sp_no} style={{ borderBottom: '1px solid #eef1f5', padding: '8px 0' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
-                  <input type="checkbox" checked={checked.has(sp.sp_no)} onChange={() => toggleChecked(sp.sp_no)} style={{ width: '15px', height: '15px' }} />
-                  <span style={{ fontWeight: 600 }}>{sp.species}</span>
-                  {sp.common_name && sp.common_name !== 'Unknown' && <span style={{ color: '#6b7280' }}>&mdash; {sp.common_name}</span>}
-                </label>
-
-                {checked.has(sp.sp_no) && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px', paddingLeft: '23px' }}>
-                    <div>
-                      <label style={labelStyle}>Size</label>
-                      <select value={rowSize[sp.sp_no] || SIZE_OPTIONS[0]} onChange={e => setRowSize(r => ({ ...r, [sp.sp_no]: e.target.value }))} style={inputStyle}>
-                        {SIZE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Price ($)</label>
-                      <input type="number" value={rowPrice[sp.sp_no] || ''} onChange={e => setRowPrice(r => ({ ...r, [sp.sp_no]: e.target.value }))} style={inputStyle} />
-                    </div>
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={labelStyle}>Notes</label>
-                      <textarea value={rowNotes[sp.sp_no] || ''} onChange={e => setRowNotes(r => ({ ...r, [sp.sp_no]: e.target.value }))} rows={2} style={inputStyle} />
-                    </div>
+            <p style={{ fontSize: '12px', fontWeight: 600, color: '#374151', margin: '0 0 8px' }}>
+              Ready to add ({Object.keys(staged).length}):
+            </p>
+            {Object.values(staged).map(({ sp, size, price, notes }) => (
+              <div key={sp.sp_no} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <p style={{ fontWeight: 600, fontSize: '13px', margin: 0 }}>{sp.species}</p>
+                    {sp.common_name && sp.common_name !== 'Unknown' && <p style={{ fontSize: '11px', color: '#6b7280', margin: '2px 0 0' }}>{sp.common_name}</p>}
                   </div>
-                )}
+                  <button onClick={() => removeStaged(sp.sp_no)} type="button" style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '11px', cursor: 'pointer', padding: 0 }}>Remove</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
+                  <div>
+                    <label style={labelStyle}>Size</label>
+                    <select value={size} onChange={e => updateStaged(sp.sp_no, 'size', e.target.value)} style={inputStyle}>
+                      {SIZE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Price ($)</label>
+                    <input type="number" value={price} onChange={e => updateStaged(sp.sp_no, 'price', e.target.value)} style={inputStyle} />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={labelStyle}>Notes</label>
+                    <textarea value={notes} onChange={e => updateStaged(sp.sp_no, 'notes', e.target.value)} rows={2} style={inputStyle} />
+                  </div>
+                </div>
               </div>
             ))}
 
             <button
               onClick={handleAddToWishlist}
-              disabled={addingToWishlist || checked.size === 0 || !selectedSupplierId}
-              style={{ marginTop: '12px', width: '100%', padding: '10px', background: checked.size === 0 ? '#9ca3af' : '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: checked.size === 0 ? 'default' : 'pointer' }}>
-              {addingToWishlist ? 'Adding...' : `Add ${checked.size || ''} to Wishlist`}
+              disabled={addingToWishlist || !selectedSupplierId}
+              style={{ marginTop: '4px', width: '100%', padding: '10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+              {addingToWishlist ? 'Adding...' : `Add ${Object.keys(staged).length} to Wishlist`}
             </button>
           </div>
-        )}
-
-        {!loadingSpecies && selectedGenus && speciesInGenus.length === 0 && (
-          <p style={{ fontSize: '12px', color: '#9ca3af' }}>No species found for this genus.</p>
         )}
       </div>
 
