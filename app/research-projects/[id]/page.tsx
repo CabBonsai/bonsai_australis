@@ -26,6 +26,18 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
   const [baselineNotes, setBaselineNotes] = useState('')
   const [savingBaseline, setSavingBaseline] = useState(false)
 
+  // Measurement log — separate from baseline on purpose. Baseline (above) is
+  // written exactly once, the true first-ever reading. Every check-in after
+  // that goes here as its own dated row in research_project_measurements, so
+  // Save never overwrites prior history the way the old single-form flow did.
+  const [measurements, setMeasurements] = useState<Record<number, any[]>>({})
+  const [loggingTreeId, setLoggingTreeId] = useState<number | null>(null)
+  const [measDate, setMeasDate] = useState(new Date().toISOString().slice(0, 10))
+  const [measCaliper, setMeasCaliper] = useState('')
+  const [measHeight, setMeasHeight] = useState('')
+  const [measNotes, setMeasNotes] = useState('')
+  const [savingMeasurement, setSavingMeasurement] = useState(false)
+
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10))
   const [entryTreeId, setEntryTreeId] = useState<string>('') // '' = pod-wide
   const [entryNote, setEntryNote] = useState('')
@@ -125,6 +137,19 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
       return { ...t, displayName: 'Unlinked entry', speciesLabel: '', imageUrl: null, sourceLabel: null }
     }))
 
+    if (treeLinks.length > 0) {
+      const measEntries = await Promise.all(
+        treeLinks.map((t: any) =>
+          fetch(`/api/research-project-measurements?project_tree_id=${t.id}`)
+            .then(r => (r.ok ? r.json() : []))
+            .then(rows => [t.id, rows || []] as [number, any[]])
+        )
+      )
+      setMeasurements(Object.fromEntries(measEntries))
+    } else {
+      setMeasurements({})
+    }
+
     const journalRes = await fetch(`/api/research-project-journal?project_id=${projectId}`)
     const journalRows = journalRes.ok ? await journalRes.json() : []
 
@@ -200,6 +225,37 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
     })
     setSavingBaseline(false)
     setEditingBaselineId(null)
+    fetchAll()
+  }
+
+  function openMeasurementLogger(treeRowId: number) {
+    setLoggingTreeId(treeRowId)
+    setMeasDate(new Date().toISOString().slice(0, 10))
+    setMeasCaliper('')
+    setMeasHeight('')
+    setMeasNotes('')
+  }
+
+  async function handleSaveMeasurement(treeRowId: number) {
+    setSavingMeasurement(true)
+    const res = await fetch('/api/research-project-measurements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project_tree_id: treeRowId,
+        measurement_date: measDate,
+        caliper_mm: measCaliper === '' ? null : parseFloat(measCaliper),
+        height_mm: measHeight === '' ? null : parseFloat(measHeight),
+        notes: measNotes || null,
+      }),
+    })
+    const data = await res.json()
+    setSavingMeasurement(false)
+    if (!res.ok) {
+      alert('Error saving measurement: ' + data.error)
+      return
+    }
+    setLoggingTreeId(null)
     fetchAll()
   }
 
@@ -335,6 +391,27 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
                   </button>
                 </div>
               </div>
+            ) : loggingTreeId === t.id ? (
+              <div style={{ marginTop: '10px' }}>
+                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Date</label>
+                <input type="date" value={measDate} onChange={e => setMeasDate(e.target.value)}
+                  style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', boxSizing: 'border-box', marginBottom: '6px' }} />
+                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Caliper (mm)</label>
+                <input type="number" value={measCaliper} onChange={e => setMeasCaliper(e.target.value)}
+                  style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', boxSizing: 'border-box', marginBottom: '6px' }} />
+                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Height (mm)</label>
+                <input type="number" value={measHeight} onChange={e => setMeasHeight(e.target.value)}
+                  style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', boxSizing: 'border-box', marginBottom: '6px' }} />
+                <label style={{ display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>Notes</label>
+                <textarea value={measNotes} onChange={e => setMeasNotes(e.target.value)} rows={2}
+                  style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', boxSizing: 'border-box', marginBottom: '8px' }} />
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => setLoggingTreeId(null)} style={{ flex: 1, padding: '6px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', color: '#6b7280', cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={() => handleSaveMeasurement(t.id)} disabled={savingMeasurement} style={{ flex: 1, padding: '6px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+                    {savingMeasurement ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
             ) : (
               <div style={{ marginTop: '10px', fontSize: '12px', color: '#6b7280' }}>
                 {t.baseline_date ? (
@@ -345,9 +422,30 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
                 ) : (
                   <p style={{ margin: '0 0 6px' }}>No baseline recorded yet.</p>
                 )}
-                <button onClick={() => openBaselineEditor(t)} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', cursor: 'pointer', padding: 0 }}>
-                  {t.baseline_date ? 'Update baseline' : 'Record baseline'}
-                </button>
+
+                {(measurements[t.id] || []).length > 0 && (
+                  <div style={{ margin: '4px 0 6px', paddingLeft: '2px', borderLeft: '2px solid #f1f5f9' }}>
+                    {(measurements[t.id] || []).map((m: any) => (
+                      <p key={m.id} style={{ margin: '0 0 2px', paddingLeft: '8px' }}>
+                        {m.measurement_date}: {m.caliper_mm ?? '\u2014'}mm caliper, {m.height_mm ?? '\u2014'}mm height
+                        {m.notes ? ` \u2014 ${m.notes}` : ''}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {!t.baseline_date && (
+                    <button onClick={() => openBaselineEditor(t)} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', cursor: 'pointer', padding: 0 }}>
+                      Record baseline
+                    </button>
+                  )}
+                  {t.baseline_date && (
+                    <button onClick={() => openMeasurementLogger(t.id)} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', cursor: 'pointer', padding: 0 }}>
+                      Log measurement
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
