@@ -38,7 +38,8 @@ export default function BlogAdmin() {
 
   async function fetchPosts() {
     setLoading(true)
-    const { data } = await supabase.from('blog_posts').select('*').order('created_at', { ascending: false })
+    const res = await fetch('/api/blog-posts')
+    const data = res.ok ? await res.json() : []
     setPosts(data || [])
     setLoading(false)
   }
@@ -160,21 +161,35 @@ function PostEditor({ post, onDone }: { post: Post | null, onDone: () => void })
       published_at: isPublished ? (post?.published_at || new Date().toISOString()) : post?.published_at || null,
       updated_at: new Date().toISOString(),
     }
-    let error
-    if (post) {
-      ;({ error } = await supabase.from('blog_posts').update(payload).eq('id', post.id))
-    } else {
-      ;({ error } = await supabase.from('blog_posts').insert(payload))
-    }
+    const res = post
+      ? await fetch('/api/blog-posts', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: post.id, ...payload }),
+        })
+      : await fetch('/api/blog-posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
     setSaving(false)
-    if (error) { alert('Save failed: ' + error.message); return }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert('Save failed: ' + (data.error || res.status))
+      return
+    }
     onDone()
   }
 
   async function handleDelete() {
     if (!post) return
     if (!confirm('Delete this post permanently?')) return
-    await supabase.from('blog_posts').delete().eq('id', post.id)
+    const res = await fetch(`/api/blog-posts?id=${post.id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert('Delete failed: ' + (data.error || res.status))
+      return
+    }
     onDone()
   }
 

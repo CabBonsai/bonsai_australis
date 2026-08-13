@@ -21,7 +21,7 @@ type SpeciesImage = {
   source_page_url: string
 }
 
-export default function SpeciesImageGallery({ spNo }: { spNo: string }) {
+export default function SpeciesImageGallery({ spNo, onSetReference }: { spNo: string, onSetReference?: (url: string, attribution: string) => void }) {
   const [images, setImages] = useState<SpeciesImage[]>([])
   const [loading, setLoading] = useState(true)
   const [removingId, setRemovingId] = useState<string | null>(null)
@@ -59,6 +59,14 @@ export default function SpeciesImageGallery({ spNo }: { spNo: string }) {
       })
       if (res.ok) {
         setCurrentRefUrl(img.image_url)
+        // Keep the parent page's `species` state in sync -- that state is
+        // what the page's main Save button sends back wholesale, and it
+        // was previously never updated after this direct save, so hitting
+        // Save afterward would silently overwrite this field back to its
+        // stale (often null) prior value. Found via a real report: photos
+        // appeared to set correctly but reverted after using Save elsewhere
+        // on the page.
+        onSetReference?.(img.image_url, img.attribution_text)
       } else {
         const data = await res.json().catch(() => ({}))
         alert('Set reference photo failed: ' + (data.error || res.status))

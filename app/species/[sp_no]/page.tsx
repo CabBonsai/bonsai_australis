@@ -299,6 +299,7 @@ export default function SpeciesDetail() {
         research_notes: species.research_notes,
         research_status: species.research_status,
         reference_photo: species.reference_photo,
+        reference_photo_attribution: species.reference_photo_attribution,
         review_status: species.review_status,
         review_notes: species.review_notes,
       }),
@@ -1631,7 +1632,12 @@ export default function SpeciesDetail() {
         </Section>
       )}
         <Section title="Photos">
-        <SpeciesImageGallery spNo={spNo as string} />
+        <SpeciesImageGallery
+        spNo={spNo as string}
+        onSetReference={(url, attribution) => {
+          setSpecies(prev => ({ ...prev, reference_photo: url, reference_photo_attribution: attribution }))
+        }}
+      />
       </Section>
       <Section title="Variants">
         <VariantsSection spNo={spNo as string} />
