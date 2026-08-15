@@ -178,7 +178,11 @@ function SpeciesPhotoField({ value, onChange, attribution, onAttributionChange }
         {value && (
           <button
             type="button"
-            onClick={() => { onChange(''); onAttributionChange?.('') }}
+            onClick={() => {
+              alert('REMOVE BUTTON CLICKED')
+              onChange('')
+              onAttributionChange?.('')
+            }}
             style={{
               color: '#c04545', fontSize: '15px', fontWeight: 600, padding: '11px 18px',
               background: '#faf0f0', border: '1.5px solid #eecccc', borderRadius: '10px', cursor: 'pointer',
