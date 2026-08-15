@@ -37,6 +37,64 @@ export default function ImageManagerPage() {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
 
+  // Manual entry — for images found by direct search (e.g. a specific
+  // Wikimedia Commons file page located outside this tool) rather than
+  // surfaced through the Openverse search above. Openverse indexes a lot of
+  // Commons/Flickr content but not everything, and sometimes the exact
+  // photo wanted (checked and confirmed license-clear by hand) just isn't
+  // in its index under the search terms tried.
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualUrl, setManualUrl] = useState("");
+  const [manualPhotographer, setManualPhotographer] = useState("");
+  const [manualLicence, setManualLicence] = useState("");
+  const [manualLicenceUrl, setManualLicenceUrl] = useState("");
+  const [manualSource, setManualSource] = useState("");
+  const [manualSourcePageUrl, setManualSourcePageUrl] = useState("");
+  const [manualSaving, setManualSaving] = useState(false);
+  const [manualMessage, setManualMessage] = useState<string | null>(null);
+
+  async function handleManualSave() {
+    if (!spNo.trim()) {
+      setManualMessage("Enter the sp_no this image belongs to (top field) first.");
+      return;
+    }
+    if (!manualUrl.trim() || !manualLicence.trim() || !manualSourcePageUrl.trim()) {
+      setManualMessage("Image URL, Licence, and Source Page URL are required.");
+      return;
+    }
+    setManualSaving(true);
+    setManualMessage(null);
+    try {
+      const res = await fetch("/api/species-images/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sp_no: Number(spNo),
+          source_api: manualSource.trim() || "Manual",
+          external_id: null,
+          image_url: manualUrl.trim(),
+          thumbnail_url: null,
+          photographer: manualPhotographer.trim() || null,
+          licence: manualLicence.trim(),
+          licence_url: manualLicenceUrl.trim() || null,
+          source_page_url: manualSourcePageUrl.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok && !data.duplicate) {
+        setManualMessage(data.error || "Save failed.");
+        return;
+      }
+      setManualMessage(data.duplicate ? "Already saved for this species." : "Saved — visible in that species' Photos section.");
+      setManualUrl(""); setManualPhotographer(""); setManualLicence("");
+      setManualLicenceUrl(""); setManualSource(""); setManualSourcePageUrl("");
+    } catch {
+      setManualMessage("Network error reaching the save endpoint.");
+    } finally {
+      setManualSaving(false);
+    }
+  }
+
   async function handleSearch() {
     if (!speciesName.trim()) {
       setError("Enter a species name to search.");
@@ -153,6 +211,78 @@ export default function ImageManagerPage() {
           {error}
         </div>
       )}
+
+      <div style={{ marginBottom: 24, border: "1px solid #e2dac2", borderRadius: 6, background: "#fffdf9" }}>
+        <button
+          onClick={() => setManualOpen(!manualOpen)}
+          style={{
+            width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "10px 14px", background: "none", border: "none", cursor: "pointer",
+            fontSize: 14, fontWeight: 600, color: "#3f5228", textAlign: "left",
+          }}
+        >
+          Add an image found manually (not from Openverse search)
+          <span style={{ fontSize: 16, color: "#8a7f5f" }}>{manualOpen ? "−" : "+"}</span>
+        </button>
+        {manualOpen && (
+          <div style={{ padding: "0 14px 16px", fontSize: 13 }}>
+            <p style={{ color: "#8a7f5f", marginBottom: 12 }}>
+              Use this when you've found and license-checked a specific photo yourself
+              (e.g. a Wikimedia Commons file page) that didn't turn up in the search above.
+              Uses the sp_no entered at the top of the page. All fields except Photographer
+              and Licence URL are required.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ display: "block", fontSize: 12, color: "#555", marginBottom: 4 }}>Image URL *</label>
+                <input value={manualUrl} onChange={e => setManualUrl(e.target.value)} placeholder="Direct link to the full-size image file"
+                  style={{ width: "100%", padding: "8px 10px", border: "1px solid #ccc", borderRadius: 4, boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, color: "#555", marginBottom: 4 }}>Photographer</label>
+                <input value={manualPhotographer} onChange={e => setManualPhotographer(e.target.value)} placeholder="e.g. Geoff Derrin"
+                  style={{ width: "100%", padding: "8px 10px", border: "1px solid #ccc", borderRadius: 4, boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, color: "#555", marginBottom: 4 }}>Licence *</label>
+                <input value={manualLicence} onChange={e => setManualLicence(e.target.value)} placeholder="e.g. CC BY-SA 4.0"
+                  style={{ width: "100%", padding: "8px 10px", border: "1px solid #ccc", borderRadius: 4, boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, color: "#555", marginBottom: 4 }}>Licence URL</label>
+                <input value={manualLicenceUrl} onChange={e => setManualLicenceUrl(e.target.value)} placeholder="creativecommons.org/licenses/..."
+                  style={{ width: "100%", padding: "8px 10px", border: "1px solid #ccc", borderRadius: 4, boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, color: "#555", marginBottom: 4 }}>Source name</label>
+                <input value={manualSource} onChange={e => setManualSource(e.target.value)} placeholder="e.g. Wikimedia Commons"
+                  style={{ width: "100%", padding: "8px 10px", border: "1px solid #ccc", borderRadius: 4, boxSizing: "border-box" }} />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ display: "block", fontSize: 12, color: "#555", marginBottom: 4 }}>Source Page URL *</label>
+                <input value={manualSourcePageUrl} onChange={e => setManualSourcePageUrl(e.target.value)} placeholder="The file's page (for the attribution link)"
+                  style={{ width: "100%", padding: "8px 10px", border: "1px solid #ccc", borderRadius: 4, boxSizing: "border-box" }} />
+              </div>
+            </div>
+            {manualMessage && (
+              <p style={{ color: manualMessage.startsWith("Saved") || manualMessage.startsWith("Already") ? "#3f5228" : "#a33", marginBottom: 10, fontWeight: 600 }}>
+                {manualMessage}
+              </p>
+            )}
+            <button
+              onClick={handleManualSave}
+              disabled={manualSaving}
+              style={{
+                padding: "9px 18px", background: "#D9A02B", color: "#2E2510", border: "none",
+                borderRadius: 4, cursor: manualSaving ? "default" : "pointer", fontWeight: 600,
+                opacity: manualSaving ? 0.6 : 1,
+              }}
+            >
+              {manualSaving ? "Saving…" : "Save Manual Entry"}
+            </button>
+          </div>
+        )}
+      </div>
 
       {results.length === 0 && !loading && !error && (
         <p style={{ color: "#888", fontSize: 14 }}>No results yet — search above.</p>
