@@ -178,11 +178,7 @@ function SpeciesPhotoField({ value, onChange, attribution, onAttributionChange }
         {value && (
           <button
             type="button"
-            onClick={() => {
-              alert('REMOVE BUTTON CLICKED')
-              onChange('')
-              onAttributionChange?.('')
-            }}
+            onClick={() => { onChange(''); onAttributionChange?.('') }}
             style={{
               color: '#c04545', fontSize: '15px', fontWeight: 600, padding: '11px 18px',
               background: '#faf0f0', border: '1.5px solid #eecccc', borderRadius: '10px', cursor: 'pointer',
@@ -298,20 +294,20 @@ export default function SpeciesDetail() {
     fetchAll()
   }, [spNo])
 
-  function updateSpecies(field: string, value: any) { setSpecies({ ...species, [field]: value }) }
-  function updateSuitability(field: string, value: any) { setSuitability({ ...suitability, [field]: value }) }
-  function updateCareGuide(field: string, value: any) { setCareGuide({ ...careGuide, [field]: value }) }
-  function updateFertilisation(field: string, value: any) { setFertilisation({ ...fertilisation, [field]: value }) }
-  function updatePruning(field: string, value: any) { setPruning({ ...pruning, [field]: value }) }
-  function updateNebari(field: string, value: any) { setNebari({ ...nebari, [field]: value }) }
-  function updateBarkChar(field: string, value: any) { setBarkChar({ ...barkChar, [field]: value }) }
-  function updateTaperMove(field: string, value: any) { setTaperMove({ ...taperMove, [field]: value }) }
-  function updateTubestockDev(field: string, value: any) { setTubestockDev({ ...tubestockDev, [field]: value }) }
-  function updateSeasonal(field: string, value: any) { setSeasonal({ ...seasonal, [field]: value }) }
-  function updateAdvanced(field: string, value: any) { setAdvanced({ ...advanced, [field]: value }) }
-  function updateRegional(field: string, value: any) { setRegional({ ...regional, [field]: value }) }
-  function updatePlacement(field: string, value: any) { setPlacement({ ...placement, [field]: value }) }
-  function updateToxicity(field: string, value: any) { setToxicity({ ...toxicity, [field]: value }) }
+  function updateSpecies(field: string, value: any) { setSpecies((prev: any) => ({ ...prev, [field]: value })) }
+  function updateSuitability(field: string, value: any) { setSuitability((prev: any) => ({ ...prev, [field]: value })) }
+  function updateCareGuide(field: string, value: any) { setCareGuide((prev: any) => ({ ...prev, [field]: value })) }
+  function updateFertilisation(field: string, value: any) { setFertilisation((prev: any) => ({ ...prev, [field]: value })) }
+  function updatePruning(field: string, value: any) { setPruning((prev: any) => ({ ...prev, [field]: value })) }
+  function updateNebari(field: string, value: any) { setNebari((prev: any) => ({ ...prev, [field]: value })) }
+  function updateBarkChar(field: string, value: any) { setBarkChar((prev: any) => ({ ...prev, [field]: value })) }
+  function updateTaperMove(field: string, value: any) { setTaperMove((prev: any) => ({ ...prev, [field]: value })) }
+  function updateTubestockDev(field: string, value: any) { setTubestockDev((prev: any) => ({ ...prev, [field]: value })) }
+  function updateSeasonal(field: string, value: any) { setSeasonal((prev: any) => ({ ...prev, [field]: value })) }
+  function updateAdvanced(field: string, value: any) { setAdvanced((prev: any) => ({ ...prev, [field]: value })) }
+  function updateRegional(field: string, value: any) { setRegional((prev: any) => ({ ...prev, [field]: value })) }
+  function updatePlacement(field: string, value: any) { setPlacement((prev: any) => ({ ...prev, [field]: value })) }
+  function updateToxicity(field: string, value: any) { setToxicity((prev: any) => ({ ...prev, [field]: value })) }
 
   async function handleSave() {
     setSaving(true)
