@@ -20,6 +20,7 @@ type Entry = {
   sp_no: number
   spiel: string | null
   photo_url: string | null
+  photo_credit: string | null
   pdf_url: string | null
   active: boolean
   visible: boolean
@@ -31,6 +32,7 @@ export default function SpeciesOfTheWeekPicker() {
   const [spNo, setSpNo] = useState('')
   const [spiel, setSpiel] = useState('')
   const [photoUrl, setPhotoUrl] = useState('')
+  const [photoCredit, setPhotoCredit] = useState('')
   const [pdfUrl, setPdfUrl] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -59,7 +61,7 @@ export default function SpeciesOfTheWeekPicker() {
   }, [loadHistory])
 
   function resetForm() {
-    setSpNo(''); setSpiel(''); setPhotoUrl(''); setPdfUrl('')
+    setSpNo(''); setSpiel(''); setPhotoUrl(''); setPhotoCredit(''); setPdfUrl('')
     setEditingId(null); setMakeActive(false)
   }
 
@@ -68,6 +70,7 @@ export default function SpeciesOfTheWeekPicker() {
     setSpNo(String(entry.sp_no))
     setSpiel(entry.spiel || '')
     setPhotoUrl(entry.photo_url || '')
+    setPhotoCredit(entry.photo_credit || '')
     setPdfUrl(entry.pdf_url || '')
     setMakeActive(entry.active)
     setMessage(null)
@@ -87,6 +90,7 @@ export default function SpeciesOfTheWeekPicker() {
             id: editingId,
             spiel: spiel || null,
             photo_url: photoUrl || null,
+            photo_credit: photoCredit || null,
             make_active: makeActive,
           }),
         })
@@ -105,6 +109,7 @@ export default function SpeciesOfTheWeekPicker() {
             sp_no: parseInt(spNo, 10),
             spiel: spiel || null,
             photo_url: photoUrl || null,
+            photo_credit: photoCredit || null,
             pdf_url: pdfUrl || null,
           }),
         })
@@ -192,6 +197,14 @@ export default function SpeciesOfTheWeekPicker() {
 
         <label style={labelStyle}>Photo URL</label>
         <input style={fieldStyle} value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} placeholder="Reuse species.reference_photo, or paste a new one" />
+
+        <label style={labelStyle}>Photo Credit (if CC-licensed)</label>
+        <input
+          style={fieldStyle}
+          value={photoCredit}
+          onChange={e => setPhotoCredit(e.target.value)}
+          placeholder='e.g. "Photo: Geoff Derrin, CC BY-SA 4.0, via Wikimedia Commons" — leave blank for your own photos'
+        />
 
         {!editingId && (
           <>
