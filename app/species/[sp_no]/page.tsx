@@ -130,7 +130,7 @@ function Field({ label, value, onChange, type = 'text' }: {
   )
 }
 
-function SpeciesPhotoField({ value, onChange }: { value: string, onChange: (v: string) => void }) {
+function SpeciesPhotoField({ value, onChange, onAttributionChange }: { value: string, onChange: (v: string) => void, onAttributionChange?: (v: string) => void }) {
   const [uploading, setUploading] = useState(false)
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -140,6 +140,13 @@ function SpeciesPhotoField({ value, onChange }: { value: string, onChange: (v: s
     try {
       const publicUrl = await uploadPhoto(file, 'species-photos')
       onChange(publicUrl)
+      // Own photos need no external attribution (Steve holds the copyright),
+      // but an auto copyright caption is applied so it's protected once the
+      // site goes public. Only fires for uploads through this field — the
+      // separate CC-sourced pipeline (Image Manager -> Gallery "Set as
+      // reference") continues to carry its own real attribution text and is
+      // untouched by this.
+      onAttributionChange?.('© Bonsai Australis')
     } catch (err: any) {
       alert('Upload failed: ' + err.message)
     } finally {
@@ -157,7 +164,7 @@ function SpeciesPhotoField({ value, onChange }: { value: string, onChange: (v: s
           {uploading ? 'Uploading...' : value ? '📷 Replace Photo' : '📷 Add Reference Photo'}
         </label>
         <input id="species-ref-photo" type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
-        {value && <button type="button" onClick={() => onChange('')} style={{ color: '#c04545', fontSize: '15px', padding: '0 10px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>}
+        {value && <button type="button" onClick={() => { onChange(''); onAttributionChange?.('') }} style={{ color: '#c04545', fontSize: '15px', padding: '0 10px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>}
       </div>
     </div>
   )
@@ -1345,7 +1352,11 @@ export default function SpeciesDetail() {
       )}
       <h1 style={{fontSize:'32px',fontWeight:700,color:'#2b2620',letterSpacing:'-0.01em'}}>{species.species}</h1>
       <p style={{fontSize:'14px',color:'#a89e7a',marginBottom:'20px'}}>sp_no: {species.sp_no}</p>
-      <SpeciesPhotoField value={species.reference_photo || ''} onChange={v => updateSpecies('reference_photo', v)} />
+      <SpeciesPhotoField
+        value={species.reference_photo || ''}
+        onChange={v => updateSpecies('reference_photo', v)}
+        onAttributionChange={v => updateSpecies('reference_photo_attribution', v)}
+      />
       <div style={{marginBottom:'20px'}}>
         <label style={{display:'block',fontSize:'13px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'6px'}}>Quick Notes</label>
         <textarea value={species.research_notes || ''} onChange={(e) => updateSpecies('research_notes', e.target.value)} style={{width:'100%',minHeight:'110px',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'14px 16px',fontSize:'17px',lineHeight:1.65,fontFamily:'inherit',color:'#2b2620',background:'#fffefb',resize:'vertical',outline:'none'}} rows={4} placeholder="Voice-to-text notes go here..." />
