@@ -130,7 +130,7 @@ function Field({ label, value, onChange, type = 'text' }: {
   )
 }
 
-function SpeciesPhotoField({ value, onChange, onAttributionChange }: { value: string, onChange: (v: string) => void, onAttributionChange?: (v: string) => void }) {
+function SpeciesPhotoField({ value, onChange, attribution, onAttributionChange }: { value: string, onChange: (v: string) => void, attribution?: string, onAttributionChange?: (v: string) => void }) {
   const [uploading, setUploading] = useState(false)
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -159,12 +159,34 @@ function SpeciesPhotoField({ value, onChange, onAttributionChange }: { value: st
     <div style={{ marginBottom: '18px' }}>
       <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8a7f5f', marginBottom: '6px' }}>Reference Photo</label>
       {value && <img src={value} alt="Reference" style={{width:'100%',maxHeight:'500px',objectFit:'contain',borderRadius:'8px',marginBottom:'8px',border:'1px solid #e2e8f0',background:'#f3efe2'}} />}
+      {value && (
+        <div style={{ marginBottom: '8px' }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#8a7f5f', marginBottom: '3px' }}>Photo credit / attribution (shown as a caption on the public site)</label>
+          <input
+            value={attribution || ''}
+            onChange={e => onAttributionChange?.(e.target.value)}
+            placeholder="e.g. © Bonsai Australis, or CC credit text"
+            style={{ width: '100%', boxSizing: 'border-box', border: '1.5px solid #e2dac2', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: '#2b2620', background: '#fffefb', outline: 'none' }}
+          />
+        </div>
+      )}
       <div style={{ display: 'flex', gap: '8px' }}>
         <label htmlFor="species-ref-photo" style={{ flex: 1, textAlign: 'center', background: '#f3efe2', border: '1.5px solid #e2dac2', borderRadius: '10px', padding: '11px 14px', fontSize: '15px', cursor: 'pointer', color: '#2b2620' }}>
           {uploading ? 'Uploading...' : value ? '📷 Replace Photo' : '📷 Add Reference Photo'}
         </label>
         <input id="species-ref-photo" type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
-        {value && <button type="button" onClick={() => { onChange(''); onAttributionChange?.('') }} style={{ color: '#c04545', fontSize: '15px', padding: '0 10px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>}
+        {value && (
+          <button
+            type="button"
+            onClick={() => { onChange(''); onAttributionChange?.('') }}
+            style={{
+              color: '#c04545', fontSize: '15px', fontWeight: 600, padding: '11px 18px',
+              background: '#faf0f0', border: '1.5px solid #eecccc', borderRadius: '10px', cursor: 'pointer',
+            }}
+          >
+            ✕ Remove
+          </button>
+        )}
       </div>
     </div>
   )
@@ -1355,6 +1377,7 @@ export default function SpeciesDetail() {
       <SpeciesPhotoField
         value={species.reference_photo || ''}
         onChange={v => updateSpecies('reference_photo', v)}
+        attribution={species.reference_photo_attribution || ''}
         onAttributionChange={v => updateSpecies('reference_photo_attribution', v)}
       />
       <div style={{marginBottom:'20px'}}>
