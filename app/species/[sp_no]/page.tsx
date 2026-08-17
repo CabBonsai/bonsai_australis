@@ -63,8 +63,8 @@ function Section({ title, children }: { title: string, children: React.ReactNode
   )
 }
 
-function Field({ label, value, onChange, type = 'text' }: {
-  label: string, value: any, onChange: (v: string) => void, type?: string
+function Field({ label, value, onChange, type = 'text', hint }: {
+  label: string, value: any, onChange: (v: string) => void, type?: string, hint?: string
 }) {
   const [focused, setFocused] = useState(false)
   const baseBorder = focused ? '1.5px solid #7a9c42' : '1.5px solid #e2dac2'
@@ -78,8 +78,18 @@ function Field({ label, value, onChange, type = 'text' }: {
         textTransform: 'uppercase',
         letterSpacing: '0.06em',
         color: '#8a7f5f',
-        marginBottom: '6px',
+        marginBottom: hint ? '2px' : '6px',
       }}>{label}</label>
+      {hint && (
+        <div style={{
+          fontSize: '12.5px',
+          fontWeight: 400,
+          textTransform: 'none',
+          letterSpacing: 'normal',
+          color: '#a39a7c',
+          marginBottom: '6px',
+        }}>({hint})</div>
+      )}
       {type === 'textarea'
         ? <textarea
             value={value || ''}
@@ -1712,13 +1722,13 @@ export default function SpeciesDetail() {
       )}
       {placement && (
         <Section title="Placement Matrix">
-          <Field label="Full sun" value={placement.exposure_full_sun} onChange={v => updatePlacement('exposure_full_sun', v)} />
-          <Field label="Morning sun" value={placement.exposure_morning_sun} onChange={v => updatePlacement('exposure_morning_sun', v)} />
-          <Field label="Dappled shade" value={placement.exposure_dappled_shade} onChange={v => updatePlacement('exposure_dappled_shade', v)} />
-          <Field label="Full sun, windy" value={placement.exposure_full_sun_windy} onChange={v => updatePlacement('exposure_full_sun_windy', v)} />
-          <Field label="Full shade" value={placement.exposure_full_shade} onChange={v => updatePlacement('exposure_full_shade', v)} />
-          <Field label="Variable E" value={placement.exposure_variable_e} onChange={v => updatePlacement('exposure_variable_e', v)} />
-          <Field label="Variable F" value={placement.exposure_variable_f} onChange={v => updatePlacement('exposure_variable_f', v)} />
+          <Field label="Full sun (A)" hint="8-10hrs — hot westerlies, turbulent gusts" value={placement.exposure_full_sun} onChange={v => updatePlacement('exposure_full_sun', v)} />
+          <Field label="Morning sun (B)" hint="4-6hrs — gentle airflow, occasional gusts" value={placement.exposure_morning_sun} onChange={v => updatePlacement('exposure_morning_sun', v)} />
+          <Field label="Dappled shade (C)" hint="2-4hrs — soft airflow, sheltered" value={placement.exposure_dappled_shade} onChange={v => updatePlacement('exposure_dappled_shade', v)} />
+          <Field label="Full sun, windy (D)" hint="6-8hrs — consistent strong airflow, wind tunnel" value={placement.exposure_full_sun_windy} onChange={v => updatePlacement('exposure_full_sun_windy', v)} />
+          <Field label="Full shade (G)" hint="0-2hrs — still air, high humidity, deep shade" value={placement.exposure_full_shade} onChange={v => updatePlacement('exposure_full_shade', v)} />
+          <Field label="Variable, cold drainage (E)" hint="3-5hrs — cold air drainage, stagnant air (frost pocket)" value={placement.exposure_variable_e} onChange={v => updatePlacement('exposure_variable_e', v)} />
+          <Field label="Variable, sheltered (F)" hint="2-6hrs — sheltered, minimal airflow" value={placement.exposure_variable_f} onChange={v => updatePlacement('exposure_variable_f', v)} />
           <Field label="SEQ notes" value={placement.seq_notes} onChange={v => updatePlacement('seq_notes', v)} type="textarea" />
           <Field label="National notes" value={placement.national_notes} onChange={v => updatePlacement('national_notes', v)} type="textarea" />
         </Section>
