@@ -561,6 +561,7 @@ export default function SpeciesDetail() {
       exposure_full_sun: placement.exposure_full_sun,
       exposure_morning_sun: placement.exposure_morning_sun,
       exposure_dappled_shade: placement.exposure_dappled_shade,
+      exposure_full_sun_windy: placement.exposure_full_sun_windy,
       exposure_full_shade: placement.exposure_full_shade,
       exposure_variable_e: placement.exposure_variable_e,
       exposure_variable_f: placement.exposure_variable_f,
@@ -986,6 +987,7 @@ export default function SpeciesDetail() {
             ['Full Sun (A)', placement.exposure_full_sun],
             ['Morning Sun (B)', placement.exposure_morning_sun],
             ['Dappled Shade (C)', placement.exposure_dappled_shade],
+            ['Full Sun, Windy (D)', placement.exposure_full_sun_windy],
             ['Full Shade (G)', placement.exposure_full_shade],
             ['Variable, Cold Drainage (E)', placement.exposure_variable_e],
             ['Variable, Sheltered (F)', placement.exposure_variable_f],
@@ -1713,6 +1715,7 @@ export default function SpeciesDetail() {
           <Field label="Full sun" value={placement.exposure_full_sun} onChange={v => updatePlacement('exposure_full_sun', v)} />
           <Field label="Morning sun" value={placement.exposure_morning_sun} onChange={v => updatePlacement('exposure_morning_sun', v)} />
           <Field label="Dappled shade" value={placement.exposure_dappled_shade} onChange={v => updatePlacement('exposure_dappled_shade', v)} />
+          <Field label="Full sun, windy" value={placement.exposure_full_sun_windy} onChange={v => updatePlacement('exposure_full_sun_windy', v)} />
           <Field label="Full shade" value={placement.exposure_full_shade} onChange={v => updatePlacement('exposure_full_shade', v)} />
           <Field label="Variable E" value={placement.exposure_variable_e} onChange={v => updatePlacement('exposure_variable_e', v)} />
           <Field label="Variable F" value={placement.exposure_variable_f} onChange={v => updatePlacement('exposure_variable_f', v)} />
