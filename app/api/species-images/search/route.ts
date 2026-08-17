@@ -33,7 +33,10 @@ export async function GET(req: NextRequest) {
 
   const params = new URLSearchParams({
     q: query,
-    license_type: "commercial,modification", // only images cleared for both re-use and editing
+    license_type: "commercial", // commercial use only — now also includes CC BY-ND (no-derivatives)
+                                 // results, not just commercial+modification. ND images are legally
+                                 // fine to use as-is but should NOT be cropped/edited/watermarked —
+                                 // the licence field returned per-result shows which is which.
     page_size: "20",
     mature: "false",
   });

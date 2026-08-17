@@ -302,7 +302,17 @@ export default function ImageManagerPage() {
                 style={{ width: "100%", height: 150, objectFit: "cover", display: "block" }}
               />
               <div style={{ padding: 10, fontSize: 12, color: "#333" }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>{img.licence}</div>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  {img.licence}
+                  {img.licence?.toUpperCase().includes("ND") && (
+                    <span style={{
+                      display: "inline-block", marginLeft: 6, fontSize: 10, fontWeight: 700,
+                      background: "#fdeeee", color: "#a33", padding: "2px 6px", borderRadius: 3,
+                    }}>
+                      NO EDITS — use as-is only
+                    </span>
+                  )}
+                </div>
                 <div style={{ color: "#666", marginBottom: 2 }}>{img.photographer}</div>
                 <a
                   href={img.source_page_url}
