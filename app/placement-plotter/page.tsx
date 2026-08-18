@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import jsPDF from 'jspdf'
 
-// ---- Zone reference data (matches the species-page Placement Matrix definitions) ----
-const ZONES = [
+// ---- Sun exposure zone reference (matches the species-page Placement Matrix definitions) ----
+const SUN_ZONES = [
   { letter: 'A', label: 'Full sun',            hint: '8-10hrs — hot westerlies, turbulent gusts',                    color: '#c0392b' },
   { letter: 'B', label: 'Morning sun',          hint: '4-6hrs — gentle airflow, occasional gusts',                    color: '#d9a02b' },
   { letter: 'C', label: 'Dappled shade',        hint: '2-4hrs — soft airflow, sheltered',                             color: '#7a9c42' },
@@ -16,16 +16,35 @@ const ZONES = [
   { letter: 'G', label: 'Full shade',           hint: '0-2hrs — still air, high humidity, deep shade',                color: '#2E2510' },
 ] as const
 
-type ZoneLetter = typeof ZONES[number]['letter']
+// ---- Watering/irrigation zone reference (matches the Watering & Misting Zone Guide) ----
+const WATER_ZONES = [
+  { letter: 'T', label: 'Tray-Safe',            hint: 'Permanent water tray - confirmed tolerant',                   color: '#1d4ed8' },
+  { letter: 'H', label: 'Frequent / Never Dry', hint: 'Daily watering - declines quickly if dry',                    color: '#0891b2' },
+  { letter: 'M', label: 'Moderate (standard)',  hint: 'Normal bonsai rhythm - allow slight drying',                  color: '#65a30d' },
+  { letter: 'L', label: 'Low / Drought-tolerant', hint: 'Risk is overwatering, not underwatering',                   color: '#ca8a04' },
+  { letter: 'X', label: 'Isolate - Rot Risk',   hint: 'Real overwater/root-rot failure mode - keep well separated',  color: '#b91c1c' },
+] as const
 
-function zoneColor(letter: string) {
-  return ZONES.find(z => z.letter === letter)?.color || '#2b2620'
+type Overlay = 'sun' | 'water'
+type SunLetter = typeof SUN_ZONES[number]['letter']
+type WaterLetter = typeof WATER_ZONES[number]['letter']
+type ZoneLetter = SunLetter | WaterLetter
+
+function zonesFor(overlay: Overlay) {
+  return overlay === 'sun' ? SUN_ZONES : WATER_ZONES
+}
+function zoneColor(overlay: Overlay, letter: string) {
+  return zonesFor(overlay).find(z => z.letter === letter)?.color || '#2b2620'
 }
 
 // ---- Annotation types ----
-type Pin = { type: 'pin'; x: number; y: number; letter: ZoneLetter }
-type Path = { type: 'path'; letter: ZoneLetter; points: { x: number; y: number }[] }
-type TextNote = { type: 'text'; x: number; y: number; letter: ZoneLetter; text: string }
+// category distinguishes which overlay a mark belongs to. Sun marks render as
+// circular pins (matching the original tool); water marks render as square
+// pins, so both overlays stay visually distinguishable on the same plan even
+// in black-and-white print, where colour alone can't be relied on.
+type Pin = { type: 'pin'; category: Overlay; x: number; y: number; letter: ZoneLetter }
+type Path = { type: 'path'; category: Overlay; letter: ZoneLetter; points: { x: number; y: number }[] }
+type TextNote = { type: 'text'; category: Overlay; x: number; y: number; letter: ZoneLetter; text: string }
 type Annotation = Pin | Path | TextNote
 
 // ---- Placement matrix reference row (live from DB) ----
@@ -50,7 +69,9 @@ export default function PlacementPlotterPage() {
   const [fileName, setFileName] = useState<string>('')
   const [dragOver, setDragOver] = useState(false)
   const [annotations, setAnnotations] = useState<Annotation[]>([])
-  const [activeZone, setActiveZone] = useState<ZoneLetter>('A')
+  const [overlay, setOverlay] = useState<Overlay>('sun')
+  const [activeSunZone, setActiveSunZone] = useState<SunLetter>('A')
+  const [activeWaterZone, setActiveWaterZone] = useState<WaterLetter>('T')
   const [tool, setTool] = useState<'pin' | 'draw' | 'text' | 'erase'>('pin')
   const [siteName, setSiteName] = useState('')
 
@@ -98,15 +119,25 @@ export default function PlacementPlotterPage() {
 
     for (const a of annotations) {
       if (a.type === 'pin') {
-        ctx.beginPath()
-        ctx.arc(a.x, a.y, 16, 0, Math.PI * 2)
-        ctx.fillStyle = zoneColor(a.letter)
-        ctx.globalAlpha = 0.85
-        ctx.fill()
-        ctx.globalAlpha = 1
+        const color = zoneColor(a.category, a.letter)
+        ctx.fillStyle = color
         ctx.strokeStyle = 'white'
         ctx.lineWidth = 2
-        ctx.stroke()
+        ctx.globalAlpha = 0.85
+        if (a.category === 'water') {
+          // Square marker for watering-zone pins, so both overlays stay
+          // visually distinguishable even in black-and-white print.
+          const s = 15
+          ctx.fillRect(a.x - s, a.y - s, s * 2, s * 2)
+          ctx.globalAlpha = 1
+          ctx.strokeRect(a.x - s, a.y - s, s * 2, s * 2)
+        } else {
+          ctx.beginPath()
+          ctx.arc(a.x, a.y, 16, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.globalAlpha = 1
+          ctx.stroke()
+        }
         ctx.fillStyle = 'white'
         ctx.font = 'bold 15px sans-serif'
         ctx.textAlign = 'center'
@@ -117,19 +148,23 @@ export default function PlacementPlotterPage() {
         ctx.beginPath()
         ctx.moveTo(a.points[0].x, a.points[0].y)
         for (const p of a.points.slice(1)) ctx.lineTo(p.x, p.y)
-        ctx.strokeStyle = zoneColor(a.letter)
+        ctx.strokeStyle = zoneColor(a.category, a.letter)
         ctx.lineWidth = 4
         ctx.lineJoin = 'round'
         ctx.lineCap = 'round'
+        // Water-zone boundary lines are dashed, sun-zone lines solid -- another
+        // colour-independent way to tell the two overlays apart at a glance.
+        ctx.setLineDash(a.category === 'water' ? [10, 6] : [])
         ctx.globalAlpha = 0.9
         ctx.stroke()
         ctx.globalAlpha = 1
+        ctx.setLineDash([])
       } else if (a.type === 'text') {
         ctx.fillStyle = 'white'
         ctx.font = 'bold 13px sans-serif'
         const w = ctx.measureText(a.text).width
         ctx.fillRect(a.x - 4, a.y - 14, w + 8, 18)
-        ctx.fillStyle = zoneColor(a.letter)
+        ctx.fillStyle = zoneColor(a.category, a.letter)
         ctx.textAlign = 'left'
         ctx.textBaseline = 'alphabetic'
         ctx.fillText(a.text, a.x, a.y)
@@ -168,14 +203,16 @@ export default function PlacementPlotterPage() {
     return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY }
   }
 
+  const activeZoneLetter: ZoneLetter = overlay === 'sun' ? activeSunZone : activeWaterZone
+
   function handleCanvasMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
     if (!image) return
     const pos = getCanvasPos(e)
     if (tool === 'pin') {
-      setAnnotations(prev => [...prev, { type: 'pin', x: pos.x, y: pos.y, letter: activeZone }])
+      setAnnotations(prev => [...prev, { type: 'pin', category: overlay, x: pos.x, y: pos.y, letter: activeZoneLetter }])
     } else if (tool === 'text') {
       const text = window.prompt('Label text:')
-      if (text) setAnnotations(prev => [...prev, { type: 'text', x: pos.x, y: pos.y, letter: activeZone, text }])
+      if (text) setAnnotations(prev => [...prev, { type: 'text', category: overlay, x: pos.x, y: pos.y, letter: activeZoneLetter, text }])
     } else if (tool === 'draw') {
       drawingRef.current = { active: true, points: [pos] }
     } else if (tool === 'erase') {
@@ -211,11 +248,13 @@ export default function PlacementPlotterPage() {
           ctx.beginPath()
           ctx.moveTo(pts[0].x, pts[0].y)
           for (const p of pts.slice(1)) ctx.lineTo(p.x, p.y)
-          ctx.strokeStyle = zoneColor(activeZone)
+          ctx.strokeStyle = zoneColor(overlay, activeZoneLetter)
           ctx.lineWidth = 4
           ctx.lineJoin = 'round'
           ctx.lineCap = 'round'
+          ctx.setLineDash(overlay === 'water' ? [10, 6] : [])
           ctx.stroke()
+          ctx.setLineDash([])
         }
       }
     }
@@ -224,7 +263,7 @@ export default function PlacementPlotterPage() {
   function handleCanvasMouseUp() {
     if (tool === 'draw' && drawingRef.current.active) {
       const pts = drawingRef.current.points
-      if (pts.length > 1) setAnnotations(prev => [...prev, { type: 'path', letter: activeZone, points: pts }])
+      if (pts.length > 1) setAnnotations(prev => [...prev, { type: 'path', category: overlay, letter: activeZoneLetter, points: pts }])
       drawingRef.current = { active: false, points: [] }
     }
   }
@@ -263,22 +302,39 @@ export default function PlacementPlotterPage() {
     pdf.addImage(imgData, 'PNG', margin, margin + 24, drawW, drawH)
 
     // Zone legend on the same page, below the image if it fits, otherwise a new page
+    const totalLegendLines = SUN_ZONES.length + WATER_ZONES.length + 2 // +2 for the two section headers
     let legendY = margin + 24 + drawH + 20
-    if (legendY + ZONES.length * 13 > pageH - margin) {
+    if (legendY + totalLegendLines * 13 > pageH - margin) {
       pdf.addPage()
       legendY = margin
     }
     pdf.setFontSize(10)
     pdf.setFont('helvetica', 'bold')
     pdf.setTextColor(0, 0, 0)
-    pdf.text('Zone key', margin, legendY)
+    pdf.text('Sun exposure zones (circle markers)', margin, legendY)
     legendY += 14
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(8.5)
-    for (const z of ZONES) {
+    for (const z of SUN_ZONES) {
       const rgb = hexToRgb(z.color)
       pdf.setFillColor(rgb.r, rgb.g, rgb.b)
       pdf.circle(margin + 5, legendY - 3, 4, 'F')
+      pdf.setTextColor(0, 0, 0)
+      pdf.text(`${z.letter}: ${z.label} — ${z.hint}`, margin + 14, legendY)
+      legendY += 13
+    }
+
+    legendY += 8
+    pdf.setFontSize(10)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('Watering / irrigation zones (square markers, dashed lines)', margin, legendY)
+    legendY += 14
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(8.5)
+    for (const z of WATER_ZONES) {
+      const rgb = hexToRgb(z.color)
+      pdf.setFillColor(rgb.r, rgb.g, rgb.b)
+      pdf.rect(margin + 1, legendY - 7, 8, 8, 'F')
       pdf.setTextColor(0, 0, 0)
       pdf.text(`${z.letter}: ${z.label} — ${z.hint}`, margin + 14, legendY)
       legendY += 13
@@ -304,13 +360,31 @@ export default function PlacementPlotterPage() {
         </Link>
       </div>
 
-      {/* ---- Reference: the 7 zones ---- */}
-      <section style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#2b2620', marginBottom: '10px' }}>Zone reference</h2>
+      {/* ---- Reference: sun exposure zones ---- */}
+      <section style={{ marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#2b2620', marginBottom: '10px' }}>Sun exposure zones</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
-          {ZONES.map(z => (
+          {SUN_ZONES.map(z => (
             <div key={z.letter} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', border: '1.5px solid #e2dac2', borderRadius: '8px', padding: '10px 12px', background: '#fffefb' }}>
               <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: z.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', flexShrink: 0 }}>
+                {z.letter}
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '13.5px', color: '#2b2620' }}>{z.label}</div>
+                <div style={{ fontSize: '12px', color: '#8a7f5f' }}>{z.hint}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ---- Reference: watering/irrigation zones ---- */}
+      <section style={{ marginBottom: '24px' }}>
+        <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#2b2620', marginBottom: '10px' }}>Watering / irrigation zones</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
+          {WATER_ZONES.map(z => (
+            <div key={z.letter} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', border: '1.5px solid #e2dac2', borderRadius: '8px', padding: '10px 12px', background: '#fffefb' }}>
+              <div style={{ width: '26px', height: '26px', background: z.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', flexShrink: 0 }}>
                 {z.letter}
               </div>
               <div>
@@ -363,22 +437,55 @@ export default function PlacementPlotterPage() {
         >
           {/* Toolbar */}
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '10px', background: '#fbf7ec', border: '1.5px solid #e2dac2', borderRadius: '8px', padding: '10px 14px' }}>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: '#8a7f5f', marginRight: '4px' }}>ZONE</span>
-              {ZONES.map(z => (
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {(['sun', 'water'] as const).map(o => (
                 <button
-                  key={z.letter}
-                  onClick={() => setActiveZone(z.letter)}
-                  title={`${z.label} (${z.hint})`}
+                  key={o}
+                  onClick={() => setOverlay(o)}
                   style={{
-                    width: '28px', height: '28px', borderRadius: '50%', border: activeZone === z.letter ? '3px solid #2b2620' : '2px solid white',
-                    background: z.color, color: 'white', fontWeight: 700, fontSize: '12px', cursor: 'pointer',
-                    boxShadow: activeZone === z.letter ? '0 0 0 2px ' + z.color + '55' : 'none',
+                    fontSize: '12.5px', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700,
+                    border: overlay === o ? '1.5px solid #2b2620' : '1.5px solid #e2dac2',
+                    background: overlay === o ? '#2b2620' : 'white',
+                    color: overlay === o ? 'white' : '#2b2620',
                   }}
                 >
-                  {z.letter}
+                  {o === 'sun' ? '☀ Sun' : '💧 Water'}
                 </button>
               ))}
+            </div>
+            <div style={{ width: '1px', height: '24px', background: '#e2dac2' }} />
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#8a7f5f', marginRight: '4px' }}>ZONE</span>
+              {overlay === 'sun'
+                ? SUN_ZONES.map(z => (
+                    <button
+                      key={z.letter}
+                      onClick={() => setActiveSunZone(z.letter)}
+                      title={`${z.label} (${z.hint})`}
+                      style={{
+                        width: '28px', height: '28px', borderRadius: '50%', border: activeSunZone === z.letter ? '3px solid #2b2620' : '2px solid white',
+                        background: z.color, color: 'white', fontWeight: 700, fontSize: '12px', cursor: 'pointer',
+                        boxShadow: activeSunZone === z.letter ? '0 0 0 2px ' + z.color + '55' : 'none',
+                      }}
+                    >
+                      {z.letter}
+                    </button>
+                  ))
+                : WATER_ZONES.map(z => (
+                    <button
+                      key={z.letter}
+                      onClick={() => setActiveWaterZone(z.letter)}
+                      title={`${z.label} (${z.hint})`}
+                      style={{
+                        width: '28px', height: '28px', borderRadius: '4px', border: activeWaterZone === z.letter ? '3px solid #2b2620' : '2px solid white',
+                        background: z.color, color: 'white', fontWeight: 700, fontSize: '12px', cursor: 'pointer',
+                        boxShadow: activeWaterZone === z.letter ? '0 0 0 2px ' + z.color + '55' : 'none',
+                      }}
+                    >
+                      {z.letter}
+                    </button>
+                  ))
+              }
             </div>
             <div style={{ width: '1px', height: '24px', background: '#e2dac2' }} />
             <div style={{ display: 'flex', gap: '6px' }}>

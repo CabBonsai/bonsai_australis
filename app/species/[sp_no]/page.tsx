@@ -623,7 +623,7 @@ export default function SpeciesDetail() {
       // state used by the editable form fields above, rather than re-fetching.
       // These local consts shadow the outer state variables of the same name
       // for the rest of this function, so nothing below needed to change.
-      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes, placeRes, toxRes] = await Promise.all([
+      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes, placeRes, toxRes, barkRes, taperRes, potRes] = await Promise.all([
         supabase.from('species').select('*').eq('sp_no', spNo).single(),
         supabase.from('bonsai_suitability').select('*').eq('sp_no', spNo).single(),
         supabase.from('care_guide').select('*').eq('sp_no', spNo).single(),
@@ -635,6 +635,9 @@ export default function SpeciesDetail() {
         supabase.from('regional_suitability').select('*').eq('sp_no', spNo).single(),
         supabase.from('placement_matrix').select('*').eq('sp_no', spNo).single(),
         supabase.from('toxicity').select('*').eq('sp_no', spNo).single(),
+        supabase.from('bark_character').select('*').eq('sp_no', spNo).single(),
+        supabase.from('taper_movement').select('*').eq('sp_no', spNo).single(),
+        supabase.from('pot_style_matching').select('*').eq('sp_no', spNo).single(),
       ])
       const species = speciesRes.data
       const suitability = suitRes.data
@@ -647,6 +650,9 @@ export default function SpeciesDetail() {
       const regional = regRes.data
       const placement = placeRes.data
       const toxicity = toxRes.data
+      const bark = barkRes.data
+      const taper = taperRes.data
+      const potStyle = potRes.data
 
       if (species?.is_deprecated) {
         alert(`This species record is deprecated -- use sp_no ${species.canonical_sp_no ?? '(see deprecated_note)'} instead. Reports cannot be generated from a deprecated record.`)
@@ -1028,6 +1034,40 @@ export default function SpeciesDetail() {
           doc.setTextColor(0, 0, 0)
           y += 8
         }
+        if (bark) addSection('Bark Character', [
+          ['Bark Texture Type', bark.bark_texture_type],
+          ['Natural Bark Character', bark.natural_bark_character],
+          ['Development Speed', bark.development_speed],
+          ['Years to Corking Onset', bark.years_to_corking_onset],
+          ['Years to Mature Character', bark.years_to_mature_character],
+          ['Climate Influence', bark.climate_influence_notes],
+          ['Best Techniques', bark.best_techniques_for_species],
+          ['Typical Bark Faults', bark.typical_bark_faults],
+          ['Underlying Causes', bark.underlying_causes],
+          ['Corrective Strategies', bark.corrective_strategies],
+          ['Ultimate Bark Quality', bark.ultimate_bark_quality_potential],
+          ['Expected Mature Bark Form', bark.expected_mature_bark_form],
+          ['Maintenance Requirements', bark.maintenance_requirements],
+          ['Ageing Notes', bark.ageing_notes],
+          ['Notes for Future Development', bark.notes_for_future_development],
+        ])
+        if (taper) addSection('Taper and Movement', [
+          ['Natural Taper Tendency', taper.natural_taper_tendency],
+          ['Trunk Movement Potential', taper.trunk_movement_potential],
+          ['Best Techniques', taper.best_techniques_for_species],
+          ['Notes', taper.notes],
+        ])
+        if (potStyle) addSection('Pot and Style Matching', [
+          ['Habitat/Geology Type', potStyle.habitat_geology_type],
+          ['Recommended Pot Colour', potStyle.recommended_pot_colour],
+          ['Recommended Pot Texture', potStyle.recommended_pot_texture],
+          ['Recommended Pot Shape', potStyle.recommended_pot_shape],
+          ['Recommended Pot Depth', potStyle.recommended_pot_depth],
+          ['Glazed or Unglazed', potStyle.glazed_or_unglazed],
+          ['Recommended Bonsai Style', potStyle.recommended_bonsai_style],
+          ['Style Notes', potStyle.style_notes],
+          ['Companion Plants', potStyle.companion_plants],
+        ])
       }
       const fileName = (species.species || 'species').replace(/[^a-z0-9]+/gi, '_').toLowerCase()
       doc.save(`${fileName}_${reportType}_report.pdf`)

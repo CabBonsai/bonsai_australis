@@ -30,7 +30,13 @@ export default function SpeciesList() {
   // that have had real individual research.
   function tierPriority(researchStatus: string | null) {
     const s = (researchStatus || '').toLowerCase()
-    if (s === 'verified' || s === 'completed') return 0
+    // startsWith('complete') catches both "Complete" and "Completed" -- the
+    // database has both spellings in use (confirmed session 42: 1 row says
+    // "Complete", e.g. Brachychiton rupestris sp_no 3944, 2 say "Completed").
+    // An exact match on 'completed' alone was silently sorting "Complete"
+    // rows to the bottom tier (priority 4, same bucket as "Not Started"),
+    // burying genuinely-researched species regardless of their real score.
+    if (s === 'verified' || s.startsWith('complete')) return 0
     if (s.startsWith('provisional')) return 1
     if (s === 'in progress' || s === 'data gaps (see below)') return 2
     if (s === 'genus-inferred') return 3
@@ -60,8 +66,14 @@ export default function SpeciesList() {
     // Fetch every scored row (not just the top 300 by raw score) so the
     // confidence-tier sort below can surface genuinely-researched species
     // that a pure-score cutoff would otherwise miss. Explicit high limit —
-    // PostgREST silently caps unlimited queries at 1000 rows, and there are
-    // ~7,100 scored species total.
+    // PostgREST silently caps unlimited queries at 1000 rows. The scored
+    // pool was ~7,100 species before the session-41 Reconciliation Rule
+    // audit correctly nulled 6,941 unreliable scores (rows with a score
+    // but not all 10 traits genuinely backing it); it's ~150-200 as of
+    // session 42 and will grow again as species are re-completed. The
+    // .limit(10000) is intentionally left high rather than tuned to the
+    // current count, since it costs nothing and avoids silently truncating
+    // results again as the pool regrows.
     let scoreQuery = supabase
       .from('bonsai_suitability')
       .select('sp_no, final_bonsai_score, bonsai_tier, needs_verification, research_status')
