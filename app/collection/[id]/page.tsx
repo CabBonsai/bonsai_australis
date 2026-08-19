@@ -226,7 +226,8 @@ function HeroPhotoField({ value, onChange }: { value: string, onChange: (v: stri
           style={{
             width: '100%',
             maxHeight: '360px',
-            objectFit: 'cover',
+            objectFit: 'contain',
+            background: '#f1f5f0',
             borderRadius: '12px',
             border: '1px solid #e2e8f0',
             cursor: 'pointer',
@@ -950,7 +951,15 @@ export default function CollectionDetailPage() {
 
         <Section title="Location & Display">
           <Field label="Location"><input type="text" value={tree.location || ''} onChange={e => set('location', e.target.value)} style={inputStyle} /></Field>
-          <Field label="Location Notes"><input type="text" placeholder="e.g. back-left corner, on the brick ledge" value={tree.bench_position || ''} onChange={e => set('bench_position', e.target.value)} style={inputStyle} /></Field>
+          <Field label="Location Notes">
+            <textarea
+              value={tree.bench_position || ''}
+              onChange={e => set('bench_position', e.target.value)}
+              rows={2}
+              style={{ ...inputStyle, resize: 'vertical' }}
+              placeholder="e.g. back-left corner, on the brick ledge..."
+            />
+          </Field>
         </Section>
 
         <Section title="Media & Notes">
