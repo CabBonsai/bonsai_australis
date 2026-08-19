@@ -295,7 +295,7 @@ export default function CollectionPage() {
       const sorted = [...filtered].sort((a, b) => {
         if (a.tree_number == null) return 1
         if (b.tree_number == null) return -1
-        return a.tree_number - b.tree_number
+        return b.tree_number - a.tree_number
       })
       groups.push({ key: 'All trees, by collection number', trees: sorted })
     }
