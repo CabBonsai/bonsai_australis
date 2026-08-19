@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { uploadPhoto } from '@/lib/uploadPhoto'
 import JournalSection from '@/components/JournalSection'
@@ -796,7 +797,7 @@ export default function CollectionDetailPage() {
   return (
     <main style={{ width: '100%', boxSizing: 'border-box', maxWidth: '1200px', margin: '0 auto', padding: '24px 24px 112px', background: '#faf7f1', minHeight: '100vh' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-        <a href="/collection" style={{ fontSize: '14px', color: '#5c7a2a', fontWeight: 600, textDecoration: 'none' }}>&larr; Back to Collection</a>
+        <Link href="/collection" style={{ fontSize: '14px', color: '#5c7a2a', fontWeight: 600, textDecoration: 'none' }}>&larr; Back to Collection</Link>
         <button
           type="button"
           onClick={handleGenerateReport}

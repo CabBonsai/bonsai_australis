@@ -1,7 +1,22 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+
+// Starter suggestions only, shown even before any tree has a location set.
+// The real dropdown list is built dynamically from whatever locations are
+// already in use across the collection (see locationOptions below), plus
+// these seeds, plus a "+ Add new location..." option -- no code edit needed
+// to add a location, ever.
+const SEED_LOCATIONS = [
+  'Courtyard',
+  'Carport',
+  'Shadehouse',
+  'Patio',
+  'Rear Garden',
+]
+const ADD_NEW = '__add_new__'
 
 export default function CollectionPage() {
   const [trees, setTrees] = useState<any[]>([])
@@ -14,6 +29,9 @@ export default function CollectionPage() {
   const [selectedSpecies, setSelectedSpecies] = useState<any>(null)
   const [adding, setAdding] = useState(false)
   const searchRef = useRef<any>(null)
+
+  // --- Grouping ---
+  const [groupBy, setGroupBy] = useState<'species' | 'location'>('species')
 
   // --- Filter state ---
   const [showFilters, setShowFilters] = useState(false)
@@ -167,9 +185,55 @@ export default function CollectionPage() {
     return new Date(dateStr) < new Date()
   }
 
+  async function updateLocation(collectionId: string, newLocation: string) {
+    let finalLocation = newLocation
+    if (newLocation === ADD_NEW) {
+      const entered = window.prompt('New location name:')
+      if (!entered || !entered.trim()) return
+      finalLocation = entered.trim()
+    }
+    // Optimistic update -- reflect the change immediately in the list, no
+    // reload, so it's fast to use while walking around the garden.
+    setTrees(prev => prev.map(t => t.collection_id === collectionId ? { ...t, location: finalLocation || null } : t))
+    const { error } = await supabase
+      .from('collection')
+      .update({ location: finalLocation || null })
+      .eq('collection_id', collectionId)
+    if (error) {
+      alert('Could not save location: ' + error.message)
+      fetchTrees() // revert to real state on failure
+    }
+  }
+
+  // Merged "location notes" field -- repurposes the bench_position column
+  // (previously near-unused, along with display_status which is no longer
+  // surfaced) as a single free-text note for anything the location dropdown
+  // doesn't capture, e.g. "back-left corner, on the brick ledge".
+  async function updateLocationNotes(collectionId: string, notes: string) {
+    setTrees(prev => prev.map(t => t.collection_id === collectionId ? { ...t, bench_position: notes || null } : t))
+    const { error } = await supabase
+      .from('collection')
+      .update({ bench_position: notes || null })
+      .eq('collection_id', collectionId)
+    if (error) {
+      alert('Could not save location notes: ' + error.message)
+      fetchTrees()
+    }
+  }
+
   const genusOptions = useMemo(() => {
     const set = new Set<string>()
     trees.forEach(t => { if (t.genus) set.add(t.genus) })
+    return Array.from(set).sort()
+  }, [trees])
+
+  // Dynamic location dropdown options: whatever's already in real use across
+  // the collection, plus the starter seeds, deduped and sorted. Grows on its
+  // own as locations get added via the "+ Add new location..." option --
+  // never needs a code change.
+  const locationOptions = useMemo(() => {
+    const set = new Set<string>(SEED_LOCATIONS)
+    trees.forEach(t => { if (t.location) set.add(t.location) })
     return Array.from(set).sort()
   }, [trees])
 
@@ -196,6 +260,37 @@ export default function CollectionPage() {
   })
 
   const activeFilterCount = (filterGenus ? 1 : 0) + (filterOrigin !== 'all' ? 1 : 0) + (filterFrost !== 'all' ? 1 : 0)
+
+  // Group the filtered list either by species (alphabetical, default) or by
+  // physical location (for walking the garden with a specific area in mind).
+  // "Unassigned" collects anything with no location set yet.
+  const grouped = useMemo(() => {
+    const groups: { key: string; trees: typeof filtered }[] = []
+    if (groupBy === 'species') {
+      const sorted = [...filtered].sort((a, b) => (a.speciesLabel || '').localeCompare(b.speciesLabel || ''))
+      const map = new Map<string, typeof filtered>()
+      sorted.forEach(t => {
+        const key = t.speciesLabel || 'Unknown species'
+        if (!map.has(key)) map.set(key, [])
+        map.get(key)!.push(t)
+      })
+      map.forEach((trees, key) => groups.push({ key, trees }))
+    } else {
+      const map = new Map<string, typeof filtered>()
+      filtered.forEach(t => {
+        const key = t.location || 'Unassigned'
+        if (!map.has(key)) map.set(key, [])
+        map.get(key)!.push(t)
+      })
+      const keys = Array.from(map.keys()).sort((a, b) => {
+        if (a === 'Unassigned') return 1
+        if (b === 'Unassigned') return -1
+        return a.localeCompare(b)
+      })
+      keys.forEach(key => groups.push({ key, trees: map.get(key)! }))
+    }
+    return groups
+  }, [filtered, groupBy])
 
   const healthColor: Record<string, string> = {
     'Excellent': '#16a34a', 'Good': '#65a30d', 'Stressed': '#d97706',
@@ -402,15 +497,38 @@ export default function CollectionPage() {
         </div>
       )}
 
-      <p style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '12px' }}>{filtered.length} tree{filtered.length !== 1 ? 's' : ''}</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+        <p style={{ fontSize: '13px', color: '#9ca3af', margin: 0 }}>{filtered.length} tree{filtered.length !== 1 ? 's' : ''}</p>
+        <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', borderRadius: '8px', padding: '3px' }}>
+          {(['species', 'location'] as const).map(g => (
+            <button
+              key={g}
+              onClick={() => setGroupBy(g)}
+              style={{
+                fontSize: '12.5px', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, border: 'none',
+                background: groupBy === g ? '#fff' : 'transparent',
+                color: groupBy === g ? '#374151' : '#6b7280',
+                boxShadow: groupBy === g ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
+              By {g === 'species' ? 'Species' : 'Location'}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {loading && <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px' }}>Loading...</p>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '10px' }}>
-      {!loading && filtered.map(t => {
+      {!loading && grouped.map(group => (
+        <div key={group.key} style={{ marginBottom: '20px' }}>
+          <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#374151', margin: '0 0 8px', paddingBottom: '4px', borderBottom: '1.5px solid #e2e8f0' }}>
+            {group.key} <span style={{ fontWeight: 400, color: '#9ca3af' }}>({group.trees.length})</span>
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '10px' }}>
+      {group.trees.map(t => {
         const overdue = isOverdue(t.next_repot_due) || isOverdue(t.next_fertilise_due) || isOverdue(t.due_prune_date) || isOverdue(t.date_check_wire)
         return (
-          <a key={t.collection_id} href={`/collection/${t.collection_id}`} style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+          <Link key={t.collection_id} href={`/collection/${t.collection_id}`} style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'stretch' }}>
               {t.image_url ? (
                 <img src={t.image_url} alt={t.display_name} style={{ width: '90px', height: '90px', objectFit: 'cover', flexShrink: 0 }} />
@@ -427,19 +545,47 @@ export default function CollectionPage() {
                 </div>
                 {t.tree_name && <p style={{ fontSize: '13px', color: '#6b7280', margin: '2px 0', fontStyle: 'italic' }}>"{t.tree_name}"</p>}
                 {t.speciesLabel && <p style={{ fontSize: '13px', color: '#374151', margin: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.speciesLabel}</p>}
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px', alignItems: 'center' }}>
                   {t.status && <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: (statusColor[t.status] || '#6b7280') + '22', color: statusColor[t.status] || '#6b7280' }}>{t.status}</span>}
                   {t.health_status && <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: (healthColor[t.health_status] || '#6b7280') + '22', color: healthColor[t.health_status] || '#6b7280' }}>{t.health_status}</span>}
                   {t.frostProtectionRequired && <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: '#eff6ff', color: '#2563eb' }}>&#10052; Frost Protection</span>}
                   {t.origin_tubestock_tag && <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: '#f0fdf4', color: '#16a34a' }}>&#127793; {t.origin_tubestock_tag}</span>}
                   {t.is_favourite && <span style={{ fontSize: '12px' }}>&#10084;</span>}
                 </div>
+                {/* Location dropdown + notes -- stopPropagation so interacting doesn't trigger the card's own navigation to the detail page */}
+                <div onClick={e => e.stopPropagation()} style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <select
+                    value={t.location || ''}
+                    onChange={e => updateLocation(t.collection_id, e.target.value)}
+                    style={{
+                      fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #d1d5db',
+                      background: t.location ? '#f0fdf4' : '#fff', color: t.location ? '#16a34a' : '#6b7280',
+                      width: '100%', maxWidth: '220px',
+                    }}
+                  >
+                    <option value="">— Set location —</option>
+                    {locationOptions.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                    <option value={ADD_NEW}>+ Add new location...</option>
+                  </select>
+                  <input
+                    type="text"
+                    defaultValue={t.bench_position || ''}
+                    placeholder="Location notes (e.g. back-left corner)..."
+                    onBlur={e => { if (e.target.value !== (t.bench_position || '')) updateLocationNotes(t.collection_id, e.target.value) }}
+                    style={{
+                      fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #e2e8f0',
+                      width: '100%', maxWidth: '220px', color: '#374151',
+                    }}
+                  />
+                </div>
               </div>
             </div>
-         </a>
+         </Link>
         )
       })}
       </div>
+        </div>
+      ))}
     </main>
   )
 }
