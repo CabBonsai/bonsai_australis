@@ -31,7 +31,7 @@ export default function CollectionPage() {
   const searchRef = useRef<any>(null)
 
   // --- Grouping ---
-  const [groupBy, setGroupBy] = useState<'species' | 'location'>('species')
+  const [groupBy, setGroupBy] = useState<'species' | 'location' | 'number'>('species')
 
   // --- Filter state ---
   const [showFilters, setShowFilters] = useState(false)
@@ -275,7 +275,7 @@ export default function CollectionPage() {
         map.get(key)!.push(t)
       })
       map.forEach((trees, key) => groups.push({ key, trees }))
-    } else {
+    } else if (groupBy === 'location') {
       const map = new Map<string, typeof filtered>()
       filtered.forEach(t => {
         const key = t.location || 'Unassigned'
@@ -288,6 +288,16 @@ export default function CollectionPage() {
         return a.localeCompare(b)
       })
       keys.forEach(key => groups.push({ key, trees: map.get(key)! }))
+    } else {
+      // Flat list sorted by tree_number, matching the printed numerical
+      // checklist -- no sub-grouping, just one ordered list. Trees with no
+      // tree_number assigned sort to the end.
+      const sorted = [...filtered].sort((a, b) => {
+        if (a.tree_number == null) return 1
+        if (b.tree_number == null) return -1
+        return a.tree_number - b.tree_number
+      })
+      groups.push({ key: 'All trees, by collection number', trees: sorted })
     }
     return groups
   }, [filtered, groupBy])
@@ -500,7 +510,7 @@ export default function CollectionPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
         <p style={{ fontSize: '13px', color: '#9ca3af', margin: 0 }}>{filtered.length} tree{filtered.length !== 1 ? 's' : ''}</p>
         <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', borderRadius: '8px', padding: '3px' }}>
-          {(['species', 'location'] as const).map(g => (
+          {(['species', 'location', 'number'] as const).map(g => (
             <button
               key={g}
               onClick={() => setGroupBy(g)}
@@ -511,7 +521,7 @@ export default function CollectionPage() {
                 boxShadow: groupBy === g ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
               }}
             >
-              By {g === 'species' ? 'Species' : 'Location'}
+              By {g === 'species' ? 'Species' : g === 'location' ? 'Location' : 'Number'}
             </button>
           ))}
         </div>
