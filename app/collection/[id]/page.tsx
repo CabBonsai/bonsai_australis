@@ -741,8 +741,7 @@ export default function CollectionDetailPage() {
 
       addSection('Location & Display', [
         ['Location', tree.location],
-        ['Bench Position', tree.bench_position],
-        ['Display Status', tree.display_status],
+        ['Location Notes', tree.bench_position],
       ])
 
       addSection('Growing Medium', [
@@ -951,8 +950,7 @@ export default function CollectionDetailPage() {
 
         <Section title="Location & Display">
           <Field label="Location"><input type="text" value={tree.location || ''} onChange={e => set('location', e.target.value)} style={inputStyle} /></Field>
-          <Field label="Bench Position"><input type="text" value={tree.bench_position || ''} onChange={e => set('bench_position', e.target.value)} style={inputStyle} /></Field>
-          <Field label="Display Status"><input type="text" value={tree.display_status || ''} onChange={e => set('display_status', e.target.value)} style={inputStyle} /></Field>
+          <Field label="Location Notes"><input type="text" placeholder="e.g. back-left corner, on the brick ledge" value={tree.bench_position || ''} onChange={e => set('bench_position', e.target.value)} style={inputStyle} /></Field>
         </Section>
 
         <Section title="Media & Notes">

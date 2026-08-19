@@ -31,7 +31,7 @@ export default function CollectionPage() {
   const searchRef = useRef<any>(null)
 
   // --- Grouping ---
-  const [groupBy, setGroupBy] = useState<'species' | 'location' | 'number'>('species')
+  const [groupBy, setGroupBy] = useState<'species' | 'location' | 'number'>('number')
 
   // --- Filter state ---
   const [showFilters, setShowFilters] = useState(false)
