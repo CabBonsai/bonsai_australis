@@ -195,12 +195,18 @@ export default function CollectionPage() {
     // Optimistic update -- reflect the change immediately in the list, no
     // reload, so it's fast to use while walking around the garden.
     setTrees(prev => prev.map(t => t.collection_id === collectionId ? { ...t, location: finalLocation || null } : t))
-    const { error } = await supabase
-      .from('collection')
-      .update({ location: finalLocation || null })
-      .eq('collection_id', collectionId)
-    if (error) {
-      alert('Could not save location: ' + error.message)
+    // Routed through the service-role API route, not the anon `supabase` client directly --
+    // the `collection` table's RLS has no anon UPDATE policy (session 13 lockdown), so a
+    // direct anon write here silently affects 0 rows with no thrown error. That's why this
+    // dropdown looked like it saved (optimistic UI update) but never actually persisted.
+    const res = await fetch('/api/collection', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collection_id: collectionId, location: finalLocation || null }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert('Could not save location: ' + (data?.error || res.statusText))
       fetchTrees() // revert to real state on failure
     }
   }
@@ -211,12 +217,16 @@ export default function CollectionPage() {
   // doesn't capture, e.g. "back-left corner, on the brick ledge".
   async function updateLocationNotes(collectionId: string, notes: string) {
     setTrees(prev => prev.map(t => t.collection_id === collectionId ? { ...t, bench_position: notes || null } : t))
-    const { error } = await supabase
-      .from('collection')
-      .update({ bench_position: notes || null })
-      .eq('collection_id', collectionId)
-    if (error) {
-      alert('Could not save location notes: ' + error.message)
+    // Same fix as updateLocation above -- routed through the service-role API route since
+    // `collection` has no anon UPDATE policy.
+    const res = await fetch('/api/collection', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collection_id: collectionId, bench_position: notes || null }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert('Could not save location notes: ' + (data?.error || res.statusText))
       fetchTrees()
     }
   }
