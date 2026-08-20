@@ -562,8 +562,12 @@ export default function CollectionPage() {
                   {t.origin_tubestock_tag && <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: '#f0fdf4', color: '#16a34a' }}>&#127793; {t.origin_tubestock_tag}</span>}
                   {t.is_favourite && <span style={{ fontSize: '12px' }}>&#10084;</span>}
                 </div>
-                {/* Location dropdown + notes -- stopPropagation so interacting doesn't trigger the card's own navigation to the detail page */}
-                <div onClick={e => e.stopPropagation()} style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                {/* Location dropdown + notes -- stopPropagation AND preventDefault so interacting doesn't
+                    trigger the card's own <Link> navigation to the detail page. stopPropagation alone
+                    isn't enough: the browser's native anchor-click default action fires on any click
+                    inside an <a>/<Link> regardless of React event propagation, so preventDefault is
+                    required too (session 43/44 finding). */}
+                <div onClick={e => { e.stopPropagation(); e.preventDefault() }} style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
                   <select
                     value={t.location || ''}
                     onChange={e => updateLocation(t.collection_id, e.target.value)}
