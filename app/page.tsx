@@ -305,6 +305,9 @@ export default function Home() {
           <Link href="/research-search" style={{ fontSize: '13px', background: '#4a3f6b', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Research Search
           </Link>
+          <Link href="/booklets" style={{ fontSize: '13px', background: '#8a4f2f', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Booklet Studio
+          </Link>
           <Link href="/wishlist" style={{ fontSize: '13px', background: '#be123c', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Wishlist
           </Link>
