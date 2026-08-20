@@ -237,10 +237,13 @@ export async function GET(req: NextRequest) {
       })
     );
 
-    // If this is a variant, also surface the override-resolved effective-care view
-    // (covers watering/repotting/fertilising/winter-care overlap with variant_overrides)
+    // The effective-care view only resolves watering/soil/repotting/fertilising/winter-care/species-notes
+    // - it's irrelevant to topics like Pruning, Wiring, Nebari, etc. Only surface it when the topic
+    // searched actually overlaps with what this view resolves, so it doesn't show unrelated care data
+    // on every search regardless of what was asked for.
+    const TOPICS_WITH_EFFECTIVE_CARE = ['watering', 'repotting', 'fertilising', 'seasonal'];
     let effectiveCare = null;
-    if (variantRow) {
+    if (variantRow && TOPICS_WITH_EFFECTIVE_CARE.includes(topic.id)) {
       const { data } = await supabaseServer.from('variant_effective_care').select('*').eq('sp_no', spNo).maybeSingle();
       effectiveCare = data ?? null;
     }
