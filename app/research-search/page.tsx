@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 
 type SpeciesResult = { sp_no: number; species: string; species_genus: string; common_name: string | null };
 type VariantResult = { sp_no: number; variant_name: string; common_name: string | null; botanical_rank: string | null; is_deprecated: boolean };
 type Topic = { id: string; label: string };
 type Section = { table: string; data: Record<string, unknown> | null; error: string | null };
 type ContentResult = {
-  subject: { kind: string; name: string; common_name: string | null };
+  subject: { kind: string; name: string; common_name: string | null; colour_or_form_tag?: string | null; botanical_rank?: string | null };
   topic: { id: string; label: string };
   sections: Section[];
   effectiveCare: Record<string, unknown> | null;
@@ -74,8 +75,14 @@ export default function ResearchSearchPage() {
   }, [selectedSpNo, selectedTopic]);
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 900, margin: '0 auto', fontFamily: 'system-ui' }}>
-      <h1 style={{ fontSize: '1.4rem', marginBottom: '1rem' }}>Research Search</h1>
+    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '16px' }}>
+      <div style={{ marginBottom: '4px' }}>
+        <Link href="/" style={{ fontSize: '13px', color: '#6b7280', textDecoration: 'none' }}>&larr; Dashboard</Link>
+        <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: '4px 0 0' }}>Research Search</h1>
+      </div>
+      <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
+        Species, variant, and micro-issue lookup across every research table.
+      </p>
 
       {/* Species search */}
       <div style={{ marginBottom: '1rem', position: 'relative' }}>
@@ -174,10 +181,13 @@ export default function ResearchSearchPage() {
       {content && !content.error && (
         <div style={{ marginTop: '2rem' }}>
           <h2 style={{ fontSize: '1.2rem' }}>
-            {content.subject.name} {content.subject.common_name ? `— ${content.subject.common_name}` : ''}
+            {content.subject.name}
+            {content.subject.common_name ? ` — ${content.subject.common_name}` : ''}
+            {content.subject.colour_or_form_tag ? ` (${content.subject.colour_or_form_tag})` : ''}
           </h2>
           <p style={{ color: '#888', marginBottom: '1rem' }}>
             {content.topic.label} · sp_no {selectedSpNo}
+            {content.subject.botanical_rank ? ` · ${content.subject.botanical_rank}` : ''}
           </p>
 
           {content.effectiveCare && (

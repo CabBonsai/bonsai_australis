@@ -179,8 +179,11 @@ export async function GET(req: NextRequest) {
     if (speciesRow) {
       subject = { kind: 'species', name: speciesRow.species, genus: speciesRow.species_genus, common_name: speciesRow.common_name, research_status: speciesRow.research_status };
     } else if (variantRow) {
-      const { data: parentSpecies } = await supabaseServer.from('species').select('species').eq('sp_no', variantRow.parent_sp_no).maybeSingle();
-      subject = { kind: 'variant', name: `${parentSpecies?.species ?? 'Unknown parent'} '${variantRow.variant_name}'`, common_name: variantRow.common_name, botanical_rank: variantRow.botanical_rank };
+      // variant_name already stores the full display name (e.g. "Melaleuca linariifolia 'Claret Tops'"),
+      // not just the cultivar tag - don't re-prepend the parent species name or add extra quotes.
+      // common_name on a variant row is typically a flower-colour/form tag ("White"), not a real common
+      // name, so it's surfaced separately rather than bolted on with the species-style "— " suffix.
+      subject = { kind: 'variant', name: variantRow.variant_name, common_name: null, colour_or_form_tag: variantRow.common_name, botanical_rank: variantRow.botanical_rank };
     } else {
       return NextResponse.json({ error: 'sp_no not found in species or variants' }, { status: 404 });
     }
