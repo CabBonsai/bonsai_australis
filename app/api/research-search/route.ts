@@ -188,15 +188,52 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'sp_no not found in species or variants' }, { status: 404 });
     }
 
-    // Fetch every source table this topic maps to
+    // Fetch every source table this topic maps to. For a variant, also fetch the parent species'
+    // row in the same table and fall back per-field: variants very rarely get their own row
+    // researched in detail tables (pruning_protocols, nebari_root, etc.) - that work happens at
+    // species level - so without this, variant searches showed "empty" even when the parent has
+    // real, applicable content. Each inherited field is flagged so it's clear what's
+    // variant-specific vs. inherited from the parent (mirrors how variant_effective_care already
+    // resolves watering/soil/repotting/fertilising/winter-care, just extended to every topic table).
     const sections = await Promise.all(
       topic.sources.map(async (source) => {
-        const { data, error } = await supabaseServer
+        const { data: ownData, error } = await supabaseServer
           .from(source.table)
           .select(source.fields.join(','))
           .eq('sp_no', spNo)
           .maybeSingle();
-        return { table: source.table, data: error ? null : data, error: error?.message ?? null };
+
+        if (error) return { table: source.table, data: null, inheritedFields: [], error: error.message };
+
+        if (!variantRow) {
+          // Species subject - no fallback concept, just return as-is
+          return { table: source.table, data: ownData, inheritedFields: [], error: null };
+        }
+
+        // Variant subject - fetch the parent's row in this same table for per-field fallback
+        const { data: parentData } = await supabaseServer
+          .from(source.table)
+          .select(source.fields.join(','))
+          .eq('sp_no', variantRow.parent_sp_no)
+          .maybeSingle();
+
+        if (!parentData) {
+          // Parent has no row in this table either - nothing to fall back to
+          return { table: source.table, data: ownData, inheritedFields: [], error: null };
+        }
+
+        const merged: Record<string, unknown> = { ...(parentData as Record<string, unknown>) };
+        const inheritedFields: string[] = [];
+        const own = (ownData as Record<string, unknown>) || {};
+        for (const field of source.fields) {
+          const ownVal = own[field];
+          if (ownVal !== null && ownVal !== undefined && ownVal !== '') {
+            merged[field] = ownVal; // variant's own value wins when it actually has one
+          } else {
+            inheritedFields.push(field); // fell back to parent - flagged for the UI
+          }
+        }
+        return { table: source.table, data: merged, inheritedFields, error: null };
       })
     );
 

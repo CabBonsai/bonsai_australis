@@ -6,7 +6,7 @@ import Link from 'next/link';
 type SpeciesResult = { sp_no: number; species: string; species_genus: string; common_name: string | null };
 type VariantResult = { sp_no: number; variant_name: string; common_name: string | null; botanical_rank: string | null; is_deprecated: boolean };
 type Topic = { id: string; label: string };
-type Section = { table: string; data: Record<string, unknown> | null; error: string | null };
+type Section = { table: string; data: Record<string, unknown> | null; inheritedFields?: string[]; error: string | null };
 type ContentResult = {
   subject: { kind: string; name: string; common_name: string | null; colour_or_form_tag?: string | null; botanical_rank?: string | null };
   topic: { id: string; label: string };
@@ -209,14 +209,24 @@ export default function ResearchSearchPage() {
                   <tbody>
                     {Object.entries(section.data)
                       .filter(([k]) => k !== 'sp_no')
-                      .map(([k, v]) => (
-                        <tr key={k} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                          <td style={{ padding: '4px 8px', fontWeight: 600, verticalAlign: 'top', width: '30%', color: '#555' }}>{k}</td>
-                          <td style={{ padding: '4px 8px', whiteSpace: 'pre-wrap' }}>
-                            {v === null || v === '' ? <em style={{ color: '#bbb' }}>empty</em> : String(v)}
-                          </td>
-                        </tr>
-                      ))}
+                      .map(([k, v]) => {
+                        const isInherited = section.inheritedFields?.includes(k);
+                        return (
+                          <tr key={k} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                            <td style={{ padding: '4px 8px', fontWeight: 600, verticalAlign: 'top', width: '30%', color: '#555' }}>
+                              {k}
+                              {isInherited && (
+                                <span style={{ display: 'block', fontSize: '10px', fontWeight: 400, color: '#D9A02B', marginTop: 2 }}>
+                                  from parent species
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: '4px 8px', whiteSpace: 'pre-wrap', fontStyle: isInherited ? 'italic' : 'normal', color: isInherited ? '#6b5a30' : 'inherit' }}>
+                              {v === null || v === '' ? <em style={{ color: '#bbb' }}>empty</em> : String(v)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               )}
