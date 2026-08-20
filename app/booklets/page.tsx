@@ -35,6 +35,59 @@ const STATUS_COLORS: Record<string, string> = {
   published: '#2E2510',
 };
 
+// Lightweight markdown -> HTML for preview/print. Handles the subset actually used in booklets:
+// #/## headers, **bold**, *italic*, --- as a section divider, blank-line-separated paragraphs.
+// Deliberately not pulling in a markdown library dependency for this - the format is simple and
+// controlled (we write the content ourselves), so a small hand-rolled renderer is enough and
+// avoids an extra npm install.
+function renderMarkdown(md: string): string {
+  const lines = md.split('\n');
+  const html: string[] = [];
+  let paragraph: string[] = [];
+
+  const flushParagraph = () => {
+    if (paragraph.length) {
+      const text = paragraph.join(' ');
+      html.push(`<p>${inlineFormat(text)}</p>`);
+      paragraph = [];
+    }
+  };
+
+  const inlineFormat = (text: string) =>
+    text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line === '') {
+      flushParagraph();
+      continue;
+    }
+    if (line === '---') {
+      flushParagraph();
+      html.push('<hr />');
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      flushParagraph();
+      html.push(`<h2>${inlineFormat(line.slice(3))}</h2>`);
+      continue;
+    }
+    if (line.startsWith('# ')) {
+      flushParagraph();
+      html.push(`<h1>${inlineFormat(line.slice(2))}</h1>`);
+      continue;
+    }
+    paragraph.push(line);
+  }
+  flushParagraph();
+  return html.join('\n');
+}
+
 export default function BookletsPage() {
   const [view, setView] = useState<'dashboard' | 'editor'>('dashboard');
   const [booklets, setBooklets] = useState<BookletListItem[]>([]);
@@ -47,6 +100,7 @@ export default function BookletsPage() {
   // Editor state
   const [activeSpNo, setActiveSpNo] = useState<number | null>(null);
   const [booklet, setBooklet] = useState<Booklet | null>(null);
+  const [editorMode, setEditorMode] = useState<'write' | 'preview'>('write');
   const [reference, setReference] = useState<{ species: SpeciesResult; categories: ReferenceCategory[] } | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -124,7 +178,10 @@ export default function BookletsPage() {
   }, [booklet?.content]);
 
   const printBooklet = useCallback(() => {
-    window.print();
+    // Switch to preview first if needed, then print on the next tick so the rendered
+    // HTML is actually in the DOM before the browser's print dialog captures it.
+    setEditorMode('preview');
+    setTimeout(() => window.print(), 50);
   }, []);
 
   return (
@@ -276,9 +333,31 @@ export default function BookletsPage() {
                 placeholder="Price $"
                 style={{ padding: '6px 8px', border: '1px solid #ccc', borderRadius: 4, width: '90px' }}
               />
+              <div style={{ display: 'flex', border: '1px solid #ccc', borderRadius: 4, overflow: 'hidden' }}>
+                <button
+                  onClick={() => setEditorMode('write')}
+                  style={{
+                    padding: '6px 12px', border: 'none', cursor: 'pointer',
+                    background: editorMode === 'write' ? '#2E2510' : '#fff',
+                    color: editorMode === 'write' ? '#FBF7EC' : '#333',
+                  }}
+                >
+                  Write
+                </button>
+                <button
+                  onClick={() => setEditorMode('preview')}
+                  style={{
+                    padding: '6px 12px', border: 'none', cursor: 'pointer',
+                    background: editorMode === 'preview' ? '#2E2510' : '#fff',
+                    color: editorMode === 'preview' ? '#FBF7EC' : '#333',
+                  }}
+                >
+                  Preview
+                </button>
+              </div>
               <button
                 onClick={printBooklet}
-                style={{ padding: '6px 14px', background: '#2E2510', color: '#FBF7EC', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                style={{ padding: '6px 14px', background: '#55702A', color: '#FBF7EC', border: 'none', borderRadius: 4, cursor: 'pointer' }}
               >
                 Print / Save PDF
               </button>
@@ -287,23 +366,80 @@ export default function BookletsPage() {
               </span>
             </div>
 
-            <textarea
-              value={booklet?.content ?? ''}
-              onChange={(e) => setBooklet((b) => (b ? { ...b, content: e.target.value } : b))}
-              placeholder="Write the booklet here (Markdown supported)..."
-              style={{
-                width: '100%', minHeight: '70vh', padding: '16px', border: '1px solid #ccc', borderRadius: 4,
-                fontFamily: 'Georgia, serif', fontSize: '15px', lineHeight: 1.6, resize: 'vertical',
-              }}
-            />
+            {editorMode === 'write' && (
+              <textarea
+                value={booklet?.content ?? ''}
+                onChange={(e) => setBooklet((b) => (b ? { ...b, content: e.target.value } : b))}
+                placeholder="Write the booklet here (Markdown supported: # and ## headers, **bold**, *italic*, --- for a divider)..."
+                style={{
+                  width: '100%', minHeight: '70vh', padding: '16px', border: '1px solid #ccc', borderRadius: 4,
+                  fontFamily: 'Georgia, serif', fontSize: '15px', lineHeight: 1.6, resize: 'vertical',
+                }}
+              />
+            )}
+
+            {editorMode === 'preview' && (
+              <div
+                id="booklet-preview"
+                className="booklet-preview"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(booklet?.content ?? '') }}
+              />
+            )}
           </div>
         </div>
       )}
 
       <style jsx global>{`
+        .booklet-preview {
+          max-width: 720px;
+          margin: 0 auto;
+          padding: 24px 8px;
+          font-family: Georgia, 'Times New Roman', serif;
+          font-size: 16px;
+          line-height: 1.7;
+          color: #2E2510;
+        }
+        .booklet-preview h1 {
+          font-size: 30px;
+          margin: 0 0 8px;
+          text-align: center;
+        }
+        .booklet-preview h2 {
+          font-size: 20px;
+          margin: 32px 0 12px;
+          border-bottom: 1px solid #D9A02B;
+          padding-bottom: 4px;
+        }
+        .booklet-preview p {
+          margin: 0 0 14px;
+        }
+        .booklet-preview hr {
+          border: none;
+          border-top: 1px solid #ccc;
+          margin: 32px 0;
+        }
+        .booklet-preview strong {
+          color: #2E2510;
+        }
+
         @media print {
           .no-print { display: none !important; }
-          textarea { border: none !important; white-space: pre-wrap; }
+          body * { visibility: hidden; }
+          .booklet-preview, .booklet-preview * { visibility: visible; }
+          .booklet-preview {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            max-width: 100%;
+            padding: 0.5in;
+          }
+          .booklet-preview h2 {
+            page-break-after: avoid;
+          }
+          .booklet-preview p {
+            page-break-inside: avoid;
+          }
         }
       `}</style>
     </div>
