@@ -177,6 +177,21 @@ export default function BookletsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [booklet?.content]);
 
+  // Set the actual page title to the booklet's own title while it's open - browsers use
+  // document.title for both the tab and the print header, so without this every printed
+  // booklet said "Bonsai Australis Admin" (or worse, the old unfixed "Create Next App")
+  // instead of the booklet's real name. Resets on the way back to the dashboard.
+  useEffect(() => {
+    if (view === 'editor' && booklet?.title) {
+      document.title = booklet.title;
+    } else {
+      document.title = 'Booklet Studio - Bonsai Australis Admin';
+    }
+    return () => {
+      document.title = 'Bonsai Australis Admin';
+    };
+  }, [view, booklet?.title]);
+
   const printBooklet = useCallback(() => {
     // Switch to preview first if needed, then print on the next tick so the rendered
     // HTML is actually in the DOM before the browser's print dialog captures it.
