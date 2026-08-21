@@ -394,11 +394,14 @@ export default function BookletsPage() {
             )}
 
             {editorMode === 'preview' && (
-              <div
-                id="booklet-preview"
-                className="booklet-preview"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(booklet?.content ?? '') }}
-              />
+              <div id="booklet-preview" className="booklet-preview">
+                <div className="booklet-brand">BONSAI AUSTRALIS</div>
+                <div dangerouslySetInnerHTML={{ __html: renderMarkdown(booklet?.content ?? '') }} />
+                <div className="booklet-footer">
+                  &copy; {new Date().getFullYear()} Bonsai Australis. All rights reserved. This booklet may not be
+                  reproduced or redistributed without permission.
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -406,6 +409,7 @@ export default function BookletsPage() {
 
       <style jsx global>{`
         .booklet-preview {
+          box-sizing: border-box;
           max-width: 720px;
           margin: 0 auto;
           padding: 24px 8px;
@@ -413,6 +417,15 @@ export default function BookletsPage() {
           font-size: 16px;
           line-height: 1.7;
           color: #2E2510;
+        }
+        .booklet-brand {
+          text-align: center;
+          font-family: Georgia, 'Times New Roman', serif;
+          font-size: 13px;
+          letter-spacing: 3px;
+          color: #D9A02B;
+          font-weight: bold;
+          margin-bottom: 20px;
         }
         .booklet-preview h1 {
           font-size: 30px;
@@ -436,24 +449,40 @@ export default function BookletsPage() {
         .booklet-preview strong {
           color: #2E2510;
         }
+        .booklet-footer {
+          margin-top: 40px;
+          padding-top: 16px;
+          border-top: 1px solid #ccc;
+          font-size: 11px;
+          color: #888;
+          text-align: center;
+          font-family: Georgia, 'Times New Roman', serif;
+        }
 
         @media print {
           .no-print { display: none !important; }
           body * { visibility: hidden; }
           .booklet-preview, .booklet-preview * { visibility: visible; }
           .booklet-preview {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
+            /* Static flow, not absolute positioning - the previous position:absolute +
+               width:100% + padding combination pushed content past the printable page
+               edge (padding was added on top of 100% width instead of being subtracted
+               from it), which is what was cutting text off on the right margin. @page
+               below handles the print margin instead, so no padding is needed here. */
+            position: static;
+            width: auto;
             max-width: 100%;
-            padding: 0.5in;
+            padding: 0;
+            margin: 0;
           }
           .booklet-preview h2 {
             page-break-after: avoid;
           }
           .booklet-preview p {
             page-break-inside: avoid;
+          }
+          @page {
+            margin: 0.75in;
           }
         }
       `}</style>
