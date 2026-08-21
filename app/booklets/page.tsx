@@ -288,7 +288,7 @@ export default function BookletsPage() {
       )}
 
       {view === 'editor' && (
-        <div style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
+        <div className="editor-flex-container" style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
           {/* Left: reference panel - read-only pull of all 13 categories */}
           <div className="no-print" style={{ flex: '0 0 40%', maxHeight: '80vh', overflowY: 'auto', border: '1px solid #eee', borderRadius: 4, padding: '12px' }}>
             <h3 style={{ fontSize: '13px', fontWeight: 600, color: '#888', marginBottom: 8, textTransform: 'uppercase' }}>
@@ -320,7 +320,7 @@ export default function BookletsPage() {
           </div>
 
           {/* Right: editor */}
-          <div style={{ flex: '1 1 60%' }}>
+          <div className="editor-column" style={{ flex: '1 1 60%' }}>
             <div className="no-print" style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <input
                 value={booklet?.title ?? ''}
@@ -460,16 +460,24 @@ export default function BookletsPage() {
         }
 
         @media print {
+          /* Simpler, more robust approach than the previous visibility:hidden trick -
+             that technique (hide everything, then re-show just .booklet-preview) is a
+             known source of print-pagination bugs in some browsers, and was cutting
+             content off partway through the document (truncating at "Wiring" on the
+             first real test). Removing non-printable sections from layout entirely with
+             display:none, then forcing the remaining flex layout back to a plain block,
+             is the standard reliable pattern - nothing left for the print engine to get
+             confused about. */
           .no-print { display: none !important; }
-          body * { visibility: hidden; }
-          .booklet-preview, .booklet-preview * { visibility: visible; }
+          .editor-flex-container {
+            display: block !important;
+          }
+          .editor-column {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: none !important;
+          }
           .booklet-preview {
-            /* Static flow, not absolute positioning - the previous position:absolute +
-               width:100% + padding combination pushed content past the printable page
-               edge (padding was added on top of 100% width instead of being subtracted
-               from it), which is what was cutting text off on the right margin. @page
-               below handles the print margin instead, so no padding is needed here. */
-            position: static;
             width: auto;
             max-width: 100%;
             padding: 0;
