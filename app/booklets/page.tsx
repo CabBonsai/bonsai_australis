@@ -486,9 +486,15 @@ export default function BookletsPage() {
           .booklet-preview h2 {
             page-break-after: avoid;
           }
-          .booklet-preview p {
-            page-break-inside: avoid;
-          }
+          /* page-break-inside: avoid on paragraphs was removed here - it's the likely real
+             cause of the truncation bug. Several paragraphs in this booklet are long enough
+             that they don't fit within one printable page, and Chrome's known behaviour when
+             it can't satisfy an "avoid break" constraint on tall content is to silently stop
+             rendering the rest of the document rather than break the paragraph awkwardly
+             across the page boundary. Letting paragraphs break normally is far safer - a
+             paragraph split across two pages looks slightly less polished than one that
+             doesn't, but a document that silently stops halfway through is a much worse
+             outcome, and it's exactly what was happening. */
           @page {
             margin: 0.75in;
           }
