@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { uploadPhoto } from '@/lib/uploadPhoto'
@@ -459,6 +459,7 @@ function formatVal(v: any): string {
 
 export default function CollectionDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const id = params.id as string
 
   const [tree, setTree] = useState<any>(null)
@@ -466,6 +467,31 @@ export default function CollectionDetailPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [generatingReport, setGeneratingReport] = useState(false)
+
+  // Next/Previous + Back, driven by the ordered id list the collection list
+  // page writes to sessionStorage whenever its view (search/group/filters)
+  // changes. Falls back to a plain "/collection" link and no Next/Previous
+  // if landing here directly (bookmark, fresh tab, etc. -- no list visit
+  // this session to read an order from).
+  const [navIds, setNavIds] = useState<string[]>([])
+  const [backUrl, setBackUrl] = useState('/collection')
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('collectionNav')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        setNavIds(Array.isArray(parsed.ids) ? parsed.ids : [])
+        setBackUrl(parsed.backUrl || '/collection')
+      }
+    } catch (e) {
+      // Malformed/inaccessible sessionStorage -- just use the defaults above.
+    }
+  }, [])
+
+  const navIndex = navIds.indexOf(id)
+  const prevId = navIndex > 0 ? navIds[navIndex - 1] : null
+  const nextId = navIndex >= 0 && navIndex < navIds.length - 1 ? navIds[navIndex + 1] : null
 
   useEffect(() => {
     fetchTree()
@@ -528,6 +554,33 @@ export default function CollectionDetailPage() {
     } else {
       alert('Saved')
     }
+  }
+
+  const [quickLogMessage, setQuickLogMessage] = useState('')
+
+  // One-tap "mark done today" for the Care Schedule date fields. Sets the
+  // field to today's date and saves immediately (just that field, via the
+  // same service-role API route as Save All), rather than making you open
+  // a date picker and pick today by hand -- built for walking through many
+  // trees in a row (e.g. fertilising day) without a full "Save All" each time.
+  async function quickLog(field: string, label: string) {
+    const today = new Date().toISOString().slice(0, 10)
+    set(field, today)
+
+    const res = await fetch('/api/collection', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collection_id: id, [field]: today }),
+    })
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(`Could not save ${label}: ` + (data?.error || res.statusText))
+      return
+    }
+
+    setQuickLogMessage(`✓ ${label} logged for today`)
+    setTimeout(() => setQuickLogMessage(''), 2000)
   }
 
   async function handleDelete() {
@@ -796,8 +849,8 @@ export default function CollectionDetailPage() {
 
   return (
     <main style={{ width: '100%', boxSizing: 'border-box', maxWidth: '1200px', margin: '0 auto', padding: '24px 24px 112px', background: '#faf7f1', minHeight: '100vh' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-        <Link href="/collection" style={{ fontSize: '14px', color: '#5c7a2a', fontWeight: 600, textDecoration: 'none' }}>&larr; Back to Collection</Link>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
+        <Link href={backUrl} style={{ fontSize: '14px', color: '#5c7a2a', fontWeight: 600, textDecoration: 'none' }}>&larr; Back to Collection</Link>
         <button
           type="button"
           onClick={handleGenerateReport}
@@ -806,6 +859,72 @@ export default function CollectionDetailPage() {
         >
           {generatingReport ? 'Generating...' : '📄 PDF Report'}
         </button>
+      </div>
+
+      {/* Next/Previous -- walks the exact order shown on the list page you
+          came from (whatever search/group/filters were active). Hidden
+          entirely if there's no known order (e.g. landed here directly). */}
+      {navIds.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={() => prevId && router.push(`/collection/${prevId}`)}
+            disabled={!prevId}
+            style={{
+              flex: 1, fontSize: '14px', fontWeight: 600, padding: '10px 14px', borderRadius: '10px',
+              border: '1.5px solid #e2dac2', background: prevId ? '#fffefb' : '#f3efe2',
+              color: prevId ? '#2b2620' : '#c4bba0', cursor: prevId ? 'pointer' : 'default',
+            }}
+          >
+            &larr; Previous
+          </button>
+          <span style={{ fontSize: '12px', color: '#a89e7a', whiteSpace: 'nowrap' }}>
+            {navIndex + 1} of {navIds.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => nextId && router.push(`/collection/${nextId}`)}
+            disabled={!nextId}
+            style={{
+              flex: 1, fontSize: '14px', fontWeight: 600, padding: '10px 14px', borderRadius: '10px',
+              border: '1.5px solid #e2dac2', background: nextId ? '#fffefb' : '#f3efe2',
+              color: nextId ? '#2b2620' : '#c4bba0', cursor: nextId ? 'pointer' : 'default',
+            }}
+          >
+            Next &rarr;
+          </button>
+        </div>
+      )}
+
+      {/* Maintenance quick-log -- one tap sets the date to today and saves
+          immediately (no need to open Care Schedule / Save All), built for
+          walking through several trees in a row doing the same task. */}
+      <div style={{ marginBottom: '18px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {[
+            ['last_watered', 'Watered'],
+            ['last_fertilised', 'Fertilised'],
+            ['last_repotted', 'Repotted'],
+            ['last_pruned', 'Pruned'],
+            ['date_wired', 'Wired'],
+            ['date_check_wire', 'Wire Checked'],
+          ].map(([field, label]) => (
+            <button
+              key={field}
+              type="button"
+              onClick={() => quickLog(field, label)}
+              style={{
+                fontSize: '13px', fontWeight: 600, padding: '8px 14px', borderRadius: '20px',
+                border: '1.5px solid #cdd9b4', background: '#f3f7ea', color: '#3f5228', cursor: 'pointer',
+              }}
+            >
+              ✓ {label} today
+            </button>
+          ))}
+        </div>
+        {quickLogMessage && (
+          <p style={{ fontSize: '13px', color: '#5c7a2a', fontWeight: 600, marginTop: '8px' }}>{quickLogMessage}</p>
+        )}
       </div>
 
       <HeroPhotoField value={tree.image_url || ''} onChange={v => set('image_url', v)} />

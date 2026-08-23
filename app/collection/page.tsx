@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 // Starter suggestions only, shown even before any tree has a location set.
@@ -19,9 +20,11 @@ const SEED_LOCATIONS = [
 const ADD_NEW = '__add_new__'
 
 export default function CollectionPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [trees, setTrees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [speciesSearch, setSpeciesSearch] = useState('')
   const [speciesResults, setSpeciesResults] = useState<any[]>([])
@@ -30,16 +33,39 @@ export default function CollectionPage() {
   const [adding, setAdding] = useState(false)
   const searchRef = useRef<any>(null)
 
-  // --- Grouping ---
-  const [groupBy, setGroupBy] = useState<'species' | 'location' | 'number'>('number')
-
-  // --- Filter state ---
+  // --- View state, seeded from the URL on first load so a link back to this
+  // exact page (with query string) restores the same search/group/filters
+  // instead of always resetting to defaults. Kept in sync back to the URL
+  // below so any future link to this page (e.g. from the detail page's
+  // "Back to Collection") carries the current view with it. ---
+  const [search, setSearch] = useState(() => searchParams.get('q') || '')
+  const [groupBy, setGroupBy] = useState<'species' | 'location' | 'number'>(
+    () => (searchParams.get('group') as any) || 'number'
+  )
   const [showFilters, setShowFilters] = useState(false)
-  const [filterGenus, setFilterGenus] = useState('')
-  const [filterOrigin, setFilterOrigin] = useState<'all' | 'native' | 'exotic'>('all')
-  const [filterFrost, setFilterFrost] = useState<'all' | 'required'>('all')
+  const [filterGenus, setFilterGenus] = useState(() => searchParams.get('genus') || '')
+  const [filterOrigin, setFilterOrigin] = useState<'all' | 'native' | 'exotic'>(
+    () => (searchParams.get('origin') as any) || 'all'
+  )
+  const [filterFrost, setFilterFrost] = useState<'all' | 'required'>(
+    () => (searchParams.get('frost') as any) || 'all'
+  )
 
   useEffect(() => { fetchTrees() }, [])
+
+  // Keep the URL query string in sync with the current view so it's always
+  // shareable/bookmarkable and so the detail page can send people back to
+  // exactly this view rather than a blank default list.
+  useEffect(() => {
+    const qs = new URLSearchParams()
+    if (search.trim()) qs.set('q', search.trim())
+    if (groupBy !== 'number') qs.set('group', groupBy)
+    if (filterGenus) qs.set('genus', filterGenus)
+    if (filterOrigin !== 'all') qs.set('origin', filterOrigin)
+    if (filterFrost !== 'all') qs.set('frost', filterFrost)
+    const query = qs.toString()
+    router.replace(query ? `/collection?${query}` : '/collection', { scroll: false })
+  }, [search, groupBy, filterGenus, filterOrigin, filterFrost])
 
   useEffect(() => {
     if (!showAddModal) {
@@ -311,6 +337,30 @@ export default function CollectionPage() {
     }
     return groups
   }, [filtered, groupBy])
+
+  // Flat, in-order list of collection_ids across every group exactly as
+  // currently displayed (respecting search/group/filters). Written to
+  // sessionStorage so the detail page can walk Next/Previous through this
+  // exact sequence, and so "Back to Collection" can return to this exact
+  // view (URL includes the query string synced above).
+  useEffect(() => {
+    if (loading) return
+    const ids = grouped.flatMap(g => g.trees.map((t: any) => t.collection_id))
+    const qs = new URLSearchParams()
+    if (search.trim()) qs.set('q', search.trim())
+    if (groupBy !== 'number') qs.set('group', groupBy)
+    if (filterGenus) qs.set('genus', filterGenus)
+    if (filterOrigin !== 'all') qs.set('origin', filterOrigin)
+    if (filterFrost !== 'all') qs.set('frost', filterFrost)
+    const query = qs.toString()
+    const backUrl = query ? `/collection?${query}` : '/collection'
+    try {
+      sessionStorage.setItem('collectionNav', JSON.stringify({ ids, backUrl }))
+    } catch (e) {
+      // sessionStorage can throw in rare private-browsing edge cases -- Next/Previous
+      // and Back just fall back to their defaults on the detail page if this fails.
+    }
+  }, [grouped, loading, search, groupBy, filterGenus, filterOrigin, filterFrost])
 
   const healthColor: Record<string, string> = {
     'Excellent': '#16a34a', 'Good': '#65a30d', 'Stressed': '#d97706',
