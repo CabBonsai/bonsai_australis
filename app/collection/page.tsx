@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -20,6 +20,18 @@ const SEED_LOCATIONS = [
 const ADD_NEW = '__add_new__'
 
 export default function CollectionPage() {
+  // useSearchParams() (used below to seed view state from the URL) requires
+  // a Suspense boundary around it for Next.js static prerendering -- without
+  // this wrapper the production build fails at "Generating static pages"
+  // with "useSearchParams() should be wrapped in a suspense boundary".
+  return (
+    <Suspense fallback={<main style={{ maxWidth: '1100px', width: '100%', margin: '0 auto', padding: '16px' }}><p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px' }}>Loading...</p></main>}>
+      <CollectionPageInner />
+    </Suspense>
+  )
+}
+
+function CollectionPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
