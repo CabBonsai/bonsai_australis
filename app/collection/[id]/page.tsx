@@ -514,8 +514,12 @@ export default function CollectionDetailPage() {
       const { data: v } = await supabase.from('variants').select('variant_name, common_name').eq('sp_no', data.variant_sp_no).single()
       if (v) setSpeciesName(`${v.variant_name}${v.common_name && v.common_name !== 'Unknown' ? ' — ' + v.common_name : ''}`)
     } else if (data?.sp_no) {
-      const { data: sp } = await supabase.from('species').select('species, common_name').eq('sp_no', data.sp_no).single()
-      if (sp) setSpeciesName(`${sp.species}${sp.common_name && sp.common_name !== 'Unknown' ? ' — ' + sp.common_name : ''}`)
+      // collection_detail coalesces species against variants (for sp_nos that
+      // only exist in the variants table, not species), so use it here
+      // instead of querying species directly -- a plain species-by-sp_no
+      // .single() throws for variant-only sp_nos since it matches zero rows.
+      const { data: cd } = await supabase.from('collection_detail').select('species, common_name').eq('collection_id', id).single()
+      if (cd) setSpeciesName(`${cd.species}${cd.common_name && cd.common_name !== 'Unknown' ? ' — ' + cd.common_name : ''}`)
     }
 
     setLoading(false)
