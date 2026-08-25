@@ -684,12 +684,30 @@ export default function CollectionDetailPage() {
 
       let suitability: any = null
       if (tree.sp_no) {
+        const SUITABILITY_FIELDS = 'bonsai_suitability, difficulty, recommended_bonsai_styles, vigor, back_budding_ability, ramification_potential, leaf_reduction_potential, root_tolerance_score, wire_bend_tolerance, nebari_potential_score, bark_character_score, taper_movement_score, longevity_score, native_bonus, final_bonsai_score, bonsai_tier, research_status, needs_verification'
+
+        // maybeSingle(), not single() -- a variant-only sp_no isn't
+        // guaranteed a bonsai_suitability row of its own. Fall back to the
+        // parent species' profile via variants.parent_sp_no when it's missing,
+        // rather than leaving the report's suitability section blank.
         const { data: sd } = await supabase
           .from('bonsai_suitability')
-          .select('bonsai_suitability, difficulty, recommended_bonsai_styles, vigor, back_budding_ability, ramification_potential, leaf_reduction_potential, root_tolerance_score, wire_bend_tolerance, nebari_potential_score, bark_character_score, taper_movement_score, longevity_score, native_bonus, final_bonsai_score, bonsai_tier, research_status, needs_verification')
+          .select(SUITABILITY_FIELDS)
           .eq('sp_no', tree.sp_no)
-          .single()
+          .maybeSingle()
         suitability = sd
+
+        if (!suitability) {
+          const { data: parent } = await supabase.from('variants').select('parent_sp_no').eq('sp_no', tree.sp_no).maybeSingle()
+          if (parent?.parent_sp_no) {
+            const { data: sdParent } = await supabase
+              .from('bonsai_suitability')
+              .select(SUITABILITY_FIELDS)
+              .eq('sp_no', parent.parent_sp_no)
+              .maybeSingle()
+            suitability = sdParent
+          }
+        }
       }
 
       function checkPageBreak(needed: number) {
