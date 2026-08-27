@@ -11,6 +11,27 @@ const statusColor: Record<string, string> = {
 
 const STATUS_OPTIONS = ['active', 'completed', 'abandoned']
 
+// Render free text with any http(s) URLs turned into clickable links (new tab).
+function linkifyText(text: string) {
+  const urlRe = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]}'"])/g
+  const isUrl = /^https?:\/\//
+  return text.split(urlRe).map((part, i) => (
+    isUrl.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: '#2563eb', wordBreak: 'break-word' }}
+      >
+        {part}
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  ))
+}
+
 export default function ResearchProjectDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params)
   const projectId = parseInt(id, 10)
@@ -704,7 +725,7 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
           {project.notes && (
             <div style={{ marginBottom: '16px' }}>
               <p style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', margin: '0 0 2px' }}>Notes</p>
-              <p style={{ fontSize: '14px', color: '#374151', margin: 0, whiteSpace: 'pre-wrap' }}>{project.notes}</p>
+              <p style={{ fontSize: '14px', color: '#374151', margin: 0, whiteSpace: 'pre-wrap' }}>{linkifyText(project.notes)}</p>
             </div>
           )}
           <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '24px' }}>
