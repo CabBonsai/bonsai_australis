@@ -696,9 +696,15 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
             </div>
           )}
           {project.methodology && (
-            <div style={{ marginBottom: '16px' }}>
+            <div style={{ marginBottom: '10px' }}>
               <p style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', margin: '0 0 2px' }}>Methodology</p>
               <p style={{ fontSize: '14px', color: '#374151', margin: 0 }}>{project.methodology}</p>
+            </div>
+          )}
+          {project.notes && (
+            <div style={{ marginBottom: '16px' }}>
+              <p style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', margin: '0 0 2px' }}>Notes</p>
+              <p style={{ fontSize: '14px', color: '#374151', margin: 0, whiteSpace: 'pre-wrap' }}>{project.notes}</p>
             </div>
           )}
           <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '24px' }}>
