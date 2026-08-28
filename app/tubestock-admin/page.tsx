@@ -49,6 +49,17 @@ function padTag(n: number) {
   return String(n).padStart(3, '0')
 }
 
+// Quantity reconciliation (see spec-tubestock-quantity-reconciliation.md).
+// `tubestock.quantity` only counts un-promoted individuals. Individuals promoted
+// out of a batch keep their research_project_trees row (collection_id now
+// populated) for measurement-history continuity, but they've already been
+// subtracted from quantity. Add those back to get the batch's true total.
+// A research_project_trees row with a NULL collection_id is still counted inside
+// quantity, so it must NOT be added here or the count double-counts.
+function reconcileQuantity(quantity: number, researchCount: number) {
+  return { qty: quantity, research: researchCount, total: quantity + researchCount }
+}
+
 export default function TubestockAdminPage() {
   return (
     <Suspense fallback={<main style={{ maxWidth: '700px', margin: '0 auto', padding: '16px' }}><p style={{ color: '#9ca3af' }}>Loading...</p></main>}>
@@ -69,6 +80,10 @@ function TubestockAdmin() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   const [linkedIds, setLinkedIds] = useState<Set<number>>(new Set())
+  // tubestock_id -> count of research_project_trees rows for that batch that have
+  // been promoted out (collection_id IS NOT NULL). Drives the QTY/Research/Total
+  // breakdown; batches absent from this map (or mapped to 0) show plain quantity.
+  const [researchCounts, setResearchCounts] = useState<Record<number, number>>({})
   const [deepLinkApplied, setDeepLinkApplied] = useState(false)
 
   useEffect(() => { fetchAll() }, [])
@@ -142,6 +157,14 @@ function TubestockAdmin() {
     const linkData = (allLinkRows || []).filter((l: any) => l.tubestock_id != null)
     setLinkedIds(new Set(linkData.map((l: any) => l.tubestock_id)))
 
+    // Only promoted-out rows (collection_id populated) are added back — see
+    // reconcileQuantity above.
+    const counts: Record<number, number> = {}
+    for (const l of linkData) {
+      if (l.collection_id != null) counts[l.tubestock_id] = (counts[l.tubestock_id] || 0) + 1
+    }
+    setResearchCounts(counts)
+
     setLoading(false)
   }
 
@@ -181,6 +204,7 @@ function TubestockAdmin() {
         displayLabel={label(row)}
         projects={projects}
         isLinkedToResearch={linkedIds.has(row.id)}
+        researchCount={researchCounts[row.id] || 0}
         onDone={() => { setEditingId(null); fetchAll() }}
       />
     )
@@ -232,7 +256,10 @@ function TubestockAdmin() {
                   </p>
                 )}
                 <p style={{ fontSize: '12px', color: '#9ca3af', margin: '4px 0 0' }}>
-                  Qty {row.quantity}{row.source ? ` \u00b7 ${row.source}` : ''}{row.acquisition_date ? ` \u00b7 ${row.acquisition_date}` : ''}
+                  {researchCounts[row.id] > 0
+                    ? `QTY ${row.quantity} \u00b7 Research ${researchCounts[row.id]} \u00b7 Total ${row.quantity + researchCounts[row.id]}`
+                    : `Qty ${row.quantity}`}
+                  {row.source ? ` \u00b7 ${row.source}` : ''}{row.acquisition_date ? ` \u00b7 ${row.acquisition_date}` : ''}
                 </p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end', flexShrink: 0 }}>
@@ -260,8 +287,8 @@ function TubestockAdmin() {
   )
 }
 
-function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToResearch, onDone }: {
-  row: Tubestock, speciesInfo: SpeciesInfo | undefined, displayLabel: string, projects: Project[], isLinkedToResearch: boolean, onDone: () => void
+function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToResearch, researchCount, onDone }: {
+  row: Tubestock, speciesInfo: SpeciesInfo | undefined, displayLabel: string, projects: Project[], isLinkedToResearch: boolean, researchCount: number, onDone: () => void
 }) {
   const [quantity, setQuantity] = useState(row.quantity)
   const [healthNotes, setHealthNotes] = useState(row.health_notes || '')
@@ -582,6 +609,18 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
           </span>
         )}
       </div>
+
+      {researchCount > 0 && (() => {
+        const { qty, research, total } = reconcileQuantity(row.quantity, researchCount)
+        return (
+          <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 16px' }}>
+            <strong style={{ color: '#374151' }}>QTY {qty} · Research {research} · Total {total}</strong>
+            <span style={{ display: 'block', fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>
+              Research = individuals promoted out of this batch that still carry Research Pod measurement history.
+            </span>
+          </p>
+        )
+      })()}
 
       {row.quantity > 0 && (
         <div style={{ marginBottom: '16px' }}>
