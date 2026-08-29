@@ -49,6 +49,21 @@ function padTag(n: number) {
   return String(n).padStart(3, '0')
 }
 
+// Suggests the next `TS####` batch number by scanning the tubestock_number
+// column — NOT the row id (see spec-fix-tubestock-number-autogen.md). The id is
+// an auto-increment key that climbs past deleted rows and never reuses values,
+// so deriving the number from it leaves permanent, unexplained gaps in the
+// visible sequence any time a row is created-then-deleted. Mirrors the SQL:
+//   COALESCE(MAX(CAST(SUBSTRING(tubestock_number FROM 'TS(\d+)') AS INT)), 0) + 1
+// padStart(4) rather than padTag (which is 3-wide, for plant-tag suffixes).
+function nextTubestockNumber(existing: (string | null)[]): string {
+  const max = existing.reduce((acc, n) => {
+    const m = n && /^TS(\d+)$/.exec(n.trim())
+    return m ? Math.max(acc, parseInt(m[1], 10)) : acc
+  }, 0)
+  return `TS${String(max + 1).padStart(4, '0')}`
+}
+
 // Quantity reconciliation (see spec-tubestock-quantity-reconciliation.md).
 // `tubestock.quantity` only counts un-promoted individuals. Individuals promoted
 // out of a batch keep their research_project_trees row (collection_id now
@@ -191,7 +206,7 @@ function TubestockAdmin() {
   if (loading) return <main style={{ maxWidth: '700px', margin: '0 auto', padding: '16px' }}><p style={{ color: '#9ca3af' }}>Loading...</p></main>
 
   if (creating) {
-    return <TubestockCreateForm onDone={() => { setCreating(false); fetchAll() }} onCancel={() => setCreating(false)} />
+    return <TubestockCreateForm suggestedNumber={nextTubestockNumber(rows.map(r => r.tubestock_number))} onDone={() => { setCreating(false); fetchAll() }} onCancel={() => setCreating(false)} />
   }
 
   if (editingId !== null) {
@@ -736,14 +751,17 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
   )
 }
 
-function TubestockCreateForm({ onDone, onCancel }: { onDone: () => void, onCancel: () => void }) {
+function TubestockCreateForm({ suggestedNumber, onDone, onCancel }: { suggestedNumber: string, onDone: () => void, onCancel: () => void }) {
   const [speciesQuery, setSpeciesQuery] = useState('')
   const [speciesResults, setSpeciesResults] = useState<{ sp_no: number, species: string, common_name: string | null, isVariant?: boolean, parent_sp_no?: number | null }[]>([])
   const [selectedSpNo, setSelectedSpNo] = useState<number | null>(null)
   const [selectedVariantSpNo, setSelectedVariantSpNo] = useState<number | null>(null)
   const [selectedSpeciesLabel, setSelectedSpeciesLabel] = useState('')
   const [speciesNameText, setSpeciesNameText] = useState('')
-  const [tubestockNumber, setTubestockNumber] = useState('')
+  // Pre-filled with the next free TS#### number (scanned from existing
+  // tubestock_number values, not the row id). Editable — the user can override
+  // or clear it.
+  const [tubestockNumber, setTubestockNumber] = useState(suggestedNumber)
   const [quantity, setQuantity] = useState(1)
   const [source, setSource] = useState('')
   const [acquisitionDate, setAcquisitionDate] = useState('')
@@ -882,7 +900,7 @@ function TubestockCreateForm({ onDone, onCancel }: { onDone: () => void, onCance
       )}
 
       <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
-        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Tubestock number (optional \u2014 leave blank to auto-generate from ID)</span>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Tubestock number (pre-filled with the next free TS number \u2014 edit if needed)</span>
         <input type="text" value={tubestockNumber} onChange={e => setTubestockNumber(e.target.value)} placeholder="e.g. TS0014" style={inputStyle} />
       </label>
 
