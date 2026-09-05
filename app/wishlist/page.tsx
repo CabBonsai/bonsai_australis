@@ -26,7 +26,7 @@ const inputStyle: React.CSSProperties = {
 const labelStyle: React.CSSProperties = { display: 'block', fontSize: '11px', color: '#6b7280', marginBottom: '3px' }
 
 type Supplier = { id: number; name: string; location: string | null; notes: string | null }
-type SpeciesRow = { sp_no: number; species: string; common_name: string | null }
+type SpeciesRow = { sp_no: number; species: string; common_name: string | null; isVariant?: boolean }
 type WishlistItem = {
   id: number; supplier_id: number; sp_no: number; size_category: string
   price: number | null; notes: string | null; date_seen: string; status: string
@@ -73,18 +73,39 @@ export default function WishlistPage() {
   // Debounced live search -- queries the DB directly per keystroke (after a
   // short pause) rather than filtering a client-side list, so this never
   // hits the 1000-row cap regardless of how many species match.
+  //
+  // Queries species AND variants in parallel and merges the results.
+  // Previously this only queried `species`, which silently excluded every
+  // variant/cultivar (e.g. Leptospermum rupestre 'Highland Pink') from
+  // search results entirely -- found and scoped in session 51, fixed here.
   useEffect(() => {
     const q = addQuery.trim()
     if (q.length < 2) { setAddResults([]); return }
     setSearchingAdd(true)
     const timer = setTimeout(async () => {
-      const { data } = await supabase
-        .from('species')
-        .select('sp_no, species, common_name')
-        .or(`species.ilike.%${q}%,common_name.ilike.%${q}%`)
-        .order('species', { ascending: true })
-        .limit(30)
-      setAddResults((data as SpeciesRow[]) || [])
+      const [speciesRes, variantsRes] = await Promise.all([
+        supabase
+          .from('species')
+          .select('sp_no, species, common_name')
+          .eq('is_deprecated', false)
+          .or(`species.ilike.%${q}%,common_name.ilike.%${q}%`)
+          .order('species', { ascending: true })
+          .limit(30),
+        supabase
+          .from('variants')
+          .select('sp_no, variant_name, common_name')
+          .eq('is_deprecated', false)
+          .or(`variant_name.ilike.%${q}%,common_name.ilike.%${q}%`)
+          .order('variant_name', { ascending: true })
+          .limit(30),
+      ])
+      const speciesResults: SpeciesRow[] = (speciesRes.data as any[] || [])
+        .map(s => ({ sp_no: s.sp_no, species: s.species, common_name: s.common_name }))
+      const variantResults: SpeciesRow[] = (variantsRes.data as any[] || [])
+        .map(v => ({ sp_no: v.sp_no, species: v.variant_name, common_name: v.common_name, isVariant: true }))
+      const merged = [...speciesResults, ...variantResults]
+        .sort((a, b) => a.species.localeCompare(b.species))
+      setAddResults(merged)
       setSearchingAdd(false)
     }, 300)
     return () => clearTimeout(timer)
@@ -113,6 +134,16 @@ export default function WishlistPage() {
       const { data: spData } = await supabase.from('species').select('sp_no, species, common_name').in('sp_no', spNosNeeded)
       const map: Record<number, SpeciesRow> = {}
       ;(spData || []).forEach((s: any) => { map[s.sp_no] = s })
+
+      // Any sp_no not resolved above belongs to a variant, not a species --
+      // check `variants` for those specifically. Without this, a wishlist
+      // item added for a variant would show up with no name at all.
+      const stillMissing = spNosNeeded.filter(sp => !map[sp as number])
+      if (stillMissing.length > 0) {
+        const { data: varData } = await supabase.from('variants').select('sp_no, variant_name, common_name').in('sp_no', stillMissing)
+        ;(varData || []).forEach((v: any) => { map[v.sp_no] = { sp_no: v.sp_no, species: v.variant_name, common_name: v.common_name, isVariant: true } })
+      }
+
       setSpeciesMap(prev => ({ ...prev, ...map }))
     }
 
@@ -427,6 +458,9 @@ export default function WishlistPage() {
                 <input type="checkbox" checked={!!staged[sp.sp_no]} onChange={() => toggleStaged(sp)} style={{ width: '15px', height: '15px', flexShrink: 0 }} />
                 <span style={{ fontWeight: 600 }}>{sp.species}</span>
                 {sp.common_name && sp.common_name !== 'Unknown' && <span style={{ color: '#6b7280' }}>&mdash; {sp.common_name}</span>}
+                {sp.isVariant && (
+                  <span style={{ fontSize: '10px', fontWeight: 700, background: '#ede9fe', color: '#6d28d9', padding: '1px 7px', borderRadius: '999px' }}>Variant</span>
+                )}
               </label>
             ))}
           </div>
