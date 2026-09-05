@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Fragment } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
@@ -41,6 +41,19 @@ export default function SpeciesList() {
     if (s === 'in progress' || s === 'data gaps (see below)') return 2
     if (s === 'genus-inferred') return 3
     return 4
+  }
+
+  // Display label for the tier boundaries above -- shown as a divider row in
+  // the Top 300 list so a jump in raw score (e.g. 66.58 -> 86.24) reads as
+  // "new confidence tier started" rather than looking like a broken sort.
+  function tierLabel(tier: number) {
+    switch (tier) {
+      case 0: return 'Verified / Complete'
+      case 1: return 'Provisional'
+      case 2: return 'In Progress / Data Gaps'
+      case 3: return 'Genus-Inferred'
+      default: return 'Not Started / Other'
+    }
   }
 
   async function fetchTop300() {
@@ -244,8 +257,24 @@ export default function SpeciesList() {
       {loading && <p style={{ color: '#9ca3af' }}>Loading...</p>}
 
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {species.map((s, idx) => (
-          <li key={s.sp_no} style={{ borderBottom: '1px solid #e5e7eb' }}>
+        {species.map((s, idx) => {
+          const currentTier = topMode ? tierPriority(s.research_status) : null
+          const prevTier = topMode && idx > 0 ? tierPriority(species[idx - 1].research_status) : null
+          const showDivider = topMode && (idx === 0 || currentTier !== prevTier)
+          return (
+          <Fragment key={s.sp_no}>
+            {showDivider && (
+              <li style={{ listStyle: 'none' }}>
+                <div style={{
+                  fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase',
+                  letterSpacing: '0.04em', padding: idx === 0 ? '0 0 6px' : '18px 0 6px',
+                  borderBottom: '1px solid #e5e7eb',
+                }}>
+                  {tierLabel(currentTier as number)}
+                </div>
+              </li>
+            )}
+          <li style={{ borderBottom: '1px solid #e5e7eb' }}>
             <Link href={`/species/${s.sp_no}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', textDecoration: 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
                 {s.reference_photo && (
@@ -280,7 +309,9 @@ export default function SpeciesList() {
               </div>
             </Link>
           </li>
-        ))}
+          </Fragment>
+          )
+        })}
       </ul>
 
       {!loading && species.length === 0 && (
