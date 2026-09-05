@@ -56,6 +56,19 @@ export default function SpeciesList() {
     }
   }
 
+  // One-line plain-English explanation shown under each tier heading, so
+  // it's clear what the label actually means without needing to remember
+  // the BAMSR sourcing tiers from memory.
+  function tierDescription(tier: number) {
+    switch (tier) {
+      case 0: return 'Individually researched and confirmed by real named sources'
+      case 1: return 'Real sourcing found, but only single-source or genus-level so far'
+      case 2: return 'Partially researched — some categories still have real gaps'
+      case 3: return 'Bulk genus-level default score, not yet researched individually'
+      default: return 'No research started — raw default only'
+    }
+  }
+
   async function fetchTop300() {
     setLoading(true)
     const cols = 'sp_no, species, common_name, species_family, australian_native, research_status, reference_photo'
@@ -265,12 +278,16 @@ export default function SpeciesList() {
           <Fragment key={s.sp_no}>
             {showDivider && (
               <li style={{ listStyle: 'none' }}>
-                <div style={{
-                  fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase',
-                  letterSpacing: '0.04em', padding: idx === 0 ? '0 0 6px' : '18px 0 6px',
-                  borderBottom: '1px solid #e5e7eb',
-                }}>
-                  {tierLabel(currentTier as number)}
+                <div style={{ padding: idx === 0 ? '0 0 8px' : '18px 0 8px', borderBottom: '1px solid #e5e7eb' }}>
+                  <div style={{
+                    fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}>
+                    {tierLabel(currentTier as number)}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>
+                    {tierDescription(currentTier as number)}
+                  </div>
                 </div>
               </li>
             )}
