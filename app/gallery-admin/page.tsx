@@ -69,7 +69,8 @@ export default function GalleryAdmin() {
       setSpeciesMap(map)
     }
 
-    const { data: galleryData } = await supabase.from('public_gallery').select('*')
+    const galleryRes = await fetch('/api/public-gallery')
+    const galleryData = galleryRes.ok ? await galleryRes.json() : []
     const gMap: Record<string, GalleryEntry> = {}
     for (const g of galleryData || []) {
       if (g.source_collection_id) gMap[g.source_collection_id] = g
@@ -192,19 +193,42 @@ function GalleryEditor({ tree, speciesName, displayLabel, existing, onDone }: {
       source_collection_id: tree.collection_id,
       updated_at: new Date().toISOString(),
     }
-    if (existing) {
-      await supabase.from('public_gallery').update(payload).eq('id', existing.id)
-    } else {
-      await supabase.from('public_gallery').insert(payload)
-    }
+
+    const res = existing
+      ? await fetch('/api/public-gallery', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: existing.id, ...payload }),
+        })
+      : await fetch('/api/public-gallery', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+
     setSaving(false)
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert('Error saving to gallery: ' + (data?.error || res.statusText))
+      return
+    }
+
     onDone()
   }
 
   async function handleRemove() {
     if (!existing) return
     if (!confirm('Remove this tree from the public gallery?')) return
-    await supabase.from('public_gallery').delete().eq('id', existing.id)
+
+    const res = await fetch(`/api/public-gallery?id=${existing.id}`, { method: 'DELETE' })
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert('Error removing from gallery: ' + (data?.error || res.statusText))
+      return
+    }
+
     onDone()
   }
 
