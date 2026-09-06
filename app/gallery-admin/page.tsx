@@ -9,6 +9,7 @@ const inputClass = "w-full border rounded px-4 py-3 text-base min-h-[48px]"
 type Tree = {
   collection_id: string
   sp_no: number | null
+  tree_number: number | null
   display_name: string | null
   tree_name: string | null
   variation_or_cultivar: string | null
@@ -49,8 +50,8 @@ export default function GalleryAdmin() {
 
     const { data: treeData, error: treeError } = await supabase
       .from('collection')
-      .select('collection_id, sp_no, display_name, tree_name, variation_or_cultivar, image_url, photo_1, photo_2, photo_3, inspiration_photo, location')
-      .order('created_at', { ascending: false })
+      .select('collection_id, sp_no, tree_number, display_name, tree_name, variation_or_cultivar, image_url, photo_1, photo_2, photo_3, inspiration_photo, location')
+      .order('tree_number', { ascending: true, nullsFirst: false })
 
     if (treeError) {
       setFetchError(treeError.message)
@@ -129,37 +130,60 @@ export default function GalleryAdmin() {
         onChange={e => setSearch(e.target.value)}
         className={inputClass + " mb-4"}
       />
-      <div className="space-y-2">
-        {filtered.map(tree => {
-          const published = galleryByCollectionId[tree.collection_id]
-          const thumb = tree.image_url || tree.photo_1 || tree.photo_2 || tree.photo_3 || tree.inspiration_photo
-          return (
-            <button
-              key={tree.collection_id}
-              onClick={() => setEditingTreeId(tree.collection_id)}
-              className="w-full flex items-center gap-3 border rounded-lg p-3 text-left"
-            >
-              {thumb ? (
-                <img src={thumb} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8 }} />
-              ) : (
-                <div style={{ width: 56, height: 56, background: '#f1f5f9', borderRadius: 8 }} />
-              )}
-              <div className="flex-1">
-                <p className="font-medium text-sm">{label(tree)}</p>
-                {speciesMap[tree.sp_no || -1] && <p className="text-xs text-gray-500">{speciesMap[tree.sp_no || -1]}</p>}
-                {tree.variation_or_cultivar && <p className="text-xs text-gray-500">{tree.variation_or_cultivar}</p>}
-                {tree.location && <p className="text-xs text-gray-400">{tree.location}</p>}
+      {(() => {
+        // Split into three groups by gallery status, each sorted by tree
+        // number ascending. Previously this was one flat list in raw
+        // created_at order with no numerical sort and no visual separation
+        // between published, draft, and not-yet-added trees -- found session 56.
+        const byTreeNumber = (a: Tree, b: Tree) => (a.tree_number ?? Infinity) - (b.tree_number ?? Infinity)
+        const publishedTrees = filtered.filter(t => galleryByCollectionId[t.collection_id]?.is_published).sort(byTreeNumber)
+        const draftTrees = filtered.filter(t => galleryByCollectionId[t.collection_id] && !galleryByCollectionId[t.collection_id].is_published).sort(byTreeNumber)
+        const unaddedTrees = filtered.filter(t => !galleryByCollectionId[t.collection_id]).sort(byTreeNumber)
+
+        const sections: { heading: string; badgeClass: string; trees: Tree[] }[] = [
+          { heading: `Published (${publishedTrees.length})`, badgeClass: 'bg-green-100 text-green-700', trees: publishedTrees },
+          { heading: `Draft (${draftTrees.length})`, badgeClass: 'bg-yellow-100 text-yellow-700', trees: draftTrees },
+          { heading: `Not in gallery (${unaddedTrees.length})`, badgeClass: 'bg-gray-100 text-gray-500', trees: unaddedTrees },
+        ]
+
+        return (
+          <>
+            {sections.map(section => section.trees.length > 0 && (
+              <div key={section.heading} className="mb-6">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">{section.heading}</h2>
+                <div className="space-y-2">
+                  {section.trees.map(tree => {
+                    const thumb = tree.image_url || tree.photo_1 || tree.photo_2 || tree.photo_3 || tree.inspiration_photo
+                    return (
+                      <button
+                        key={tree.collection_id}
+                        onClick={() => setEditingTreeId(tree.collection_id)}
+                        className="w-full flex items-center gap-3 border rounded-lg p-3 text-left"
+                      >
+                        {thumb ? (
+                          <img src={thumb} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8 }} />
+                        ) : (
+                          <div style={{ width: 56, height: 56, background: '#f1f5f9', borderRadius: 8 }} />
+                        )}
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">
+                            {tree.tree_number !== null && <span className="text-gray-400">#{tree.tree_number} </span>}
+                            {label(tree)}
+                          </p>
+                          {speciesMap[tree.sp_no || -1] && <p className="text-xs text-gray-500">{speciesMap[tree.sp_no || -1]}</p>}
+                          {tree.variation_or_cultivar && <p className="text-xs text-gray-500">{tree.variation_or_cultivar}</p>}
+                          {tree.location && <p className="text-xs text-gray-400">{tree.location}</p>}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-              {published && (
-                <span className={`text-xs px-2 py-1 rounded-full ${published.is_published ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                  {published.is_published ? 'Published' : 'Draft'}
-                </span>
-              )}
-            </button>
-          )
-        })}
-        {filtered.length === 0 && <p className="text-sm text-gray-400">No trees match.</p>}
-      </div>
+            ))}
+            {filtered.length === 0 && <p className="text-sm text-gray-400">No trees match.</p>}
+          </>
+        )
+      })()}
     </main>
   )
 }
