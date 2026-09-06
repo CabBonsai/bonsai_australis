@@ -51,7 +51,7 @@ export default function GalleryAdmin() {
     const { data: treeData, error: treeError } = await supabase
       .from('collection')
       .select('collection_id, sp_no, tree_number, display_name, tree_name, variation_or_cultivar, image_url, photo_1, photo_2, photo_3, inspiration_photo, location')
-      .order('tree_number', { ascending: true, nullsFirst: false })
+      .order('tree_number', { ascending: false, nullsFirst: false })
 
     if (treeError) {
       setFetchError(treeError.message)
@@ -135,7 +135,7 @@ export default function GalleryAdmin() {
         // number ascending. Previously this was one flat list in raw
         // created_at order with no numerical sort and no visual separation
         // between published, draft, and not-yet-added trees -- found session 56.
-        const byTreeNumber = (a: Tree, b: Tree) => (a.tree_number ?? Infinity) - (b.tree_number ?? Infinity)
+        const byTreeNumber = (a: Tree, b: Tree) => (b.tree_number ?? -Infinity) - (a.tree_number ?? -Infinity)
         const publishedTrees = filtered.filter(t => galleryByCollectionId[t.collection_id]?.is_published).sort(byTreeNumber)
         const draftTrees = filtered.filter(t => galleryByCollectionId[t.collection_id] && !galleryByCollectionId[t.collection_id].is_published).sort(byTreeNumber)
         const unaddedTrees = filtered.filter(t => !galleryByCollectionId[t.collection_id]).sort(byTreeNumber)
