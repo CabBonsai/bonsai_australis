@@ -171,7 +171,14 @@ function GalleryEditor({ tree, speciesName, displayLabel, existing, onDone }: {
 
   const [title, setTitle] = useState(existing?.title || displayLabel)
   const [caption, setCaption] = useState(existing?.caption || '')
-  const [selectedPhotos, setSelectedPhotos] = useState<string[]>(existing?.photos || availablePhotos)
+  // Reconcile against availablePhotos -- if photos were replaced/removed on
+  // the Collection detail page since this gallery entry was last saved, the
+  // saved `photos` array can still contain those old URLs. They can't match
+  // any current thumbnail (so nothing shows as checked for them), but they
+  // still counted toward the "N selected" total -- found session 56.
+  const [selectedPhotos, setSelectedPhotos] = useState<string[]>(
+    existing ? existing.photos.filter(p => availablePhotos.includes(p)) : availablePhotos
+  )
   const [sortOrder, setSortOrder] = useState(existing?.sort_order ?? 0)
   const [isPublished, setIsPublished] = useState(existing?.is_published ?? false)
   const [saving, setSaving] = useState(false)
