@@ -347,11 +347,39 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
       })
     }
     const data = await res.json()
-    setSavingMeasurement(false)
     if (!res.ok) {
+      setSavingMeasurement(false)
       alert('Error saving measurement: ' + data.error)
       return
     }
+
+    // Advance next_measurement_date off the tree's own measurement_interval_days,
+    // but only when logging a genuinely NEW check-in -- not when correcting a
+    // past entry (editingMeasurementId set), which shouldn't move the schedule.
+    // This was previously never happening at all (session 50 finding): the due
+    // date just sat static forever regardless of how many measurements were logged.
+    if (!editingMeasurementId) {
+      const tree = trees.find(t => t.id === treeRowId)
+      const intervalDays = tree?.measurement_interval_days
+      if (intervalDays) {
+        const newDueDate = new Date(measDate)
+        newDueDate.setDate(newDueDate.getDate() + parseInt(intervalDays, 10))
+        const patchRes = await fetch('/api/research-project-trees', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: treeRowId,
+            next_measurement_date: newDueDate.toISOString().slice(0, 10),
+          }),
+        })
+        if (!patchRes.ok) {
+          const patchErr = await patchRes.json().catch(() => ({}))
+          alert(`Measurement saved, but updating the next-due date failed (${patchErr.error || patchRes.status}). Please set it manually via "Edit tree settings".`)
+        }
+      }
+    }
+
+    setSavingMeasurement(false)
     setLoggingTreeId(null)
     setEditingMeasurementId(null)
     fetchAll()

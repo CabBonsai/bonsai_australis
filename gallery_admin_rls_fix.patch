@@ -1,0 +1,161 @@
+diff --git a/app/api/public-gallery/route.ts b/app/api/public-gallery/route.ts
+new file mode 100644
+index 0000000..752983b
+--- /dev/null
++++ b/app/api/public-gallery/route.ts
+@@ -0,0 +1,92 @@
++// app/api/public-gallery/route.ts
++//
++// Server-side proxy for the `public_gallery` table (RLS enabled). The only
++// existing policy is anon SELECT where is_published = true -- there is no
++// anon INSERT/UPDATE/DELETE policy at all, and no anon SELECT for drafts.
++//
++// That gap meant app/gallery-admin/page.tsx, which wrote directly via the
++// anon client, was silently failing on every save/remove: Postgres applies
++// RLS by filtering which rows the statement can even see, so an UPDATE or
++// DELETE that doesn't match any RLS-visible row just affects 0 rows with no
++// error thrown -- the UI had no error handling either, so it looked like
++// every save worked. The admin list view had the same problem in reverse:
++// it only ever saw already-published entries, so an unpublished/draft entry
++// would vanish from the admin list on next load instead of showing as Draft.
++//
++// This route uses the service role key to bypass RLS entirely for the admin
++// app's reads and writes, same pattern as /api/collection. Public/anon reads
++// of published gallery entries keep going straight through the existing RLS
++// policy (unaffected by this route).
++//
++// Primary key column is `id` (bigint, auto-increment).
++
++import { NextRequest, NextResponse } from 'next/server';
++import { supabaseServer } from '@/lib/supabaseServer';
++
++const ID_COLUMN = 'id';
++
++// GET /api/public-gallery       -> all rows (published and draft -- admin needs both)
++// GET /api/public-gallery?id=x  -> single row
++export async function GET(req: NextRequest) {
++  const id = req.nextUrl.searchParams.get('id');
++
++  let query = supabaseServer.from('public_gallery').select('*');
++  if (id) query = query.eq(ID_COLUMN, id).single();
++
++  const { data, error } = await query;
++  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
++  return NextResponse.json(data);
++}
++
++// POST /api/public-gallery  body: { ...columns }  (new gallery entry)
++export async function POST(req: NextRequest) {
++  const body = await req.json();
++
++  const { data, error } = await supabaseServer
++    .from('public_gallery')
++    .insert(body)
++    .select()
++    .single();
++
++  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
++  return NextResponse.json(data);
++}
++
++// PATCH /api/public-gallery  body: { id, ...fields to update }
++export async function PATCH(req: NextRequest) {
++  const body = await req.json();
++  const id = body[ID_COLUMN];
++
++  if (!id) {
++    return NextResponse.json({ error: `Missing ${ID_COLUMN} in request body` }, { status: 400 });
++  }
++
++  const updates = { ...body };
++  delete updates[ID_COLUMN];
++
++  const { data, error } = await supabaseServer
++    .from('public_gallery')
++    .update(updates)
++    .eq(ID_COLUMN, id)
++    .select();
++
++  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
++  return NextResponse.json(data);
++}
++
++// DELETE /api/public-gallery?id=x
++export async function DELETE(req: NextRequest) {
++  const id = req.nextUrl.searchParams.get('id');
++
++  if (!id) {
++    return NextResponse.json({ error: 'Missing id query param' }, { status: 400 });
++  }
++
++  const { error } = await supabaseServer
++    .from('public_gallery')
++    .delete()
++    .eq(ID_COLUMN, id);
++
++  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
++  return NextResponse.json({ success: true });
++}
+diff --git a/app/gallery-admin/page.tsx b/app/gallery-admin/page.tsx
+index 329bd3b..2447920 100644
+--- a/app/gallery-admin/page.tsx
++++ b/app/gallery-admin/page.tsx
+@@ -69,7 +69,8 @@ export default function GalleryAdmin() {
+       setSpeciesMap(map)
+     }
+ 
+-    const { data: galleryData } = await supabase.from('public_gallery').select('*')
++    const galleryRes = await fetch('/api/public-gallery')
++    const galleryData = galleryRes.ok ? await galleryRes.json() : []
+     const gMap: Record<string, GalleryEntry> = {}
+     for (const g of galleryData || []) {
+       if (g.source_collection_id) gMap[g.source_collection_id] = g
+@@ -192,19 +193,42 @@ function GalleryEditor({ tree, speciesName, displayLabel, existing, onDone }: {
+       source_collection_id: tree.collection_id,
+       updated_at: new Date().toISOString(),
+     }
+-    if (existing) {
+-      await supabase.from('public_gallery').update(payload).eq('id', existing.id)
+-    } else {
+-      await supabase.from('public_gallery').insert(payload)
+-    }
++
++    const res = existing
++      ? await fetch('/api/public-gallery', {
++          method: 'PATCH',
++          headers: { 'Content-Type': 'application/json' },
++          body: JSON.stringify({ id: existing.id, ...payload }),
++        })
++      : await fetch('/api/public-gallery', {
++          method: 'POST',
++          headers: { 'Content-Type': 'application/json' },
++          body: JSON.stringify(payload),
++        })
++
+     setSaving(false)
++
++    if (!res.ok) {
++      const data = await res.json().catch(() => ({}))
++      alert('Error saving to gallery: ' + (data?.error || res.statusText))
++      return
++    }
++
+     onDone()
+   }
+ 
+   async function handleRemove() {
+     if (!existing) return
+     if (!confirm('Remove this tree from the public gallery?')) return
+-    await supabase.from('public_gallery').delete().eq('id', existing.id)
++
++    const res = await fetch(`/api/public-gallery?id=${existing.id}`, { method: 'DELETE' })
++
++    if (!res.ok) {
++      const data = await res.json().catch(() => ({}))
++      alert('Error removing from gallery: ' + (data?.error || res.statusText))
++      return
++    }
++
+     onDone()
+   }
+ 

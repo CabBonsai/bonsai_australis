@@ -392,20 +392,35 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
     return { data, error: null }
   }
 
-  async function decrementTubestock(collectionId: string | null) {
+  // Returns true on success, false on failure. Callers MUST check this before
+  // proceeding (onDone(), etc.) — a failed PATCH here used to fail silently,
+  // leaving tubestock.promoted_to_collection_id unset even though a Collection
+  // or Research Pod row had already been created (confirmed on TS0014, TS0006).
+  async function decrementTubestock(collectionId: string | null): Promise<boolean> {
     const newQuantity = row.quantity - 1
     const today = new Date().toISOString().slice(0, 10)
-    await fetch('/api/tubestock', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: row.id,
-        quantity: newQuantity,
-        status: newQuantity <= 0 ? 'promoted' : 'growing_on',
-        promoted_to_collection_id: collectionId,
-        promoted_date: today,
-      }),
-    })
+    try {
+      const res = await fetch('/api/tubestock', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: row.id,
+          quantity: newQuantity,
+          status: newQuantity <= 0 ? 'promoted' : 'growing_on',
+          promoted_to_collection_id: collectionId,
+          promoted_date: today,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert(`Warning: the new record was created, but updating tubestock failed (${err.error || res.status}). The tubestock quantity/status was NOT updated — please fix manually or retry.`)
+        return false
+      }
+      return true
+    } catch (e) {
+      alert(`Warning: the new record was created, but updating tubestock failed (network error). The tubestock quantity/status was NOT updated — please fix manually or retry.`)
+      return false
+    }
   }
 
   function promptForTag(): string | null {
@@ -453,8 +468,9 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       return
     }
 
-    await decrementTubestock(inserted.collection_id)
+    const tubestockOk = await decrementTubestock(inserted.collection_id)
     setBusy(false)
+    if (!tubestockOk) return
     onDone()
   }
 
@@ -489,8 +505,9 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       return
     }
 
-    await decrementTubestock(null)
+    const tubestockOk = await decrementTubestock(null)
     setBusy(false)
+    if (!tubestockOk) return
     onDone()
   }
 
