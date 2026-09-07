@@ -1,9 +1,13 @@
 // instrumentation-client.ts
 //
-// Browser-side Sentry init. Auto-loaded by Next.js before any other client
-// code runs — this is the current recommended pattern for apps using
-// Turbopack (this repo's build tool), replacing the older sentry.client.config.ts
-// + webpack-plugin approach, which isn't Turbopack-compatible.
+// Browser-side Sentry init, per Sentry's official convention for Next.js +
+// Turbopack. CONFIRMED (session 56) this file is NOT actually being loaded
+// by this project's specific Next.js/Turbopack combination — a diagnostic
+// console.log placed here never fired, even on a clean hard refresh. The
+// real client-side init now lives in components/SentryInit.tsx, mounted
+// manually from app/layout.tsx as a workaround. This file is left in place
+// harmlessly in case a future Next.js release starts respecting it (Sentry.init
+// is safe to call twice) — but do not rely on it working right now.
 
 import * as Sentry from "@sentry/nextjs";
 

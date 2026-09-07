@@ -1,0 +1,81 @@
+--- a/app/layout.tsx
++++ b/app/layout.tsx
+@@ -1,6 +1,7 @@
+ import type { Metadata } from "next";
+ import { Geist, Geist_Mono } from "next/font/google";
+ import "./globals.css";
++import SentryInit from "@/components/SentryInit";
+ 
+ const geistSans = Geist({
+   variable: "--font-geist-sans",
+@@ -27,7 +28,10 @@
+       lang="en"
+       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+     >
+-      <body className="min-h-full flex flex-col">{children}</body>
++      <body className="min-h-full flex flex-col">
++        <SentryInit />
++        {children}
++      </body>
+     </html>
+   );
+ }
+diff --git a/components/SentryInit.tsx b/components/SentryInit.tsx
+new file mode 100644
+--- /dev/null
++++ b/components/SentryInit.tsx
+@@ -0,0 +1,34 @@
++'use client'
++
++// components/SentryInit.tsx
++//
++// WORKAROUND: as of this Next.js/Turbopack combination, the standard
++// `instrumentation-client.ts` auto-load convention is NOT being picked up
++// (confirmed session 56 — diagnostic console.log placed there never fired
++// on page load, even after a clean hard refresh). This is a known rough
++// edge with Next.js 16 + Turbopack (Sentry isn't auto-injected the way it
++// is under webpack). Workaround: initialize Sentry manually from a client
++// component mounted in the root layout, via useEffect + dynamic import so
++// it only runs in the browser.
++//
++// If a future Next.js/Turbopack release fixes the instrumentation-client.ts
++// auto-load, this component becomes redundant (harmless to leave — Sentry.init
++// is safe to call more than once) but could be removed then.
++
++import { useEffect } from 'react'
++
++const SENTRY_DSN = "https://aeb3e10c1f3874e2c0612d4764b3c103@o4512042606854144.ingest.us.sentry.io/4512042615898112"
++
++export default function SentryInit() {
++  useEffect(() => {
++    import('@sentry/nextjs').then((Sentry) => {
++      Sentry.init({
++        dsn: SENTRY_DSN,
++        tracesSampleRate: 1.0,
++        debug: false,
++      })
++    })
++  }, [])
++
++  return null
++}
+--- a/instrumentation-client.ts
++++ b/instrumentation-client.ts
+@@ -1,9 +1,13 @@
+ // instrumentation-client.ts
+ //
+-// Browser-side Sentry init. Auto-loaded by Next.js before any other client
+-// code runs — this is the current recommended pattern for apps using
+-// Turbopack (this repo's build tool), replacing the older sentry.client.config.ts
+-// + webpack-plugin approach, which isn't Turbopack-compatible.
++// Browser-side Sentry init, per Sentry's official convention for Next.js +
++// Turbopack. CONFIRMED (session 56) this file is NOT actually being loaded
++// by this project's specific Next.js/Turbopack combination — a diagnostic
++// console.log placed here never fired, even on a clean hard refresh. The
++// real client-side init now lives in components/SentryInit.tsx, mounted
++// manually from app/layout.tsx as a workaround. This file is left in place
++// harmlessly in case a future Next.js release starts respecting it (Sentry.init
++// is safe to call twice) — but do not rely on it working right now.
+ 
+ import * as Sentry from "@sentry/nextjs";
+ 
