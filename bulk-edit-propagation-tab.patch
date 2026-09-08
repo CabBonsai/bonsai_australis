@@ -1,0 +1,22 @@
+--- a/app/bulk-edit/page.tsx
++++ b/app/bulk-edit/page.tsx
+@@ -81,6 +81,19 @@
+       research_notes: 'text', reference_urls: 'text', needs_verification: 'bool', last_updated: 'text',
+     },
+   },
++  propagation: {
++    label: 'Propagation',
++    table: 'propagation',
++    columns: ['sp_no', 'species', 'seed_availability', 'seed_collection_timing', 'seed_pretreatment_required', 'germination_method', 'germination_timeframe', 'cutting_viability', 'cutting_method', 'other_propagation_methods', 'post_germination_care', 'propagation_difficulty_notes', 'research_status', 'data_source', 'research_notes', 'reference_urls', 'needs_verification', 'last_updated'],
++    types: {
++      sp_no: 'number', species: 'text', seed_availability: 'text', seed_collection_timing: 'text',
++      seed_pretreatment_required: 'text', germination_method: 'text', germination_timeframe: 'text',
++      cutting_viability: 'text', cutting_method: 'text', other_propagation_methods: 'text',
++      post_germination_care: 'text', propagation_difficulty_notes: 'text', research_status: 'text',
++      data_source: 'text', research_notes: 'text', reference_urls: 'text', needs_verification: 'bool',
++      last_updated: 'text',
++    },
++  },
+   tapermove: {
+     label: 'Taper & Movement',
+     table: 'taper_movement',
