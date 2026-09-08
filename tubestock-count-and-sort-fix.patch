@@ -1,0 +1,66 @@
+--- a/app/tubestock-admin/page.tsx
++++ b/app/tubestock-admin/page.tsx
+@@ -64,13 +64,20 @@
+   return `TS${String(max + 1).padStart(4, '0')}`
+ }
+ 
+-// Quantity reconciliation (see spec-tubestock-quantity-reconciliation.md).
++// Quantity reconciliation.
+ // `tubestock.quantity` only counts un-promoted individuals. Individuals promoted
+-// out of a batch keep their research_project_trees row (collection_id now
+-// populated) for measurement-history continuity, but they've already been
+-// subtracted from quantity. Add those back to get the batch's true total.
+-// A research_project_trees row with a NULL collection_id is still counted inside
+-// quantity, so it must NOT be added here or the count double-counts.
++// out of a batch -- to EITHER a full Collection tree OR a Research-Pod-only
++// link -- keep their research_project_trees row for measurement-history
++// continuity, but are already subtracted from quantity by decrementTubestock()
++// regardless of which promotion path was used. Add them all back here to get
++// the batch's true total.
++// CORRECTED: this previously said a NULL-collection_id row is "still counted
++// inside quantity" and must not be added back -- that was wrong.
++// handlePromoteToResearchPod() also calls decrementTubestock(), so a
++// Research-Pod-only link is already subtracted from quantity too, same as a
++// full Collection promotion. Referenced spec file
++// (spec-tubestock-quantity-reconciliation.md) does not actually exist in this
++// repo -- dangling reference, not something to chase down further here.
+ function reconcileQuantity(quantity: number, researchCount: number) {
+   return { qty: quantity, research: researchCount, total: quantity + researchCount }
+ }
+@@ -132,10 +139,11 @@
+       return
+     }
+ 
+-    // API route doesn't support server-side ordering — sort client-side instead
+-    // (created_at descending, matching the original query's behavior).
++    // Sort by tree number (id ascending, TS0001, TS0002, ...) rather than
++    // creation date -- previously sorted newest-first, which made the list
++    // feel out of order relative to physical tag numbers.
+     const tubestockRows = (stockData || []).slice().sort((a: any, b: any) =>
+-      (b.created_at || '').localeCompare(a.created_at || '')
++      (a.id || 0) - (b.id || 0)
+     )
+     setRows(tubestockRows)
+ 
+@@ -172,11 +180,18 @@
+     const linkData = (allLinkRows || []).filter((l: any) => l.tubestock_id != null)
+     setLinkedIds(new Set(linkData.map((l: any) => l.tubestock_id)))
+ 
+-    // Only promoted-out rows (collection_id populated) are added back — see
+-    // reconcileQuantity above.
++    // Every row in research_project_trees represents an individual already
++    // decremented out of tubestock.quantity -- both promotion paths
++    // (handlePromoteToCollection AND handlePromoteToResearchPod) call
++    // decrementTubestock(), regardless of whether collection_id ends up set.
++    // FIXED (previously only counted collection_id != null rows here, which
++    // silently under-counted -- sometimes to zero -- any batch promoted
++    // straight to a Research Pod without a full Collection promotion, e.g.
++    // TS0007/TS0013). See git history for the original, incorrect comment
++    // this replaced.
+     const counts: Record<number, number> = {}
+     for (const l of linkData) {
+-      if (l.collection_id != null) counts[l.tubestock_id] = (counts[l.tubestock_id] || 0) + 1
++      counts[l.tubestock_id] = (counts[l.tubestock_id] || 0) + 1
+     }
+     setResearchCounts(counts)
+ 
