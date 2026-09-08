@@ -1,0 +1,137 @@
+--- a/app/species/[sp_no]/page.tsx
++++ b/app/species/[sp_no]/page.tsx
+@@ -238,6 +238,7 @@
+   const [pruning, setPruning] = useState<any>(null)
+   const [nebari, setNebari] = useState<any>(null)
+   const [barkChar, setBarkChar] = useState<any>(null)
++  const [propagation, setPropagation] = useState<any>(null)
+   const [taperMove, setTaperMove] = useState<any>(null)
+   const [tubestockDev, setTubestockDev] = useState<any>(null)
+   const [tubestockInv, setTubestockInv] = useState<any[]>([])
+@@ -256,7 +257,7 @@
+ 
+   useEffect(() => {
+     async function fetchAll() {
+-      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, barkRes, taperRes, tubDevRes, tubInvRes, seasRes, advRes, regRes, placeRes, toxRes, collRes, prevRes, nextRes, compRes] = await Promise.all([
++      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, barkRes, propRes, taperRes, tubDevRes, tubInvRes, seasRes, advRes, regRes, placeRes, toxRes, collRes, prevRes, nextRes, compRes] = await Promise.all([
+         supabase.from('species').select('*').eq('sp_no', spNo).single(),
+         supabase.from('bonsai_suitability').select('*').eq('sp_no', spNo).single(),
+         supabase.from('care_guide').select('*').eq('sp_no', spNo).single(),
+@@ -264,6 +265,7 @@
+         supabase.from('pruning_protocols').select('*').eq('sp_no', spNo).single(),
+         supabase.from('nebari_root').select('*').eq('sp_no', spNo).single(),
+         supabase.from('bark_character').select('*').eq('sp_no', spNo).single(),
++        supabase.from('propagation').select('*').eq('sp_no', spNo).single(),
+         supabase.from('taper_movement').select('*').eq('sp_no', spNo).single(),
+         supabase.from('tubestock_development').select('*').eq('sp_no', spNo).single(),
+         fetch(`/api/tubestock?sp_no=${spNo}`).then(async r => {
+@@ -288,6 +290,7 @@
+       if (!pruneRes.error) setPruning(pruneRes.data)
+       if (!nebRes.error) setNebari(nebRes.data)
+       if (!barkRes.error) setBarkChar(barkRes.data)
++      if (!propRes.error) setPropagation(propRes.data)
+       if (!taperRes.error) setTaperMove(taperRes.data)
+       if (!tubDevRes.error) setTubestockDev(tubDevRes.data)
+       if (!tubInvRes.error) setTubestockInv(tubInvRes.data || [])
+@@ -311,6 +314,7 @@
+   function updatePruning(field: string, value: any) { setPruning((prev: any) => ({ ...prev, [field]: value })) }
+   function updateNebari(field: string, value: any) { setNebari((prev: any) => ({ ...prev, [field]: value })) }
+   function updateBarkChar(field: string, value: any) { setBarkChar((prev: any) => ({ ...prev, [field]: value })) }
++  function updatePropagation(field: string, value: any) { setPropagation((prev: any) => ({ ...prev, [field]: value })) }
+   function updateTaperMove(field: string, value: any) { setTaperMove((prev: any) => ({ ...prev, [field]: value })) }
+   function updateTubestockDev(field: string, value: any) { setTubestockDev((prev: any) => ({ ...prev, [field]: value })) }
+   function updateSeasonal(field: string, value: any) { setSeasonal((prev: any) => ({ ...prev, [field]: value })) }
+@@ -475,6 +479,18 @@
+       ageing_notes: barkChar.ageing_notes,
+       notes_for_future_development: barkChar.notes_for_future_development,
+     }))
++    if (propagation) saves.push(adminPatch('propagation', spNo, {
++      seed_availability: propagation.seed_availability,
++      seed_collection_timing: propagation.seed_collection_timing,
++      seed_pretreatment_required: propagation.seed_pretreatment_required,
++      germination_method: propagation.germination_method,
++      germination_timeframe: propagation.germination_timeframe,
++      cutting_viability: propagation.cutting_viability,
++      cutting_method: propagation.cutting_method,
++      other_propagation_methods: propagation.other_propagation_methods,
++      post_germination_care: propagation.post_germination_care,
++      propagation_difficulty_notes: propagation.propagation_difficulty_notes,
++    }))
+     if (taperMove) saves.push(adminPatch('taper_movement', spNo, {
+       natural_taper_tendency: taperMove.natural_taper_tendency,
+       trunk_movement_potential: taperMove.trunk_movement_potential,
+@@ -623,7 +639,7 @@
+       // state used by the editable form fields above, rather than re-fetching.
+       // These local consts shadow the outer state variables of the same name
+       // for the rest of this function, so nothing below needed to change.
+-      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes, placeRes, toxRes, barkRes, taperRes, potRes] = await Promise.all([
++      const [speciesRes, suitRes, careRes, fertRes, pruneRes, nebRes, seasRes, advRes, regRes, placeRes, toxRes, barkRes, propRes, taperRes, potRes] = await Promise.all([
+         supabase.from('species').select('*').eq('sp_no', spNo).single(),
+         supabase.from('bonsai_suitability').select('*').eq('sp_no', spNo).single(),
+         supabase.from('care_guide').select('*').eq('sp_no', spNo).single(),
+@@ -636,6 +652,7 @@
+         supabase.from('placement_matrix').select('*').eq('sp_no', spNo).single(),
+         supabase.from('toxicity').select('*').eq('sp_no', spNo).single(),
+         supabase.from('bark_character').select('*').eq('sp_no', spNo).single(),
++        supabase.from('propagation').select('*').eq('sp_no', spNo).single(),
+         supabase.from('taper_movement').select('*').eq('sp_no', spNo).single(),
+         supabase.from('pot_style_matching').select('*').eq('sp_no', spNo).single(),
+       ])
+@@ -651,6 +668,7 @@
+       const placement = placeRes.data
+       const toxicity = toxRes.data
+       const bark = barkRes.data
++      const propagation = propRes.data
+       const taper = taperRes.data
+       const potStyle = potRes.data
+ 
+@@ -1051,6 +1069,18 @@
+           ['Ageing Notes', bark.ageing_notes],
+           ['Notes for Future Development', bark.notes_for_future_development],
+         ])
++        if (propagation) addSection('Propagation', [
++          ['Seed Availability', propagation.seed_availability],
++          ['Seed Collection Timing', propagation.seed_collection_timing],
++          ['Seed Pretreatment Required', propagation.seed_pretreatment_required],
++          ['Germination Method', propagation.germination_method],
++          ['Germination Timeframe', propagation.germination_timeframe],
++          ['Cutting Viability', propagation.cutting_viability],
++          ['Cutting Method', propagation.cutting_method],
++          ['Other Propagation Methods', propagation.other_propagation_methods],
++          ['Post-Germination Care', propagation.post_germination_care],
++          ['Propagation Difficulty Notes', propagation.propagation_difficulty_notes],
++        ])
+         if (taper) addSection('Taper and Movement', [
+           ['Natural Taper Tendency', taper.natural_taper_tendency],
+           ['Trunk Movement Potential', taper.trunk_movement_potential],
+@@ -1672,6 +1702,20 @@
+           <Field label="Notes for future development" value={barkChar.notes_for_future_development} onChange={v => updateBarkChar('notes_for_future_development', v)} type="textarea" />
+         </Section>
+       )}
++      {propagation && (
++        <Section title="Propagation">
++          <Field label="Seed availability" value={propagation.seed_availability} onChange={v => updatePropagation('seed_availability', v)} type="textarea" />
++          <Field label="Seed collection timing" value={propagation.seed_collection_timing} onChange={v => updatePropagation('seed_collection_timing', v)} type="textarea" />
++          <Field label="Seed pretreatment required" value={propagation.seed_pretreatment_required} onChange={v => updatePropagation('seed_pretreatment_required', v)} type="textarea" />
++          <Field label="Germination method" value={propagation.germination_method} onChange={v => updatePropagation('germination_method', v)} type="textarea" />
++          <Field label="Germination timeframe" value={propagation.germination_timeframe} onChange={v => updatePropagation('germination_timeframe', v)} />
++          <Field label="Cutting viability" value={propagation.cutting_viability} onChange={v => updatePropagation('cutting_viability', v)} type="textarea" />
++          <Field label="Cutting method" value={propagation.cutting_method} onChange={v => updatePropagation('cutting_method', v)} type="textarea" />
++          <Field label="Other propagation methods" value={propagation.other_propagation_methods} onChange={v => updatePropagation('other_propagation_methods', v)} type="textarea" />
++          <Field label="Post-germination care" value={propagation.post_germination_care} onChange={v => updatePropagation('post_germination_care', v)} type="textarea" />
++          <Field label="Propagation difficulty notes" value={propagation.propagation_difficulty_notes} onChange={v => updatePropagation('propagation_difficulty_notes', v)} type="textarea" />
++        </Section>
++      )}
+       {taperMove && (
+         <Section title="Taper and Movement">
+           <Field label="Natural taper tendency" value={taperMove.natural_taper_tendency} onChange={v => updateTaperMove('natural_taper_tendency', v)} type="textarea" />
+--- a/app/api/admin-table/route.ts
++++ b/app/api/admin-table/route.ts
+@@ -34,6 +34,7 @@
+   placement_matrix: 'sp_no',
+   toxicity: 'sp_no',
+   pot_style_matching: 'sp_no',
++  propagation: 'sp_no',
+   journal_entries: 'entry_id',
+ };
+ 

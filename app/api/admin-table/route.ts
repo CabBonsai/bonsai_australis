@@ -34,6 +34,7 @@ const ALLOWED_TABLES: Record<string, string> = {
   placement_matrix: 'sp_no',
   toxicity: 'sp_no',
   pot_style_matching: 'sp_no',
+  propagation: 'sp_no',
   journal_entries: 'entry_id',
 };
 
