@@ -254,6 +254,7 @@ export default function SpeciesDetail() {
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [generatingReport, setGeneratingReport] = useState<string | null>(null)
+  const [spotlightUrl, setSpotlightUrl] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchAll() {
@@ -1115,6 +1116,7 @@ export default function SpeciesDetail() {
   // since the intent is one static file to link from the public site, not a local copy.
   async function generateSpotlightPDF() {
     setGeneratingReport('spotlight')
+    setSpotlightUrl(null)
     try {
       // Same fresh-fetch fix as generatePDF above (session 26) - re-fetch
       // rather than trust component state, which can hold unsaved edits.
@@ -1361,11 +1363,13 @@ export default function SpeciesDetail() {
         return
       }
       const publicUrl = uploadJson.publicUrl
+      setSpotlightUrl(publicUrl)
       try {
         await navigator.clipboard.writeText(publicUrl)
-        alert('Spotlight PDF generated and link copied to clipboard:\n\n' + publicUrl)
       } catch {
-        alert('Spotlight PDF generated:\n\n' + publicUrl)
+        // Clipboard write can fail (permissions, browser support) -- not
+        // critical, since the link is now shown as a real tappable button
+        // below regardless of whether the copy succeeded.
       }
     } catch (e: any) {
       alert('Error generating spotlight report: ' + e.message)
@@ -1438,6 +1442,20 @@ export default function SpeciesDetail() {
           {generatingReport === 'spotlight' ? 'Generating...' : '✨ Spotlight PDF'}
         </button>
       </div>
+      {spotlightUrl && (
+        // Real anchor tag, not a JS-triggered window.open() -- an auto-opened
+        // tab can get silently blocked on iOS Safari once enough time has
+        // passed since the original button tap (which it has, after the PDF
+        // generation + upload awaits complete). A genuine <a> the user taps
+        // themselves isn't subject to that popup-blocking behaviour, and its
+        // text/URL is properly selectable, unlike a native alert() box.
+        <div style={{display:'flex',alignItems:'center',gap:'10px',flexWrap:'wrap',background:'#fdf6e3',border:'1px solid #d9a02b',borderRadius:'8px',padding:'10px 14px',marginTop:'-12px',marginBottom:'22px',fontSize:'13px'}}>
+          <span>✅ Spotlight PDF ready:</span>
+          <a href={spotlightUrl} target="_blank" rel="noopener noreferrer" style={{color:'#2b6cb0',fontWeight:600,textDecoration:'underline'}}>Open PDF</a>
+          <button type="button" onClick={() => navigator.clipboard.writeText(spotlightUrl).catch(() => {})} style={{fontSize:'12px',background:'#fff',border:'1px solid #d9a02b',borderRadius:'6px',padding:'4px 10px',cursor:'pointer'}}>Copy link</button>
+          <button type="button" onClick={() => setSpotlightUrl(null)} style={{fontSize:'12px',background:'none',border:'none',color:'#8a7550',cursor:'pointer',marginLeft:'auto'}}>Dismiss</button>
+        </div>
+      )}
       {collectionTrees.length > 0 && (
         <div style={{background:'#f0f4e8',border:'1px solid #cfdcb0',borderRadius:'10px',padding:'14px 18px',marginBottom:'22px'}}>
           <p style={{fontSize:'12px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'#5c7a2a',margin:'0 0 8px'}}>
