@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const body = await req.json()
-  const { id, spiel, photo_url, photo_credit, visible, make_active } = body
+  const { id, spiel, photo_url, photo_credit, pdf_url, visible, make_active } = body
 
   if (!id) {
     return NextResponse.json({ error: 'id is required' }, { status: 400 })
@@ -74,6 +74,7 @@ export async function PATCH(req: NextRequest) {
   if (spiel !== undefined) updatePayload.spiel = spiel
   if (photo_url !== undefined) updatePayload.photo_url = photo_url
   if (photo_credit !== undefined) updatePayload.photo_credit = photo_credit
+  if (pdf_url !== undefined) updatePayload.pdf_url = pdf_url
   if (visible !== undefined) updatePayload.visible = visible
   if (make_active) updatePayload.active = true
 

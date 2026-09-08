@@ -91,6 +91,7 @@ export default function SpeciesOfTheWeekPicker() {
             spiel: spiel || null,
             photo_url: photoUrl || null,
             photo_credit: photoCredit || null,
+            pdf_url: pdfUrl || null,
             make_active: makeActive,
           }),
         })
@@ -206,12 +207,8 @@ export default function SpeciesOfTheWeekPicker() {
           placeholder='e.g. "Photo: Geoff Derrin, CC BY-SA 4.0, via Wikimedia Commons" — leave blank for your own photos'
         />
 
-        {!editingId && (
-          <>
-            <label style={labelStyle}>Spotlight PDF URL (legacy, optional)</label>
-            <input style={fieldStyle} value={pdfUrl} onChange={e => setPdfUrl(e.target.value)} placeholder="No longer used by the public page — safe to leave blank" />
-          </>
-        )}
+        <label style={labelStyle}>Spotlight PDF URL</label>
+        <input style={fieldStyle} value={pdfUrl} onChange={e => setPdfUrl(e.target.value)} placeholder="Paste the generated Spotlight PDF URL here" />
 
         {editingId && (
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#3f5228', marginBottom: '14px', cursor: 'pointer' }}>

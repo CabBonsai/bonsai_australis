@@ -1,0 +1,44 @@
+--- a/components/SpeciesOfTheWeekPicker.tsx
++++ b/components/SpeciesOfTheWeekPicker.tsx
+@@ -91,6 +91,7 @@
+             spiel: spiel || null,
+             photo_url: photoUrl || null,
+             photo_credit: photoCredit || null,
++            pdf_url: pdfUrl || null,
+             make_active: makeActive,
+           }),
+         })
+@@ -206,12 +207,8 @@
+           placeholder='e.g. "Photo: Geoff Derrin, CC BY-SA 4.0, via Wikimedia Commons" — leave blank for your own photos'
+         />
+ 
+-        {!editingId && (
+-          <>
+-            <label style={labelStyle}>Spotlight PDF URL (legacy, optional)</label>
+-            <input style={fieldStyle} value={pdfUrl} onChange={e => setPdfUrl(e.target.value)} placeholder="No longer used by the public page — safe to leave blank" />
+-          </>
+-        )}
++        <label style={labelStyle}>Spotlight PDF URL</label>
++        <input style={fieldStyle} value={pdfUrl} onChange={e => setPdfUrl(e.target.value)} placeholder="Paste the generated Spotlight PDF URL here" />
+ 
+         {editingId && (
+           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#3f5228', marginBottom: '14px', cursor: 'pointer' }}>
+--- a/app/api/species-of-the-week/route.ts
++++ b/app/api/species-of-the-week/route.ts
+@@ -49,7 +49,7 @@
+ 
+ export async function PATCH(req: NextRequest) {
+   const body = await req.json()
+-  const { id, spiel, photo_url, photo_credit, visible, make_active } = body
++  const { id, spiel, photo_url, photo_credit, pdf_url, visible, make_active } = body
+ 
+   if (!id) {
+     return NextResponse.json({ error: 'id is required' }, { status: 400 })
+@@ -74,6 +74,7 @@
+   if (spiel !== undefined) updatePayload.spiel = spiel
+   if (photo_url !== undefined) updatePayload.photo_url = photo_url
+   if (photo_credit !== undefined) updatePayload.photo_credit = photo_credit
++  if (pdf_url !== undefined) updatePayload.pdf_url = pdf_url
+   if (visible !== undefined) updatePayload.visible = visible
+   if (make_active) updatePayload.active = true
+ 
