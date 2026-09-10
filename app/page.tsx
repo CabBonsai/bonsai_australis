@@ -124,11 +124,12 @@ export default function Home() {
       speciesLabel: (t.variant_sp_no && variantMap[t.variant_sp_no]) || speciesMap[t.sp_no] || ''
     })))
 
-    // Research-pod measurement reminders
-    // API route doesn't support a "not null" filter — fetch all rows and filter here.
+    // Research-pod measurement reminders + first-time-data check.
+    // Fetch ALL rows (not just ones with next_measurement_date set) so we can
+    // also detect trees that have never had a baseline entered at all.
     const rptRes = await fetch('/api/research-project-trees')
     const allRptRows = rptRes.ok ? await rptRes.json() : []
-    const rptData = (allRptRows || []).filter((r: any) => r.next_measurement_date != null)
+    const rptData = allRptRows || []
 
     if (rptRes.ok && rptData.length > 0) {
       const collectionIds = [...new Set(rptData.map((r: any) => r.collection_id).filter(Boolean))]
@@ -229,7 +230,14 @@ export default function Home() {
 
   // Research-pod measurement items, same overdue/soon split
   const measurementItems: any[] = []
+  const needsBaselineItems: any[] = []
   researchTrees.forEach(rt => {
+    // Never had any data entered at all -- surface this regardless of
+    // next_measurement_date (which won't be set yet for a tree like this).
+    if (!rt.baseline_date) {
+      needsBaselineItems.push({ tree: rt })
+      return
+    }
     const val = rt.next_measurement_date
     if (!val) return
     const d = new Date(val)
@@ -461,6 +469,31 @@ export default function Home() {
                 <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
                   <p style={{ fontSize: '12px', fontWeight: '700', color: '#b45309', margin: 0 }}>{item.careLabel}</p>
                   <p style={{ fontSize: '11px', color: '#b45309', margin: '2px 0 0' }}>Due {formatDate(item.dateStr)} ({daysUntil(item.dateStr)}d)</p>
+                </div>
+              </Link>
+            ))}
+          </section>
+
+          <section style={{ marginBottom: '28px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px', color: '#7c3aed' }}>
+              Needs First Data &mdash; {needsBaselineItems.length} item{needsBaselineItems.length !== 1 ? 's' : ''}
+            </h2>
+            {needsBaselineItems.length === 0 && (
+              <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>Every research tree has a baseline recorded.</p>
+            )}
+            {needsBaselineItems.map((item, i) => (
+              <Link
+                key={`baseline-${i}`}
+                href={`/research-projects/${item.tree.project_id}`}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '8px', padding: '10px 14px', marginBottom: '6px' }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ fontWeight: '600', fontSize: '14px' }}>{item.tree.treeLabel}</span>
+                  {item.tree.treeNumber && <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '6px' }}>#{item.tree.treeNumber}</span>}
+                  <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{item.tree.projectTitle}{item.tree.speciesLabel ? ` \u00b7 ${item.tree.speciesLabel}` : ''}</p>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                  <p style={{ fontSize: '12px', fontWeight: '700', color: '#7c3aed', margin: 0 }}>No baseline yet</p>
                 </div>
               </Link>
             ))}
