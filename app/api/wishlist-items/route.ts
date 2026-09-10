@@ -12,15 +12,18 @@ const ID_COLUMN = 'id';
 // GET /api/wishlist-items?id=x                -> single row
 // GET /api/wishlist-items?supplier_id=x       -> rows for one supplier
 // GET /api/wishlist-items?sp_no=x             -> rows for one species (any supplier)
+// GET /api/wishlist-items?variant_sp_no=x     -> rows for one variant (any supplier)
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id');
   const supplierId = req.nextUrl.searchParams.get('supplier_id');
   const spNo = req.nextUrl.searchParams.get('sp_no');
+  const variantSpNo = req.nextUrl.searchParams.get('variant_sp_no');
 
   let query = supabaseServer.from('wishlist_items').select('*');
   if (id) query = query.eq(ID_COLUMN, id);
   if (supplierId) query = query.eq('supplier_id', supplierId);
   if (spNo) query = query.eq('sp_no', spNo);
+  if (variantSpNo) query = query.eq('variant_sp_no', variantSpNo);
   query = query.order('date_seen', { ascending: false });
 
   const { data, error } = await query;
@@ -29,7 +32,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/wishlist-items
-// body: { supplier_id, sp_no, size_category, price?, notes?, date_seen?, status? }
+// body: { supplier_id, sp_no OR variant_sp_no, size_category, price?, notes?, date_seen?, status? }
 // Also accepts { items: [...] } for adding several species from the same
 // supplier visit in one call (the genus-ticklist flow).
 export async function POST(req: NextRequest) {
@@ -39,7 +42,12 @@ export async function POST(req: NextRequest) {
 
   for (const row of rows) {
     if (!row.supplier_id) return NextResponse.json({ error: 'Missing supplier_id' }, { status: 400 });
-    if (!row.sp_no) return NextResponse.json({ error: 'Missing sp_no' }, { status: 400 });
+    if (!row.sp_no && !row.variant_sp_no) {
+      return NextResponse.json({ error: 'Missing sp_no or variant_sp_no' }, { status: 400 });
+    }
+    if (row.sp_no && row.variant_sp_no) {
+      return NextResponse.json({ error: 'Row cannot have both sp_no and variant_sp_no' }, { status: 400 });
+    }
     if (!row.size_category) return NextResponse.json({ error: 'Missing size_category' }, { status: 400 });
   }
 
