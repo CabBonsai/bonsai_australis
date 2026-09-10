@@ -48,7 +48,13 @@ export default function ResearchProjectsPage() {
       countMap[t.project_id] = (countMap[t.project_id] || 0) + 1
     })
 
-    setProjects(rows.map((p: any) => ({ ...p, treeCount: countMap[p.id] || 0 })))
+    const rowsWithCounts = rows.map((p: any) => ({ ...p, treeCount: countMap[p.id] || 0 }))
+
+    // Sort ascending by task_number (Research Task #01, #02, ...). Rows without a
+    // task_number (shouldn't happen, but just in case) sort to the end.
+    rowsWithCounts.sort((a: any, b: any) => (a.task_number ?? 999) - (b.task_number ?? 999))
+
+    setProjects(rowsWithCounts)
     setError(null)
     setLoading(false)
   }
