@@ -28,7 +28,7 @@ const labelStyle: React.CSSProperties = { display: 'block', fontSize: '11px', co
 type Supplier = { id: number; name: string; location: string | null; notes: string | null }
 type SpeciesRow = { sp_no: number; species: string; common_name: string | null; isVariant?: boolean }
 type WishlistItem = {
-  id: number; supplier_id: number; sp_no: number; size_category: string
+  id: number; supplier_id: number; sp_no: number | null; variant_sp_no: number | null; size_category: string
   price: number | null; notes: string | null; date_seen: string; status: string
 }
 
@@ -129,7 +129,9 @@ export default function WishlistPage() {
     const wishlistData = wishlistRes.ok ? await wishlistRes.json() : []
     setWishlist(wishlistData || [])
 
-    const spNosNeeded = Array.from(new Set((wishlistData || []).map((w: any) => w.sp_no)))
+    // Each wishlist row has exactly one of sp_no / variant_sp_no set — resolve
+    // whichever is present to a single lookup key.
+    const spNosNeeded = Array.from(new Set((wishlistData || []).map((w: any) => w.sp_no ?? w.variant_sp_no).filter(Boolean)))
     if (spNosNeeded.length > 0) {
       const { data: spData } = await supabase.from('species').select('sp_no, species, common_name').in('sp_no', spNosNeeded)
       const map: Record<number, SpeciesRow> = {}
@@ -204,7 +206,9 @@ export default function WishlistPage() {
     setAddingToWishlist(true)
     const items = stagedList.map(s => ({
       supplier_id: selectedSupplierId,
-      sp_no: s.sp.sp_no,
+      ...(s.sp.isVariant
+        ? { variant_sp_no: s.sp.sp_no, sp_no: null }
+        : { sp_no: s.sp.sp_no, variant_sp_no: null }),
       size_category: s.size || SIZE_OPTIONS[0],
       price: s.price ? parseFloat(s.price) : null,
       notes: s.notes || null,
@@ -273,6 +277,11 @@ export default function WishlistPage() {
   // Species-comparison view: group every wishlist entry by sp_no regardless
   // of supplier, so the same species can be compared across suppliers on
   // price/size/notes at a glance. Cheapest entry per species is flagged.
+  // Every wishlist row has exactly one of sp_no / variant_sp_no populated —
+  // resolve whichever is present so display/grouping code doesn't need to
+  // care which kind of row it's looking at.
+  const keyOf = (w: { sp_no: number | null; variant_sp_no: number | null }) => (w.sp_no ?? w.variant_sp_no) as number
+
   const searchLower = speciesSearch.trim().toLowerCase()
   const matchesSearch = (spNo: number) => {
     if (!searchLower) return true
@@ -281,9 +290,10 @@ export default function WishlistPage() {
     return sp.species.toLowerCase().includes(searchLower) || (sp.common_name || '').toLowerCase().includes(searchLower)
   }
   const groupedBySpecies = new Map<number, WishlistItem[]>()
-  wishlist.filter(w => matchesSearch(w.sp_no)).forEach(w => {
-    if (!groupedBySpecies.has(w.sp_no)) groupedBySpecies.set(w.sp_no, [])
-    groupedBySpecies.get(w.sp_no)!.push(w)
+  wishlist.filter(w => matchesSearch(keyOf(w))).forEach(w => {
+    const key = keyOf(w)
+    if (!groupedBySpecies.has(key)) groupedBySpecies.set(key, [])
+    groupedBySpecies.get(key)!.push(w)
   })
   const speciesGroups = Array.from(groupedBySpecies.entries())
     .map(([spNo, items]) => ({
@@ -298,13 +308,13 @@ export default function WishlistPage() {
     .sort((a, b) => (a.sp?.species || '').localeCompare(b.sp?.species || ''))
 
   function renderItemCard(item: WishlistItem, opts: { showSpecies: boolean; showSupplier: boolean; isCheapest?: boolean }) {
-    const sp = speciesMap[item.sp_no]
+    const sp = speciesMap[keyOf(item)]
     const supplier = supplierMap[item.supplier_id]
     return (
       <div key={item.id} style={{ background: '#fff', border: opts.isCheapest ? '1.5px solid #16a34a' : '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px' }}>
         {editingItemId === item.id ? (
           <div>
-            <p style={{ fontWeight: 600, fontSize: '14px', margin: '0 0 8px' }}>{sp ? sp.species : `sp_no ${item.sp_no}`}</p>
+            <p style={{ fontWeight: 600, fontSize: '14px', margin: '0 0 8px' }}>{sp ? sp.species : `sp_no ${keyOf(item)}`}</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <div>
                 <label style={labelStyle}>Size</label>
@@ -340,7 +350,7 @@ export default function WishlistPage() {
               <div>
                 {opts.showSpecies && (
                   <>
-                    <p style={{ fontWeight: 600, fontSize: '14px', margin: 0 }}>{sp ? sp.species : `sp_no ${item.sp_no}`}</p>
+                    <p style={{ fontWeight: 600, fontSize: '14px', margin: 0 }}>{sp ? sp.species : `sp_no ${keyOf(item)}`}</p>
                     {sp?.common_name && sp.common_name !== 'Unknown' && <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{sp.common_name}</p>}
                   </>
                 )}
