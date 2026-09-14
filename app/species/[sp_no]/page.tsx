@@ -1512,6 +1512,8 @@ export default function SpeciesDetail() {
           <select value={species.research_status || "Not Started"} onChange={e => updateSpecies("research_status", e.target.value)} style={{width:'100%',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'12px 16px',fontSize:'17px',color:'#2b2620',background:'#fffefb',outline:'none'}}>
             <option value="Not Started">Not Started</option>
             <option value="In Progress">In Progress</option>
+            <option value="Provisional">Provisional</option>
+            <option value="Verified">Verified</option>
             <option value="Complete">Complete</option>
             <option value="Researched - No Data Found">Researched - No Data Found</option>
             <option value="Data Gaps (See Below)">Data Gaps (See Below)</option>
