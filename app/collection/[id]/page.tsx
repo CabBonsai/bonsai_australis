@@ -451,6 +451,168 @@ function VariantCareInfo({ variantSpNo }: { variantSpNo: number | null | undefin
   )
 }
 
+const EVENT_TYPE_OPTIONS = ['repot', 'prune', 'fertilise', 'wire_check', 'wire_removal', 'recovery', 'other']
+
+function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefined }) {
+  const [events, setEvents] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [newType, setNewType] = useState('other')
+  const [newDue, setNewDue] = useState('')
+  const [newNotes, setNewNotes] = useState('')
+
+  function fetchEvents() {
+    if (!treeNumber) { setEvents([]); return }
+    setLoading(true)
+    let query = supabase.from('care_schedule').select('*').eq('tree_number', treeNumber)
+    query = showCompleted ? query.order('due_date', { ascending: false }) : query.is('completed_date', null).order('due_date', { ascending: true, nullsFirst: false })
+    query.then(({ data }) => { setEvents(data || []); setLoading(false) })
+  }
+
+  useEffect(() => { fetchEvents() }, [treeNumber, showCompleted])
+
+  async function addEvent() {
+    if (!treeNumber) return
+    if (!newDue && !newNotes.trim()) return
+    setAdding(true)
+    await supabase.from('care_schedule').insert({
+      tree_number: treeNumber,
+      event_type: newType,
+      due_date: newDue || null,
+      notes: newNotes.trim() || null,
+    })
+    setNewDue('')
+    setNewNotes('')
+    setNewType('other')
+    setAdding(false)
+    fetchEvents()
+  }
+
+  async function markComplete(id: number) {
+    await supabase.from('care_schedule').update({ completed_date: new Date().toISOString().slice(0, 10) }).eq('id', id)
+    fetchEvents()
+  }
+
+  async function deleteEvent(id: number) {
+    await supabase.from('care_schedule').delete().eq('id', id)
+    fetchEvents()
+  }
+
+  function isOverdueDate(dateStr: string | null) {
+    if (!dateStr) return false
+    return new Date(dateStr) < new Date(new Date().toDateString())
+  }
+
+  if (!treeNumber) {
+    return (
+      <div style={{ gridColumn: 'span 2', padding: '14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', fontSize: '13px', color: '#991b1b' }}>
+        Set a Tree Number and save before adding care schedule events.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ gridColumn: 'span 2' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <span style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8a7f5f' }}>
+          Scheduled &amp; Logged Events
+        </span>
+        <button
+          type="button"
+          onClick={() => setShowCompleted(!showCompleted)}
+          style={{ fontSize: '12px', color: '#5c7a2a', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        >
+          {showCompleted ? 'Show pending only' : 'Show completed too'}
+        </button>
+      </div>
+
+      {loading && <p style={{ fontSize: '13px', color: '#a89e7a' }}>Loading...</p>}
+
+      {!loading && events.length === 0 && (
+        <p style={{ fontSize: '13px', color: '#a89e7a', marginBottom: '10px' }}>
+          {showCompleted ? 'No events logged yet.' : 'Nothing pending.'}
+        </p>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+        {events.map(ev => (
+          <div
+            key={ev.id}
+            style={{
+              padding: '12px 14px',
+              borderRadius: '10px',
+              border: `1.5px solid ${ev.completed_date ? '#e2dac2' : isOverdueDate(ev.due_date) ? '#dc2626' : '#cdd9b4'}`,
+              background: ev.completed_date ? '#f3efe2' : isOverdueDate(ev.due_date) ? '#fef2f2' : '#f3f7ea',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: '10px',
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 600, fontSize: '14px', color: '#2b2620', textTransform: 'capitalize' }}>
+                  {ev.event_type.replace('_', ' ')}
+                </span>
+                {ev.due_date && (
+                  <span style={{ fontSize: '12px', color: isOverdueDate(ev.due_date) && !ev.completed_date ? '#dc2626' : '#8a7f5f', fontWeight: isOverdueDate(ev.due_date) && !ev.completed_date ? 700 : 400 }}>
+                    {ev.completed_date ? `done ${ev.completed_date}` : `due ${ev.due_date}`}
+                  </span>
+                )}
+              </div>
+              {ev.notes && <p style={{ fontSize: '13px', color: '#4a4436', margin: '4px 0 0' }}>{ev.notes}</p>}
+            </div>
+            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+              {!ev.completed_date && (
+                <button
+                  type="button"
+                  onClick={() => markComplete(ev.id)}
+                  style={{ fontSize: '12px', fontWeight: 600, padding: '6px 10px', borderRadius: '8px', border: '1.5px solid #cdd9b4', background: '#fffefb', color: '#3f5228', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                >
+                  ✓ Done
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => deleteEvent(ev.id)}
+                style={{ fontSize: '12px', padding: '6px 10px', borderRadius: '8px', border: '1.5px solid #e2dac2', background: '#fffefb', color: '#a89e7a', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ padding: '14px', background: '#fffefb', border: '1px dashed #cdd9b4', borderRadius: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', alignItems: 'end' }}>
+        <label style={{ fontSize: '13px' }}>
+          <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Type</span>
+          <select value={newType} onChange={e => setNewType(e.target.value)} style={{ ...inputStyle, minHeight: '40px', padding: '8px 12px', fontSize: '14px' }}>
+            {EVENT_TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt.replace('_', ' ')}</option>)}
+          </select>
+        </label>
+        <label style={{ fontSize: '13px' }}>
+          <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Due date (optional)</span>
+          <input type="date" value={newDue} onChange={e => setNewDue(e.target.value)} style={{ ...inputStyle, minHeight: '40px', padding: '8px 12px', fontSize: '14px' }} />
+        </label>
+        <label style={{ fontSize: '13px', gridColumn: 'span 2' }}>
+          <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Notes</span>
+          <input type="text" value={newNotes} onChange={e => setNewNotes(e.target.value)} placeholder="e.g. keep sheltered until roots recover" style={{ ...inputStyle, minHeight: '40px', padding: '8px 12px', fontSize: '14px' }} />
+        </label>
+        <button
+          type="button"
+          onClick={addEvent}
+          disabled={adding || (!newDue && !newNotes.trim())}
+          style={{ fontSize: '13px', fontWeight: 600, padding: '10px 14px', borderRadius: '8px', border: 'none', background: '#3f5228', color: '#fdfaf3', cursor: 'pointer', opacity: adding || (!newDue && !newNotes.trim()) ? 0.5 : 1, height: '40px' }}
+        >
+          + Add
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function formatVal(v: any): string {
   if (v === null || v === undefined || v === '') return '— not set —'
   if (typeof v === 'boolean') return v ? 'Yes' : 'No'
@@ -1119,7 +1281,8 @@ export default function CollectionDetailPage() {
           <Field label="Soil Mix Used"><textarea value={tree.soil_mix_used || ''} onChange={e => set('soil_mix_used', e.target.value)} style={{ ...inputStyle, minHeight: '72px', resize: 'vertical' }} rows={3} /></Field>
         </Section>
 
-        <Section title="Care Schedule">
+        <Section title="Care Schedule" defaultOpen>
+          <CareScheduleEvents treeNumber={tree.tree_number} />
           <Field label="Last Watered"><input type="date" value={tree.last_watered || ''} onChange={e => set('last_watered', e.target.value)} style={inputStyle} /></Field>
           <Field label="Fertiliser Used"><input type="text" value={tree.fertiliser_used || ''} onChange={e => set('fertiliser_used', e.target.value)} style={inputStyle} /></Field>
           <Field label="Last Fertilised"><input type="date" value={tree.last_fertilised || ''} onChange={e => set('last_fertilised', e.target.value)} style={inputStyle} /></Field>
