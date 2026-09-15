@@ -64,12 +64,6 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 }
 
-const overdueInputStyle: React.CSSProperties = {
-  ...inputStyle,
-  border: '1.5px solid #dc2626',
-  background: '#fef2f2',
-}
-
 const STYLE_OPTIONS = ['Formal Upright', 'Informal Upright', 'Slanting', 'Cascade', 'Semi-Cascade', 'Windswept', 'Literati', 'Group/Forest', 'Raft', 'Root-over-rock', 'Multi-trunk', 'Broom', 'Driftwood']
 const SOURCE_OPTIONS = ['Nursery', 'Grown from Seed', 'Grown from Cutting', 'Air Layer', 'Collected (Yamadori)', 'Club Auction', 'Online Purchase', 'Private Sale', 'Gift', 'Other']
 const DEV_STAGE_OPTIONS = ['Raw Material', 'Initial Styling', 'Developing', 'Refining', 'Mature / Show Ready', 'Maintenance']
@@ -761,11 +755,6 @@ export default function CollectionDetailPage() {
     window.location.href = '/collection'
   }
 
-  function isOverdue(dateStr: string | null) {
-    if (!dateStr) return false
-    return new Date(dateStr) < new Date()
-  }
-
   async function handleGenerateReport() {
     setGeneratingReport(true)
     try {
@@ -993,13 +982,8 @@ export default function CollectionDetailPage() {
         ['Last Watered', tree.last_watered],
         ['Fertiliser Used', tree.fertiliser_used],
         ['Last Fertilised', tree.last_fertilised],
-        ['Next Fertilise Due', tree.next_fertilise_due],
         ['Last Repotted', tree.last_repotted],
-        ['Next Repot Due', tree.next_repot_due],
         ['Last Pruned', tree.last_pruned],
-        ['Due Prune Date', tree.due_prune_date],
-        ['Date Wired', tree.date_wired],
-        ['Date Check Wire', tree.date_check_wire],
       ])
 
       addSection('Physical Details', [
@@ -1090,8 +1074,6 @@ export default function CollectionDetailPage() {
             ['last_fertilised', 'Fertilised'],
             ['last_repotted', 'Repotted'],
             ['last_pruned', 'Pruned'],
-            ['date_wired', 'Wired'],
-            ['date_check_wire', 'Wire Checked'],
           ].map(([field, label]) => (
             <button
               key={field}
@@ -1286,25 +1268,8 @@ export default function CollectionDetailPage() {
           <Field label="Last Watered"><input type="date" value={tree.last_watered || ''} onChange={e => set('last_watered', e.target.value)} style={inputStyle} /></Field>
           <Field label="Fertiliser Used"><input type="text" value={tree.fertiliser_used || ''} onChange={e => set('fertiliser_used', e.target.value)} style={inputStyle} /></Field>
           <Field label="Last Fertilised"><input type="date" value={tree.last_fertilised || ''} onChange={e => set('last_fertilised', e.target.value)} style={inputStyle} /></Field>
-          <Field label="Next Fertilise Due">
-            <input type="date" value={tree.next_fertilise_due || ''} onChange={e => set('next_fertilise_due', e.target.value)}
-              style={isOverdue(tree.next_fertilise_due) ? overdueInputStyle : inputStyle} />
-          </Field>
           <Field label="Last Repotted"><input type="date" value={tree.last_repotted || ''} onChange={e => set('last_repotted', e.target.value)} style={inputStyle} /></Field>
-          <Field label="Next Repot Due">
-            <input type="date" value={tree.next_repot_due || ''} onChange={e => set('next_repot_due', e.target.value)}
-              style={isOverdue(tree.next_repot_due) ? overdueInputStyle : inputStyle} />
-          </Field>
           <Field label="Last Pruned"><input type="date" value={tree.last_pruned || ''} onChange={e => set('last_pruned', e.target.value)} style={inputStyle} /></Field>
-          <Field label="Due Prune Date">
-            <input type="date" value={tree.due_prune_date || ''} onChange={e => set('due_prune_date', e.target.value)}
-              style={isOverdue(tree.due_prune_date) ? overdueInputStyle : inputStyle} />
-          </Field>
-          <Field label="Date Wired"><input type="date" value={tree.date_wired || ''} onChange={e => set('date_wired', e.target.value)} style={inputStyle} /></Field>
-          <Field label="Date Check Wire">
-            <input type="date" value={tree.date_check_wire || ''} onChange={e => set('date_check_wire', e.target.value)}
-              style={isOverdue(tree.date_check_wire) ? overdueInputStyle : inputStyle} />
-          </Field>
         </Section>
 
         <Section title="Physical Details">
