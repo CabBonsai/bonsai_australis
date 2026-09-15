@@ -3,13 +3,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
-const CARE_TYPES = [
-  { key: 'next_repot_due', label: 'Repotting' },
-  { key: 'next_fertilise_due', label: 'Fertilising' },
-  { key: 'due_prune_date', label: 'Pruning' },
-  { key: 'date_check_wire', label: 'Wire check' },
-]
-
 type Todo = {
   id: string
   text: string
@@ -19,6 +12,7 @@ type Todo = {
 
 export default function Home() {
   const [trees, setTrees] = useState<any[]>([])
+  const [careEvents, setCareEvents] = useState<any[]>([])
   const [researchTrees, setResearchTrees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -124,6 +118,17 @@ export default function Home() {
       speciesLabel: (t.variant_sp_no && variantMap[t.variant_sp_no]) || speciesMap[t.sp_no] || ''
     })))
 
+    // Pending care_schedule events -- replaces the old flat next_repot_due /
+    // next_fertilise_due / due_prune_date / date_check_wire columns, which
+    // are retired. Only pending (not yet completed) events with a due_date
+    // are relevant to the Overdue/Due Soon sections below.
+    const { data: careData } = await supabase
+      .from('care_schedule')
+      .select('*')
+      .is('completed_date', null)
+      .not('due_date', 'is', null)
+    setCareEvents(careData || [])
+
     // Research-pod measurement reminders + first-time-data check.
     // Fetch ALL rows (not just ones with next_measurement_date set) so we can
     // also detect trees that have never had a baseline entered at all.
@@ -211,18 +216,21 @@ export default function Home() {
   }
 
   // Build a flat list of { tree, careLabel, dateStr, status: 'overdue' | 'soon' }
+  // from pending care_schedule events, joined against trees by tree_number.
+  const treeByNumber: Record<number, any> = {}
+  trees.forEach(t => { if (t.tree_number != null) treeByNumber[t.tree_number] = t })
+
   const careItems: any[] = []
-  trees.forEach(t => {
-    CARE_TYPES.forEach(ct => {
-      const val = t[ct.key]
-      if (!val) return
-      const d = new Date(val)
-      if (d < now) {
-        careItems.push({ tree: t, careLabel: ct.label, dateStr: val, status: 'overdue' })
-      } else if (d <= soonCutoff) {
-        careItems.push({ tree: t, careLabel: ct.label, dateStr: val, status: 'soon' })
-      }
-    })
+  careEvents.forEach(ev => {
+    const t = treeByNumber[ev.tree_number]
+    if (!t) return
+    const d = new Date(ev.due_date)
+    const careLabel = String(ev.event_type || '').replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+    if (d < now) {
+      careItems.push({ tree: t, careLabel, dateStr: ev.due_date, status: 'overdue' })
+    } else if (d <= soonCutoff) {
+      careItems.push({ tree: t, careLabel, dateStr: ev.due_date, status: 'soon' })
+    }
   })
 
   const overdueItems = careItems.filter(i => i.status === 'overdue').sort((a, b) => a.dateStr.localeCompare(b.dateStr))

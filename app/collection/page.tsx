@@ -36,6 +36,7 @@ function CollectionPageInner() {
   const searchParams = useSearchParams()
 
   const [trees, setTrees] = useState<any[]>([])
+  const [overdueTreeNumbers, setOverdueTreeNumbers] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [speciesSearch, setSpeciesSearch] = useState('')
@@ -200,6 +201,17 @@ function CollectionPageInner() {
 
       return { ...t, speciesLabel, genus, origin, frostProtectionRequired }
     }))
+
+    // Overdue flag now comes from care_schedule (pending events with a
+    // due_date in the past) instead of the retired flat due-date columns.
+    const { data: careData } = await supabase
+      .from('care_schedule')
+      .select('tree_number, due_date')
+      .is('completed_date', null)
+      .not('due_date', 'is', null)
+      .lt('due_date', new Date().toISOString().slice(0, 10))
+    setOverdueTreeNumbers(new Set((careData || []).map((c: any) => c.tree_number)))
+
     setLoading(false)
   }
 
@@ -216,11 +228,6 @@ function CollectionPageInner() {
     setAdding(false)
     if (!res.ok) { alert('Error: ' + data.error); return }
     window.location.href = `/collection/${data.collection_id}`
-  }
-
-  function isOverdue(dateStr: string | null) {
-    if (!dateStr) return false
-    return new Date(dateStr) < new Date()
   }
 
   async function updateLocation(collectionId: string, newLocation: string) {
@@ -608,7 +615,7 @@ function CollectionPageInner() {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '10px' }}>
       {group.trees.map(t => {
-        const overdue = isOverdue(t.next_repot_due) || isOverdue(t.next_fertilise_due) || isOverdue(t.due_prune_date) || isOverdue(t.date_check_wire)
+        const overdue = overdueTreeNumbers.has(t.tree_number)
         return (
           <Link key={t.collection_id} href={`/collection/${t.collection_id}`} style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'stretch' }}>
