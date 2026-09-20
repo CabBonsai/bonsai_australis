@@ -14,6 +14,7 @@ export default function Home() {
   const [trees, setTrees] = useState<any[]>([])
   const [careEvents, setCareEvents] = useState<any[]>([])
   const [researchTrees, setResearchTrees] = useState<any[]>([])
+  const [promisingSpecies, setPromisingSpecies] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -128,6 +129,37 @@ export default function Home() {
       .is('completed_date', null)
       .not('due_date', 'is', null)
     setCareEvents(careData || [])
+
+    // Bonsai-elite candidates: species with real, promising bonsai evidence
+    // but not enough breadth across the 10 BAMSR traits to trust a computed
+    // score. Convention established 2026-09-19 -- see bonsai_suitability
+    // .research_status. Previously only viewable via a manual SQL filter.
+    const { data: promisingData } = await supabase
+      .from('bonsai_suitability')
+      .select('sp_no, research_notes')
+      .eq('research_status', 'Promising -- Insufficient Data to Score')
+
+    if (promisingData && promisingData.length > 0) {
+      const promSpNos = [...new Set(promisingData.map((p: any) => p.sp_no).filter(Boolean))]
+      let promSpeciesMap: Record<number, any> = {}
+
+      if (promSpNos.length > 0) {
+        const { data: promSpeciesData } = await supabase
+          .from('species')
+          .select('sp_no, species, common_name')
+          .in('sp_no', promSpNos)
+        ;(promSpeciesData || []).forEach((s: any) => { promSpeciesMap[s.sp_no] = s })
+      }
+
+      setPromisingSpecies(promisingData.map((p: any) => ({
+        sp_no: p.sp_no,
+        species: promSpeciesMap[p.sp_no]?.species || 'Unknown species',
+        common_name: promSpeciesMap[p.sp_no]?.common_name || '',
+        research_notes: p.research_notes || '',
+      })).sort((a: any, b: any) => a.species.localeCompare(b.species)))
+    } else {
+      setPromisingSpecies([])
+    }
 
     // Research-pod measurement reminders + first-time-data check.
     // Fetch ALL rows (not just ones with next_measurement_date set) so we can
@@ -545,6 +577,40 @@ export default function Home() {
                 <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
                   <p style={{ fontSize: '12px', fontWeight: '700', color: '#b45309', margin: 0 }}>Measurement</p>
                   <p style={{ fontSize: '11px', color: '#b45309', margin: '2px 0 0' }}>Due {formatDate(item.dateStr)} ({daysUntil(item.dateStr)}d)</p>
+                </div>
+              </Link>
+            ))}
+          </section>
+
+          <section style={{ marginBottom: '28px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px', color: '#4f46e5' }}>
+              Bonsai-Elite Candidates &mdash; {promisingSpecies.length} species
+            </h2>
+            <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 8px' }}>
+              Real bonsai-relevant evidence found, but not yet enough breadth across the 10 scoring traits to trust a computed score. Worth a dedicated research pass.
+            </p>
+            {promisingSpecies.length === 0 && (
+              <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>No candidates flagged right now.</p>
+            )}
+            {promisingSpecies.map((item, i) => (
+              <Link
+                key={`promising-${i}`}
+                href={`/species/${item.sp_no}`}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '8px', padding: '10px 14px', marginBottom: '6px' }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ fontWeight: '600', fontSize: '14px' }}>{item.species}</span>
+                  {item.common_name && item.common_name !== 'Unknown' && (
+                    <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '6px' }}>{item.common_name}</span>
+                  )}
+                  {item.research_notes && (
+                    <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0', maxWidth: '600px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.research_notes}
+                    </p>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                  <p style={{ fontSize: '12px', fontWeight: '700', color: '#4f46e5', margin: 0 }}>Promising</p>
                 </div>
               </Link>
             ))}
