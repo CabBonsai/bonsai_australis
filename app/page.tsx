@@ -329,6 +329,9 @@ export default function Home() {
           <Link href="/blog-admin" style={{ fontSize: '13px', background: '#c026d3', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Blog Admin
           </Link>
+          <Link href="/downloads-admin" style={{ fontSize: '13px', background: '#475569', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Downloads Admin
+          </Link>
           <Link href="/research-projects" style={{ fontSize: '13px', background: '#059669', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Research Projects
           </Link>
