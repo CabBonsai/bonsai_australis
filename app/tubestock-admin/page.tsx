@@ -175,15 +175,26 @@ function TubestockAdmin() {
 
     // Research-pod badge: which tubestock batches are linked to a research project.
     // API route doesn't support a "not null" filter — fetch all rows and filter here.
+    // IMPORTANT: filter on project_id != null, NOT just tubestock_id != null.
+    // research_project_trees rows can now exist pre-pod (project_id NULL,
+    // logged directly against a tubestock batch before any promotion -- see
+    // handlePromoteToResearchPod below). A tubestock_id-only filter would
+    // wrongly badge/count a plant that has pre-pod measurement history
+    // logged but was never actually promoted into a pod. Only rows with
+    // project_id != null represent a real research-pod membership.
     const linkRes = await fetch('/api/research-project-trees')
     const allLinkRows = linkRes.ok ? await linkRes.json() : []
-    const linkData = (allLinkRows || []).filter((l: any) => l.tubestock_id != null)
+    const linkData = (allLinkRows || []).filter((l: any) => l.tubestock_id != null && l.project_id != null)
     setLinkedIds(new Set(linkData.map((l: any) => l.tubestock_id)))
 
-    // Every row in research_project_trees represents an individual already
-    // decremented out of tubestock.quantity -- both promotion paths
-    // (handlePromoteToCollection AND handlePromoteToResearchPod) call
-    // decrementTubestock(), regardless of whether collection_id ends up set.
+    // Every row in research_project_trees with project_id set represents an
+    // individual already decremented out of tubestock.quantity -- both
+    // promotion paths (handlePromoteToCollection AND
+    // handlePromoteToResearchPod) call decrementTubestock(), regardless of
+    // whether collection_id ends up set. Rows with project_id NULL are
+    // pre-pod logging only, were never decremented, and must stay excluded
+    // here (see linkData filter above) or the QTY/Research/Total breakdown
+    // would double-count a plant that's still sitting in quantity.
     // FIXED (previously only counted collection_id != null rows here, which
     // silently under-counted -- sometimes to zero -- any batch promoted
     // straight to a Research Pod without a full Collection promotion, e.g.
@@ -500,18 +511,43 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
 
     setBusy(true)
 
-    // Research pod trees stay in the research pipeline only \u2014 no Collection row,
-    // no bonsai_collection_number. Only research_project_trees gets written here.
-    const linkRes = await fetch('/api/research-project-trees', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        project_id: selectedProjectId,
-        tubestock_id: row.id,
-        sp_no: row.sp_no,
-        baseline_notes: `From tubestock ${tag || batchCode}.`,
-      }),
-    })
+    // Check for an existing pre-pod research_project_trees row for this
+    // tubestock plant (project_id IS NULL) -- if one exists, update it
+    // in place rather than inserting a second row, so any baseline/
+    // measurement history already logged pre-pod isn't orphaned.
+    const existingRes = await fetch(`/api/research-project-trees?tubestock_id=${row.id}`)
+    const existingRows = existingRes.ok ? await existingRes.json() : []
+    const prePodRow = Array.isArray(existingRows)
+      ? existingRows.find((r: any) => r.project_id === null)
+      : null
+
+    let linkRes: Response
+    if (prePodRow) {
+      linkRes = await fetch('/api/research-project-trees', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: prePodRow.id,
+          project_id: selectedProjectId,
+          baseline_notes: prePodRow.baseline_notes
+            ? `${prePodRow.baseline_notes} | Promoted to research pod: ${tag || batchCode}.`
+            : `From tubestock ${tag || batchCode}.`,
+        }),
+      })
+    } else {
+      // Research pod trees stay in the research pipeline only \u2014 no Collection row,
+      // no bonsai_collection_number. Only research_project_trees gets written here.
+      linkRes = await fetch('/api/research-project-trees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: selectedProjectId,
+          tubestock_id: row.id,
+          sp_no: row.sp_no,
+          baseline_notes: `From tubestock ${tag || batchCode}.`,
+        }),
+      })
+    }
     const linkResult = await linkRes.json()
 
     if (!linkRes.ok) {

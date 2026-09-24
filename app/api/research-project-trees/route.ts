@@ -12,17 +12,24 @@ import { supabaseServer } from '@/lib/supabaseServer';
 
 const ID_COLUMN = 'id';
 const PROJECT_FK = 'project_id';
+const TUBESTOCK_FK = 'tubestock_id';
 
 // GET /api/research-project-trees                 -> all rows
 // GET /api/research-project-trees?id=x             -> single row
 // GET /api/research-project-trees?project_id=x     -> rows for one project
+// GET /api/research-project-trees?tubestock_id=x    -> rows for one tubestock batch
+//     (used to check for an existing pre-pod row, i.e. project_id IS NULL,
+//     before promoting a tubestock plant into a research pod -- see
+//     handlePromoteToResearchPod in app/tubestock-admin/page.tsx)
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id');
   const projectId = req.nextUrl.searchParams.get(PROJECT_FK);
+  const tubestockId = req.nextUrl.searchParams.get(TUBESTOCK_FK);
 
   let query = supabaseServer.from('research_project_trees').select('*');
   if (id) query = query.eq(ID_COLUMN, id);
   if (projectId) query = query.eq(PROJECT_FK, projectId);
+  if (tubestockId) query = query.eq(TUBESTOCK_FK, tubestockId);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
