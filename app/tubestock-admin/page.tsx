@@ -705,6 +705,8 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
         )
       })()}
 
+      <TubestockGrowthLog row={row} />
+
       {row.quantity > 0 && (
         <div style={{ marginBottom: '16px' }}>
           <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 6px' }}>Plant tags (for pot labels)</p>
@@ -816,6 +818,365 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
         </p>
       )}
     </main>
+  )
+}
+
+// Growth log for a tubestock plant, usable with no Research Pod required.
+// Backed by the same research_project_trees + research_project_measurements
+// tables the pod's own "Trees in this project" card uses -- a tubestock plant
+// gets its own PRE-POD row here (project_id NULL), and the whole history
+// (baseline + every dated measurement) carries over automatically if this
+// plant is later promoted into a pod or the Collection, via the DB trigger
+// that backfills project_id/collection_id on promotion. See
+// handlePromoteToResearchPod above and the promotion trigger on `tubestock`.
+//
+// Scope note: only ONE pre-pod row is supported per tubestock batch (a DB
+// unique index enforces this), regardless of the batch's quantity. For a
+// batch of quantity 1 (the common case) this tracks that one plant. For a
+// larger batch, this tracks the batch as a whole rather than individual
+// plants within it -- per-individual pre-pod tracking (using the existing
+// but currently-unused tubestock_item_number column) is a possible future
+// extension, not built here.
+function TubestockGrowthLog({ row }: { row: Tubestock }) {
+  const [loadingLog, setLoadingLog] = useState(true)
+  const [treeRow, setTreeRow] = useState<{
+    id: number
+    baseline_date: string | null
+    baseline_caliper_mm: number | null
+    baseline_height_mm: number | null
+    baseline_notes: string | null
+    next_measurement_date: string | null
+    measurement_interval_days: number | null
+  } | null>(null)
+  const [measurements, setMeasurements] = useState<{
+    id: number, measurement_date: string, caliper_mm: number | null, height_mm: number | null, notes: string | null
+  }[]>([])
+
+  const [showStartForm, setShowStartForm] = useState(false)
+  const [startCaliper, setStartCaliper] = useState('')
+  const [startHeight, setStartHeight] = useState('')
+  const [startNotes, setStartNotes] = useState('')
+  const [savingStart, setSavingStart] = useState(false)
+
+  const [showLogForm, setShowLogForm] = useState(false)
+  const [logDate, setLogDate] = useState(new Date().toISOString().slice(0, 10))
+  const [logCaliper, setLogCaliper] = useState('')
+  const [logHeight, setLogHeight] = useState('')
+  const [logNotes, setLogNotes] = useState('')
+  const [savingLog, setSavingLog] = useState(false)
+
+  const [editingMeasurementId, setEditingMeasurementId] = useState<number | null>(null)
+  const [editCaliper, setEditCaliper] = useState('')
+  const [editHeight, setEditHeight] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+
+  const [editingSchedule, setEditingSchedule] = useState(false)
+  const [nextDateInput, setNextDateInput] = useState('')
+  const [intervalInput, setIntervalInput] = useState('')
+
+  useEffect(() => { loadTreeRow() }, [row.id])
+
+  async function loadTreeRow() {
+    setLoadingLog(true)
+    const res = await fetch(`/api/research-project-trees?tubestock_id=${row.id}`)
+    const rowsData = res.ok ? await res.json() : []
+    // A tubestock plant can only have one PRE-POD row at a time (enforced by a
+    // unique index) -- once project_id is set it has been promoted into a pod
+    // and its ongoing growth log lives on the pod's own page instead, not here.
+    const prePod = Array.isArray(rowsData) ? rowsData.find((r: any) => r.project_id === null) : null
+    setTreeRow(prePod || null)
+    if (prePod) {
+      setNextDateInput(prePod.next_measurement_date || '')
+      setIntervalInput(prePod.measurement_interval_days != null ? String(prePod.measurement_interval_days) : '')
+      await loadMeasurements(prePod.id)
+    } else {
+      setMeasurements([])
+    }
+    setLoadingLog(false)
+  }
+
+  async function loadMeasurements(projectTreeId: number) {
+    const res = await fetch(`/api/research-project-measurements?project_tree_id=${projectTreeId}`)
+    const data = res.ok ? await res.json() : []
+    setMeasurements(Array.isArray(data) ? data : [])
+  }
+
+  async function handleStartLog() {
+    setSavingStart(true)
+    const res = await fetch('/api/research-project-trees', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tubestock_id: row.id,
+        sp_no: row.sp_no,
+        variant_sp_no: row.variant_sp_no,
+        baseline_date: new Date().toISOString().slice(0, 10),
+        baseline_caliper_mm: startCaliper ? parseFloat(startCaliper) : null,
+        baseline_height_mm: startHeight ? parseFloat(startHeight) : null,
+        baseline_notes: startNotes || null,
+      }),
+    })
+    const result = await res.json()
+    setSavingStart(false)
+    if (!res.ok) {
+      alert(`Couldn't start the growth log: ${result.error}`)
+      return
+    }
+    setShowStartForm(false)
+    setStartCaliper('')
+    setStartHeight('')
+    setStartNotes('')
+    await loadTreeRow()
+  }
+
+  async function handleLogMeasurement() {
+    if (!treeRow) return
+    setSavingLog(true)
+    const res = await fetch('/api/research-project-measurements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project_tree_id: treeRow.id,
+        measurement_date: logDate,
+        caliper_mm: logCaliper ? parseFloat(logCaliper) : null,
+        height_mm: logHeight ? parseFloat(logHeight) : null,
+        notes: logNotes || null,
+      }),
+    })
+    const result = await res.json()
+    setSavingLog(false)
+    if (!res.ok) {
+      alert(`Couldn't log the measurement: ${result.error}`)
+      return
+    }
+    setShowLogForm(false)
+    setLogDate(new Date().toISOString().slice(0, 10))
+    setLogCaliper('')
+    setLogHeight('')
+    setLogNotes('')
+    await loadMeasurements(treeRow.id)
+  }
+
+  function startEditMeasurement(m: { id: number, caliper_mm: number | null, height_mm: number | null, notes: string | null }) {
+    setEditingMeasurementId(m.id)
+    setEditCaliper(m.caliper_mm != null ? String(m.caliper_mm) : '')
+    setEditHeight(m.height_mm != null ? String(m.height_mm) : '')
+    setEditNotes(m.notes || '')
+  }
+
+  async function handleSaveEditMeasurement() {
+    if (editingMeasurementId === null || !treeRow) return
+    const res = await fetch('/api/research-project-measurements', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editingMeasurementId,
+        caliper_mm: editCaliper ? parseFloat(editCaliper) : null,
+        height_mm: editHeight ? parseFloat(editHeight) : null,
+        notes: editNotes || null,
+      }),
+    })
+    if (!res.ok) {
+      const result = await res.json().catch(() => ({}))
+      alert(`Couldn't save the edit: ${result.error}`)
+      return
+    }
+    setEditingMeasurementId(null)
+    await loadMeasurements(treeRow.id)
+  }
+
+  async function handleDeleteMeasurement(id: number) {
+    if (!treeRow) return
+    if (!confirm('Delete this measurement?')) return
+    await fetch(`/api/research-project-measurements?id=${id}`, { method: 'DELETE' })
+    await loadMeasurements(treeRow.id)
+  }
+
+  async function handleSaveSchedule() {
+    if (!treeRow) return
+    const res = await fetch('/api/research-project-trees', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: treeRow.id,
+        next_measurement_date: nextDateInput || null,
+        measurement_interval_days: intervalInput ? parseInt(intervalInput, 10) : null,
+      }),
+    })
+    if (!res.ok) {
+      const result = await res.json().catch(() => ({}))
+      alert(`Couldn't save the schedule: ${result.error}`)
+      return
+    }
+    setEditingSchedule(false)
+    await loadTreeRow()
+  }
+
+  if (loadingLog) return null
+
+  return (
+    <div style={{ marginBottom: '16px', padding: '14px', background: '#f9fafb', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
+      <p style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 8px', color: '#374151' }}>Growth log</p>
+
+      {!treeRow && !showStartForm && (
+        <>
+          <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 8px' }}>
+            No growth log yet for this batch. Starting one lets you track caliper/height over time, even before this plant goes into a Collection or Research Pod \u2014 the history carries over automatically if it's promoted later.
+          </p>
+          <button
+            onClick={() => setShowStartForm(true)}
+            style={{ background: 'none', border: 'none', color: '#0d9488', fontSize: '13px', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+          >
+            + Start logging growth
+          </button>
+        </>
+      )}
+
+      {!treeRow && showStartForm && (
+        <div>
+          <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
+            <span style={{ color: '#6b7280', display: 'block', marginBottom: '2px' }}>Caliper (mm)</span>
+            <input type="number" step="0.01" value={startCaliper} onChange={e => setStartCaliper(e.target.value)} style={inputStyle} />
+          </label>
+          <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
+            <span style={{ color: '#6b7280', display: 'block', marginBottom: '2px' }}>Height (mm)</span>
+            <input type="number" step="1" value={startHeight} onChange={e => setStartHeight(e.target.value)} style={inputStyle} />
+          </label>
+          <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
+            <span style={{ color: '#6b7280', display: 'block', marginBottom: '2px' }}>Notes (optional)</span>
+            <textarea value={startNotes} onChange={e => setStartNotes(e.target.value)} rows={2} style={inputStyle} />
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => setShowStartForm(false)}
+              disabled={savingStart}
+              style={{ flex: 1, padding: '8px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#6b7280', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleStartLog}
+              disabled={savingStart}
+              style={{ flex: 1, padding: '8px', background: '#0d9488', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', opacity: savingStart ? 0.5 : 1 }}
+            >
+              {savingStart ? 'Saving...' : 'Save baseline'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {treeRow && (
+        <>
+          <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 8px' }}>
+            Baseline ({treeRow.baseline_date}): {treeRow.baseline_caliper_mm != null ? `${treeRow.baseline_caliper_mm}mm caliper` : 'no caliper'}
+            {treeRow.baseline_height_mm != null ? `, ${treeRow.baseline_height_mm}mm height` : ''}
+            {treeRow.baseline_notes ? ` \u2014 ${treeRow.baseline_notes}` : ''}
+          </p>
+
+          {!editingSchedule ? (
+            <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 10px' }}>
+              {treeRow.next_measurement_date
+                ? `Next measurement due ${treeRow.next_measurement_date}${treeRow.measurement_interval_days ? ` (every ${treeRow.measurement_interval_days} days)` : ''}`
+                : 'No measurement schedule set'}
+              {' \u00b7 '}
+              <button onClick={() => setEditingSchedule(true)} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', cursor: 'pointer', padding: 0 }}>
+                Edit
+              </button>
+            </p>
+          ) : (
+            <div style={{ marginBottom: '10px', padding: '10px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
+                <span style={{ color: '#6b7280', display: 'block', marginBottom: '2px' }}>Next measurement date</span>
+                <input type="date" value={nextDateInput} onChange={e => setNextDateInput(e.target.value)} style={inputStyle} />
+              </label>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
+                <span style={{ color: '#6b7280', display: 'block', marginBottom: '2px' }}>Measurement interval (days)</span>
+                <input type="number" value={intervalInput} onChange={e => setIntervalInput(e.target.value)} style={inputStyle} />
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setEditingSchedule(false)} style={{ flex: 1, padding: '8px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', color: '#6b7280', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button onClick={handleSaveSchedule} style={{ flex: 1, padding: '8px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
+
+          {measurements.map(m => (
+            <div key={m.id} style={{ fontSize: '12px', color: '#374151', margin: '0 0 6px', paddingLeft: '10px', borderLeft: '2px solid #e2e8f0' }}>
+              {editingMeasurementId === m.id ? (
+                <div style={{ padding: '8px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}>
+                    <span style={{ color: '#6b7280', display: 'block', marginBottom: '2px' }}>Caliper (mm)</span>
+                    <input type="number" step="0.01" value={editCaliper} onChange={e => setEditCaliper(e.target.value)} style={inputStyle} />
+                  </label>
+                  <label style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}>
+                    <span style={{ color: '#6b7280', display: 'block', marginBottom: '2px' }}>Height (mm)</span>
+                    <input type="number" step="1" value={editHeight} onChange={e => setEditHeight(e.target.value)} style={inputStyle} />
+                  </label>
+                  <label style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}>
+                    <span style={{ color: '#6b7280', display: 'block', marginBottom: '2px' }}>Notes</span>
+                    <input type="text" value={editNotes} onChange={e => setEditNotes(e.target.value)} style={inputStyle} />
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button onClick={() => setEditingMeasurementId(null)} style={{ flex: 1, padding: '6px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', color: '#6b7280', cursor: 'pointer' }}>Cancel</button>
+                    <button onClick={handleSaveEditMeasurement} style={{ flex: 1, padding: '6px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>Save</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {m.measurement_date}: {m.caliper_mm != null ? `${m.caliper_mm}mm caliper` : 'no caliper'}
+                  {m.height_mm != null ? `, ${m.height_mm}mm height` : ''}
+                  {m.notes ? ` \u2014 ${m.notes}` : ''}
+                  {' '}
+                  <button onClick={() => startEditMeasurement(m)} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '11px', cursor: 'pointer', padding: 0, marginLeft: '4px' }}>Edit</button>
+                  {' '}
+                  <button onClick={() => handleDeleteMeasurement(m.id)} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '11px', cursor: 'pointer', padding: 0, marginLeft: '4px' }}>Delete</button>
+                </>
+              )}
+            </div>
+          ))}
+
+          {!showLogForm ? (
+            <button
+              onClick={() => setShowLogForm(true)}
+              style={{ background: 'none', border: 'none', color: '#0d9488', fontSize: '13px', fontWeight: 600, cursor: 'pointer', padding: 0, marginTop: '6px' }}
+            >
+              + Log measurement
+            </button>
+          ) : (
+            <div style={{ marginTop: '8px', padding: '10px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
+                <span style={{ color: '#6b7280', display: 'block', marginBottom: '2px' }}>Date</span>
+                <input type="date" value={logDate} onChange={e => setLogDate(e.target.value)} style={inputStyle} />
+              </label>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
+                <span style={{ color: '#6b7280', display: 'block', marginBottom: '2px' }}>Caliper (mm)</span>
+                <input type="number" step="0.01" value={logCaliper} onChange={e => setLogCaliper(e.target.value)} style={inputStyle} />
+              </label>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
+                <span style={{ color: '#6b7280', display: 'block', marginBottom: '2px' }}>Height (mm)</span>
+                <input type="number" step="1" value={logHeight} onChange={e => setLogHeight(e.target.value)} style={inputStyle} />
+              </label>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>
+                <span style={{ color: '#6b7280', display: 'block', marginBottom: '2px' }}>Notes (optional)</span>
+                <textarea value={logNotes} onChange={e => setLogNotes(e.target.value)} rows={2} style={inputStyle} />
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setShowLogForm(false)} disabled={savingLog} style={{ flex: 1, padding: '8px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#6b7280', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button onClick={handleLogMeasurement} disabled={savingLog} style={{ flex: 1, padding: '8px', background: '#0d9488', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', opacity: savingLog ? 0.5 : 1 }}>
+                  {savingLog ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   )
 }
 
