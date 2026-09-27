@@ -607,7 +607,16 @@ export default function Home() {
                     <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '6px' }}>{item.common_name}</span>
                   )}
                   {item.research_notes && (
-                    <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0', maxWidth: '600px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <p style={{
+                      fontSize: '12px',
+                      color: '#6b7280',
+                      margin: '2px 0 0',
+                      maxWidth: '600px',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}>
                       {item.research_notes}
                     </p>
                   )}
