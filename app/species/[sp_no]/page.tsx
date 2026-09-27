@@ -837,6 +837,7 @@ export default function SpeciesDetail() {
             ['Taper & Movement', suitability.taper_movement_score],
             ['Longevity', suitability.longevity_score],
             ['Native Bonus', suitability.native_bonus],
+            ['Research Notes (Overall Suitability Assessment)', suitability.research_notes],
             ['Tier', suitability.bonsai_tier],
           ])
         }
@@ -1578,6 +1579,7 @@ export default function SpeciesDetail() {
           <Field label="Taper & movement score" value={suitability.taper_movement_score} onChange={v => updateSuitability('taper_movement_score', v)} />
           <Field label="Longevity score" value={suitability.longevity_score} onChange={v => updateSuitability('longevity_score', v)} />
           <Field label="Native bonus (0-5)" value={suitability.native_bonus} onChange={v => updateSuitability('native_bonus', v)} />
+          <Field label="Research notes (overall suitability assessment)" value={suitability.research_notes} onChange={v => updateSuitability('research_notes', v)} type="textarea" />
         </Section>
       )}
       {careGuide && (
