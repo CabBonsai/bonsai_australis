@@ -218,7 +218,13 @@ export default function SpeciesList() {
     setLoading(false)
   }
 
-  const totalPages = totalCount !== null ? Math.max(1, Math.ceil(totalCount / PAGE_SIZE)) : null
+  // Top 300 mode fetches its full (up to 300-row) result in one go, so
+  // pagination there is just client-side slicing of what's already in
+  // memory -- no extra network round-trip needed, unlike the search/browse
+  // mode above which pages via a real .range() query against Supabase.
+  const totalItems = topMode ? species.length : totalCount
+  const totalPages = totalItems !== null ? Math.max(1, Math.ceil(totalItems / PAGE_SIZE)) : null
+  const visibleSpecies = topMode ? species.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE) : species
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px' }}>
@@ -300,7 +306,16 @@ export default function SpeciesList() {
       {loading && <p style={{ color: '#9ca3af' }}>Loading...</p>}
 
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {species.map((s, idx) => {
+        {visibleSpecies.map((s, localIdx) => {
+          // In Top 300 mode, visibleSpecies is a page-sliced view of the full
+          // (already-fetched) 300-row array -- idx here needs to be the
+          // GLOBAL position (for #1..#300 ranking, and so the tier-divider
+          // check can correctly look back at the last item of the PREVIOUS
+          // page rather than treating every page's first row as index 0).
+          // In normal browse/search mode, species already IS just the
+          // current page (fetched via .range() server-side), so idx and
+          // globalIdx are the same thing there.
+          const idx = topMode ? page * PAGE_SIZE + localIdx : localIdx
           const currentTier = topMode ? tierPriority(s.research_status) : null
           const prevTier = topMode && idx > 0 ? tierPriority(species[idx - 1].research_status) : null
           const showDivider = topMode && (idx === 0 || currentTier !== prevTier)
@@ -367,7 +382,7 @@ export default function SpeciesList() {
         </p>
       )}
 
-      {!topMode && !loading && species.length > 0 && totalPages !== null && (
+      {!loading && species.length > 0 && totalPages !== null && totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '24px 0' }}>
           <button
             onClick={() => setPage(p => Math.max(0, p - 1))}
@@ -381,7 +396,7 @@ export default function SpeciesList() {
             &larr; Prev
           </button>
           <span style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap' }}>
-            Page {page + 1} of {totalPages} &middot; {totalCount} species
+            Page {page + 1} of {totalPages} &middot; {totalItems} {topMode ? 'scored species' : 'species'}
           </span>
           <button
             onClick={() => setPage(p => p + 1)}
