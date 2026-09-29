@@ -3,6 +3,8 @@ import { useEffect, useState, Fragment } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
+const PAGE_SIZE = 50
+
 export default function SpeciesList() {
   const [species, setSpecies] = useState<any[]>([])
   const [search, setSearch] = useState('')
@@ -10,6 +12,16 @@ export default function SpeciesList() {
   const [error, setError] = useState<string | null>(null)
   const [topMode, setTopMode] = useState(false)
   const [nativeFilter, setNativeFilter] = useState<'all' | 'native' | 'non-native'>('all')
+  const [page, setPage] = useState(0)
+  const [totalCount, setTotalCount] = useState<number | null>(null)
+
+  // Reset to page 0 whenever the search term, native filter, or mode changes
+  // -- otherwise switching filters while on page 3 would silently keep
+  // fetching page 3 of the NEW filtered set, which is almost never what the
+  // user wants and can look like "no results" if the new set is smaller.
+  useEffect(() => {
+    setPage(0)
+  }, [search, nativeFilter, topMode])
 
   useEffect(() => {
     if (topMode) {
@@ -17,10 +29,10 @@ export default function SpeciesList() {
       return
     }
     const timeout = setTimeout(() => {
-      fetchSpecies(search)
+      fetchSpecies(search, page)
     }, 300)
     return () => clearTimeout(timeout)
-  }, [search, topMode, nativeFilter])
+  }, [search, topMode, nativeFilter, page])
 
   // Ranks confidence tiers so genuinely-researched species surface above
   // genus-wide estimates, regardless of raw score. The vast majority of
@@ -148,11 +160,12 @@ export default function SpeciesList() {
 
 
     setSpecies(merged)
+    setTotalCount(null) // Top 300 is a fixed one-shot list, not paginated
     setError(null)
     setLoading(false)
   }
 
-  async function fetchSpecies(term: string) {
+  async function fetchSpecies(term: string, pageNum: number) {
     setLoading(true)
     const trimmed = term.trim()
     const cols = 'sp_no, species, common_name, species_family, australian_native, research_status, reference_photo'
@@ -162,7 +175,21 @@ export default function SpeciesList() {
     // numeric search term needs its own exact-match query, merged with the text search.
     const isNumeric = trimmed !== '' && /^\d+$/.test(trimmed)
 
-    let textQuery = supabase.from('species').select(cols).eq('is_deprecated', false).order('species', { ascending: true }).limit(50)
+    // Pagination: was a hard .limit(50) with no way to ever request more —
+    // out of ~8,400 species this meant the list was permanently stuck on
+    // the first 50 results alphabetically, with no Next/Load More control
+    // anywhere in the UI. Fixed by requesting a page range instead of a
+    // flat limit, and asking Supabase for an exact total count so the Prev/
+    // Next controls below know how many pages actually exist.
+    const from = pageNum * PAGE_SIZE
+    const to = from + PAGE_SIZE - 1
+
+    let textQuery = supabase
+      .from('species')
+      .select(cols, { count: 'exact' })
+      .eq('is_deprecated', false)
+      .order('species', { ascending: true })
+      .range(from, to)
     if (trimmed) {
       textQuery = textQuery.or(`species.ilike.%${trimmed}%,common_name.ilike.%${trimmed}%,species_genus.ilike.%${trimmed}%`)
     }
@@ -173,7 +200,7 @@ export default function SpeciesList() {
       textQuery,
       isNumeric
         ? supabase.from('species').select(cols).eq('is_deprecated', false).eq('sp_no', Number(trimmed)).limit(50)
-        : Promise.resolve({ data: [] as any[], error: null }),
+        : Promise.resolve({ data: [] as any[], error: null, count: null as number | null }),
     ])
 
     if (textRes.error) {
@@ -185,10 +212,13 @@ export default function SpeciesList() {
       const seen = new Set<number>()
       const deduped = merged.filter(s => (seen.has(s.sp_no) ? false : (seen.add(s.sp_no), true)))
       setSpecies(deduped)
+      setTotalCount(typeof textRes.count === 'number' ? textRes.count : null)
       setError(null)
     }
     setLoading(false)
   }
+
+  const totalPages = totalCount !== null ? Math.max(1, Math.ceil(totalCount / PAGE_SIZE)) : null
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px' }}>
@@ -335,6 +365,36 @@ export default function SpeciesList() {
         <p style={{ color: '#9ca3af', textAlign: 'center', padding: '32px 0' }}>
           {topMode ? 'No scored species found.' : 'No species found.'}
         </p>
+      )}
+
+      {!topMode && !loading && species.length > 0 && totalPages !== null && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', padding: '24px 0' }}>
+          <button
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            disabled={page === 0}
+            style={{
+              fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px',
+              border: '1px solid #d1d5db', background: page === 0 ? '#f3f4f6' : 'white',
+              color: page === 0 ? '#9ca3af' : '#374151', cursor: page === 0 ? 'default' : 'pointer',
+            }}
+          >
+            &larr; Prev
+          </button>
+          <span style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+            Page {page + 1} of {totalPages} &middot; {totalCount} species
+          </span>
+          <button
+            onClick={() => setPage(p => p + 1)}
+            disabled={page + 1 >= totalPages}
+            style={{
+              fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px',
+              border: '1px solid #d1d5db', background: page + 1 >= totalPages ? '#f3f4f6' : 'white',
+              color: page + 1 >= totalPages ? '#9ca3af' : '#374151', cursor: page + 1 >= totalPages ? 'default' : 'pointer',
+            }}
+          >
+            Next &rarr;
+          </button>
+        </div>
       )}
     </div>
   )
