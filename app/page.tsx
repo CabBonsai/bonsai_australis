@@ -368,6 +368,9 @@ export default function Home() {
           <Link href="/watering-zones" style={{ fontSize: '13px', background: '#0891b2', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Watering Zones
           </Link>
+          <Link href="/fertiliser-walk" style={{ fontSize: '13px', background: '#15803d', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Fertiliser Walk
+          </Link>
           <button
             onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login' }}
             style={{ fontSize: '13px', background: '#e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
