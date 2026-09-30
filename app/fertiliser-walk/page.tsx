@@ -70,6 +70,7 @@ const BODY_FONT = '"Barlow", "Helvetica Neue", Arial, sans-serif'
 
 const UNDO_KEY = 'fw_undo_v1'
 const PRODUCT_KEY = 'fw_product'
+const MIX_KEY = 'fw_mix'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -171,7 +172,9 @@ export default function FertiliserWalkPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [fert, setFert] = useState('bt')
-  const [logKey, setLogKey] = useState('bt')
+  // Products logged when a plant is ticked. Tick several for a mix (for example a
+  // slow-release pellet plus a liquid plus Seasol) and all are recorded together.
+  const [mix, setMix] = useState<string[]>(['bt'])
   const [order, setOrder] = useState<'loc' | 'old'>('loc')
   const [busy, setBusy] = useState<Set<string>>(new Set())
   const [msg, setMsg] = useState<string | null>(null)
@@ -180,6 +183,11 @@ export default function FertiliserWalkPage() {
     try {
       const saved = localStorage.getItem(PRODUCT_KEY)
       if (saved && PRODUCTS.some(p => p.key === saved)) setFert(saved)
+      const savedMix = JSON.parse(localStorage.getItem(MIX_KEY) || '[]')
+      if (Array.isArray(savedMix)) {
+        const ok = savedMix.filter((k: unknown) => REAL_PRODUCTS.some(p => p.key === k)) as string[]
+        if (ok.length) setMix(ok)
+      }
     } catch {
       // ignore
     }
@@ -266,15 +274,18 @@ export default function FertiliserWalkPage() {
   }
 
   const selected = PRODUCTS.find(p => p.key === fert) || PRODUCTS[0]
-  // The product actually written when a plant is ticked. In the "Other" and
-  // "Nothing recorded" lists there is no product to write, so the second
-  // dropdown chooses one.
-  const prod: Product | null = selected.re ? selected : REAL_PRODUCTS.find(p => p.key === logKey) || null
+  const mixProducts = REAL_PRODUCTS.filter(p => mix.includes(p.key))
+  const mixLabel = mixProducts.map(p => p.write).join(', ')
 
   const today = todayLocal()
 
-  function isDone(p: Plant, pr: Product): boolean {
-    return p.date === today && !!pr.re && pr.re.test(p.rec)
+  // A plant counts as done when it was fed today with every product in the mix.
+  function isDone(p: Plant): boolean {
+    return (
+      mixProducts.length > 0 &&
+      p.date === today &&
+      mixProducts.every(pr => !!pr.re && pr.re.test(p.rec))
+    )
   }
 
   function patchPlant(key: string, patch: Partial<Plant>) {
@@ -298,9 +309,9 @@ export default function FertiliserWalkPage() {
     return pr.write
   }
 
-  async function mark(p: Plant, pr: Product) {
+  async function mark(p: Plant) {
     if (p.kind === 'tree') {
-      const newRec = valueToWrite(p, pr)
+      const newRec = mixProducts.length === 1 ? valueToWrite(p, mixProducts[0]) : mixLabel
       await patchJson('/api/collection', {
         collection_id: p.id,
         fertiliser_used: newRec,
@@ -311,7 +322,7 @@ export default function FertiliserWalkPage() {
       writeUndo(undo)
       patchPlant(p.key, { rec: newRec, date: today })
     } else {
-      const line = `${today}: fertilised with ${pr.write}.`
+      const line = `${today}: fertilised with ${mixLabel}.`
       const base = p.notes.replace(/\s+$/, '')
       const newNotes = base ? `${base}\n${line}` : line
       await patchJson('/api/tubestock', { id: p.id, growing_on_notes: newNotes })
@@ -320,7 +331,7 @@ export default function FertiliserWalkPage() {
     }
   }
 
-  async function undo(p: Plant, pr: Product) {
+  async function undo(p: Plant) {
     if (p.kind === 'tree') {
       const map = readUndo()
       const prev = map[`${p.id}:${today}`]
@@ -338,10 +349,13 @@ export default function FertiliserWalkPage() {
       writeUndo(map)
       patchPlant(p.key, { rec: prev.rec, date: prev.date })
     } else {
-      const line = `${today}: fertilised with ${pr.write}.`
       const remaining = p.notes
         .split('\n')
-        .filter(l => l.trim() !== line)
+        .filter(l => {
+          const m = /^(\d{4}-\d{2}-\d{2}): fertilised with ([^.\n]+)\.$/.exec(l.trim())
+          if (!m || m[1] !== today) return true
+          return !mixProducts.every(pr => !!pr.re && pr.re.test(m[2]))
+        })
         .join('\n')
         .replace(/\s+$/, '')
       await patchJson('/api/tubestock', { id: p.id, growing_on_notes: remaining || null })
@@ -351,16 +365,16 @@ export default function FertiliserWalkPage() {
   }
 
   async function toggle(p: Plant) {
-    if (!prod) {
-      setMsg('Choose which fertiliser you are using in the "Log as" box first.')
+    if (!mixProducts.length) {
+      setMsg('Tick at least one fertiliser under "Log as" first.')
       return
     }
     if (busy.has(p.key)) return
     setMsg(null)
     setBusy(prev => new Set(prev).add(p.key))
     try {
-      if (isDone(p, prod)) await undo(p, prod)
-      else await mark(p, prod)
+      if (isDone(p)) await undo(p)
+      else await mark(p)
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Something went wrong. Nothing was changed.')
     }
@@ -371,6 +385,15 @@ export default function FertiliserWalkPage() {
     })
   }
 
+  function saveMix(next: string[]) {
+    setMix(next)
+    try {
+      localStorage.setItem(MIX_KEY, JSON.stringify(next))
+    } catch {
+      // ignore
+    }
+  }
+
   function chooseProduct(key: string) {
     setFert(key)
     setMsg(null)
@@ -379,10 +402,17 @@ export default function FertiliserWalkPage() {
     } catch {
       // ignore
     }
+    // Picking a real product resets the mix to just that product.
+    if (REAL_PRODUCTS.some(p => p.key === key)) saveMix([key])
+  }
+
+  function toggleMix(key: string) {
+    setMsg(null)
+    saveMix(mix.includes(key) ? mix.filter(k => k !== key) : [...mix, key])
   }
 
   const list = plants.filter(p => p.baseKeys.includes(selected.key))
-  const doneCount = prod ? list.filter(p => isDone(p, prod)).length : 0
+  const doneCount = list.filter(p => isDone(p)).length
 
   const groups: { title: string; items: Plant[] }[] = []
   if (order === 'loc') {
@@ -425,13 +455,13 @@ export default function FertiliserWalkPage() {
   const labelStyle: React.CSSProperties = { display: 'block', fontWeight: 600, margin: '10px 0 4px' }
 
   function renderRow(p: Plant, showLoc: boolean) {
-    const done = !!prod && isDone(p, prod)
+    const done = isDone(p)
     const working = busy.has(p.key)
     const recNote =
-      p.rec && (!prod || p.rec.toLowerCase() !== prod.write.toLowerCase())
+      p.rec && p.rec.toLowerCase() !== mixLabel.toLowerCase()
         ? `Recorded as: ${p.rec.length > 80 ? p.rec.slice(0, 80) + '...' : p.rec}`
         : ''
-    const caution = selected.key === 'bt' && CAUTION_RE.test(`${p.name} `)
+    const caution = mix.includes('bt') && CAUTION_RE.test(`${p.name} `)
     return (
       <button
         key={p.key}
@@ -547,7 +577,7 @@ export default function FertiliserWalkPage() {
         </h1>
 
         <label htmlFor="fw-fert" style={labelStyle}>
-          Fertiliser in the bucket
+          Show plants last fed with
         </label>
         <select
           id="fw-fert"
@@ -567,26 +597,27 @@ export default function FertiliserWalkPage() {
           })}
         </select>
 
-        {!selected.re && (
-          <>
-            <label htmlFor="fw-log" style={labelStyle}>
-              Log as (what you are feeding these with)
-            </label>
-            <select
-              id="fw-log"
-              className="fw-focus"
-              value={logKey}
-              onChange={e => setLogKey(e.target.value)}
-              style={selectStyle}
+        <fieldset style={{ margin: '14px 0 0', padding: '10px 12px', border: `2px solid ${C.ink}`, borderRadius: '8px', background: C.panel }}>
+          <legend style={{ fontWeight: 600, padding: '0 6px' }}>Log as (tick everything in the bucket)</legend>
+          {REAL_PRODUCTS.map(pr => (
+            <label
+              key={pr.key}
+              style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', margin: 0, fontWeight: 500, cursor: 'pointer' }}
             >
-              {REAL_PRODUCTS.map(p => (
-                <option key={p.key} value={p.key}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </>
-        )}
+              <input
+                type="checkbox"
+                className="fw-focus"
+                checked={mix.includes(pr.key)}
+                onChange={() => toggleMix(pr.key)}
+                style={{ width: '24px', height: '24px', flexShrink: 0 }}
+              />
+              <span>{pr.write}</span>
+            </label>
+          ))}
+          <div style={{ marginTop: '6px', fontSize: '15px', color: C.muted }}>
+            {mixProducts.length ? `Ticking a plant will record: ${mixLabel}` : 'Nothing ticked - tick at least one product.'}
+          </div>
+        </fieldset>
 
         <label htmlFor="fw-order" style={labelStyle}>
           Order
@@ -691,7 +722,7 @@ export default function FertiliserWalkPage() {
 
         <p style={{ marginTop: '26px', fontSize: '14px', color: C.muted, borderTop: `2px solid ${C.line}`, paddingTop: '10px' }}>
           Fertiliser names are grouped from what is typed in each record, so a plant recorded with two products
-          appears under both. Ticking a tree saves the fertiliser and today&apos;s date to its record straight away.
+          appears under both. Tick several products under Log as to record a mix in one tap. Ticking a tree saves the fertiliser and today&apos;s date to its record straight away.
           Ticking tubestock adds a dated line to its growing-on notes. A ticked plant stays in its list until you
           reload, so you can still tap it again to undo.
         </p>
