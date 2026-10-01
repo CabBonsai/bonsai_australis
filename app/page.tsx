@@ -22,9 +22,23 @@ export default function Home() {
   const [todosLoading, setTodosLoading] = useState(true)
   const [newTodoText, setNewTodoText] = useState('')
   const [addingTodo, setAddingTodo] = useState(false)
+  const [reminders, setReminders] = useState<any[]>([])
 
   useEffect(() => { fetchDashboard() }, [])
   useEffect(() => { fetchTodos() }, [])
+  useEffect(() => { fetchReminders() }, [])
+
+  // Open reminders from the /reminders page; they join the Overdue and Due Soon sections below.
+  async function fetchReminders() {
+    try {
+      const res = await fetch('/api/reminders?open=1')
+      if (!res.ok) return
+      const data = await res.json()
+      setReminders(Array.isArray(data) ? data : [])
+    } catch {
+      // reminders are optional on the dashboard; ignore network errors
+    }
+  }
 
   async function fetchTodos() {
     setTodosLoading(true)
@@ -268,6 +282,23 @@ export default function Home() {
   const overdueItems = careItems.filter(i => i.status === 'overdue').sort((a, b) => a.dateStr.localeCompare(b.dateStr))
   const soonItems = careItems.filter(i => i.status === 'soon').sort((a, b) => a.dateStr.localeCompare(b.dateStr))
 
+  // Open reminders, split the same way (local dates, so Brisbane mornings are not a day behind)
+  function localISO(d: Date) {
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${d.getFullYear()}-${m}-${day}`
+  }
+  const todayStr = localISO(now)
+  const soonStr = localISO(soonCutoff)
+  function reminderDays(dateStr: string) {
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const [ty, tm, td] = todayStr.split('-').map(Number)
+    return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(ty, tm - 1, td)) / 86400000)
+  }
+  const openReminders = reminders.filter((r: any) => !r.completed_date && r.due_date)
+  const overdueReminders = openReminders.filter((r: any) => r.due_date < todayStr)
+  const soonReminders = openReminders.filter((r: any) => r.due_date >= todayStr && r.due_date <= soonStr)
+
   // Research-pod measurement items, same overdue/soon split
   const measurementItems: any[] = []
   const needsBaselineItems: any[] = []
@@ -371,6 +402,9 @@ export default function Home() {
           <Link href="/fertiliser-walk" style={{ fontSize: '13px', background: '#15803d', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Fertiliser Walk
           </Link>
+          <Link href="/reminders" style={{ fontSize: '13px', background: '#b45309', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Reminders
+          </Link>
           <button
             onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login' }}
             style={{ fontSize: '13px', background: '#e5e7eb', color: '#374151', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
@@ -470,11 +504,27 @@ export default function Home() {
         <>
           <section style={{ marginBottom: '28px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px', color: '#dc2626' }}>
-              Overdue &mdash; {overdueItems.length} item{overdueItems.length !== 1 ? 's' : ''}
+              Overdue &mdash; {overdueItems.length + overdueReminders.length} item{overdueItems.length + overdueReminders.length !== 1 ? 's' : ''}
             </h2>
-            {overdueItems.length === 0 && (
+            {overdueItems.length + overdueReminders.length === 0 && (
               <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>Nothing overdue. Good work.</p>
             )}
+            {overdueReminders.map((r: any) => (
+              <Link
+                key={`rem-${r.id}`}
+                href="/reminders"
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '6px' }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ fontWeight: '600', fontSize: '14px' }}>{r.title}</span>
+                  {r.related && <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{r.related}</p>}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                  <p style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626', margin: 0 }}>Reminder</p>
+                  <p style={{ fontSize: '11px', color: '#dc2626', margin: '2px 0 0' }}>Due {formatDate(r.due_date)} ({-reminderDays(r.due_date)}d overdue)</p>
+                </div>
+              </Link>
+            ))}
             {overdueItems.map((item, i) => (
               <Link
                 key={i}
@@ -496,11 +546,27 @@ export default function Home() {
 
           <section style={{ marginBottom: '28px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px', color: '#b45309' }}>
-              Due Soon (next 7 days) &mdash; {soonItems.length} item{soonItems.length !== 1 ? 's' : ''}
+              Due Soon (next 7 days) &mdash; {soonItems.length + soonReminders.length} item{soonItems.length + soonReminders.length !== 1 ? 's' : ''}
             </h2>
-            {soonItems.length === 0 && (
+            {soonItems.length + soonReminders.length === 0 && (
               <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>Nothing coming up in the next 7 days.</p>
             )}
+            {soonReminders.map((r: any) => (
+              <Link
+                key={`rem-${r.id}`}
+                href="/reminders"
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 14px', marginBottom: '6px' }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ fontWeight: '600', fontSize: '14px' }}>{r.title}</span>
+                  {r.related && <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{r.related}</p>}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                  <p style={{ fontSize: '12px', fontWeight: '700', color: '#b45309', margin: 0 }}>Reminder</p>
+                  <p style={{ fontSize: '11px', color: '#b45309', margin: '2px 0 0' }}>Due {formatDate(r.due_date)} ({reminderDays(r.due_date)}d)</p>
+                </div>
+              </Link>
+            ))}
             {soonItems.map((item, i) => (
               <Link
                 key={i}
