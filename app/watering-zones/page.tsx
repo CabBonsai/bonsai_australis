@@ -2,38 +2,13 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { ZONES, ZONE_CODES, ZONE_DESCRIPTIONS } from '@/lib/wateringZones';
 
 // Formal zone names (Zone A-H) are a display-layer convention only — the underlying
 // collection.watering_zone column still stores the original descriptive label
-// ('Permanent Water Tray', etc.), unchanged. ZONES order below is the source of
-// truth for both the letter assignment (A = index 0) and the on-page top-to-bottom
-// order, so re-ordering this array re-letters everything automatically.
-const ZONES = [
-  'Permanent Water Tray',
-  'Frequent/Daily Watering',
-  'Moderate-High',
-  'Standard/Moderate',
-  'Moderate-Drought',
-  'Low-Moderate',
-  'Low Water/Drought-Tolerant',
-  'Isolate - Overwater/Rot Risk',
-] as const;
-
-const ZONE_CODES: Record<string, string> = Object.fromEntries(
-  ZONES.map((zone, i) => [zone, String.fromCharCode(65 + i)]) // A, B, C, ...
-);
-
-const ZONE_DESCRIPTIONS: Record<string, string> = {
-  'Permanent Water Tray': 'Confirmed to tolerate sitting in a permanent water tray.',
-  'Frequent/Daily Watering': 'Declines quickly if allowed to dry out — not confirmed tray-safe.',
-  'Moderate-High': 'Regular rhythm, leaning toward more frequent.',
-  'Standard/Moderate': 'Normal bonsai watering rhythm.',
-  'Moderate-Drought': 'Regular rhythm, leaning toward more drying between waterings.',
-  'Low-Moderate': 'Tolerant of some drying.',
-  'Low Water/Drought-Tolerant': 'Risk here is overwatering, not underwatering.',
-  'Isolate - Overwater/Rot Risk': 'Real, sourced overwatering/root-rot failure mode — keep physically separate.',
-};
-
+// ('Permanent Water Tray', etc.), unchanged. ZONES (in lib/wateringZones.ts) is the
+// source of truth for both the letter assignment (A = index 0) and the on-page
+// top-to-bottom order, so re-ordering that array re-letters every page automatically.
 type Tree = {
   tree_number: number;
   display_name: string | null;

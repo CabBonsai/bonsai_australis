@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { zoneLetter } from '@/lib/wateringZones'
 
 // Starter suggestions only, shown even before any tree has a location set.
 // The real dropdown list is built dynamically from whatever locations are
@@ -629,6 +630,7 @@ function CollectionPageInner() {
                   <div>
                     <span style={{ fontWeight: '700', fontSize: '16px' }}>{t.display_name}</span>
                     {t.tree_number && <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '8px' }}>#{t.tree_number}</span>}
+                    {zoneLetter(t.watering_zone) && <span title={t.watering_zone} style={{ fontSize: '11px', fontWeight: 700, color: '#3f5228', background: '#f3f7ea', border: '1px solid #cdd9b4', borderRadius: '6px', padding: '1px 6px', marginLeft: '8px' }}>Zone {zoneLetter(t.watering_zone)}</span>}
                   </div>
                   {overdue && <span style={{ fontSize: '11px', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '6px', padding: '2px 6px', flexShrink: 0 }}>&#9888; Overdue</span>}
                 </div>

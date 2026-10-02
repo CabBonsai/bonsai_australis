@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { uploadPhoto } from '@/lib/uploadPhoto'
+import { zoneLetter } from '@/lib/wateringZones'
 import JournalSection from '@/components/JournalSection'
 
 function Section({ title, defaultOpen, children }: { title: string, defaultOpen?: boolean, children: React.ReactNode }) {
@@ -1358,6 +1359,9 @@ export default function CollectionDetailPage() {
             sp_no: {tree.sp_no ?? '— not set —'}
             {tree.variant_sp_no ? ` · variant sp_no: ${tree.variant_sp_no}` : ''}
           </span>
+          {zoneLetter(tree.watering_zone) && (
+            <span style={{ fontWeight: 600, color: '#3f5228' }}>Zone {zoneLetter(tree.watering_zone)} · {tree.watering_zone}</span>
+          )}
           {tree.sp_no && (
             <a href={`/species/${tree.sp_no}`} style={{ fontSize: '13px', color: '#55702a', fontWeight: 600, textDecoration: 'none' }}>
               View Species Info →
