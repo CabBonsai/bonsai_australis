@@ -6,7 +6,7 @@
 //
 // Columns on care_schedule:
 //   id (int, PK), tree_number (int, FK -> collection), event_type (text),
-//   due_date (date), notes (text), completed_date (date, null = still scheduled),
+//   due_date (date, nullable), notes (text), completed_date (date, null = still scheduled),
 //   created_at (timestamptz). There is NO updated_at column.
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -51,7 +51,9 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/care-schedule
-// body: { tree_number, event_type, due_date, notes?, completed_date? }
+// body: { tree_number, event_type, due_date?, notes?, completed_date? }
+// (due_date is optional in the database, so a note-only event is allowed;
+// at least one of due_date or notes must be present.)
 // Also accepts { items: [...] } to add several events in one call.
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -60,7 +62,9 @@ export async function POST(req: NextRequest) {
   for (const row of rows) {
     if (!row.tree_number) return NextResponse.json({ error: 'Missing tree_number' }, { status: 400 });
     if (!row.event_type) return NextResponse.json({ error: 'Missing event_type' }, { status: 400 });
-    if (!row.due_date) return NextResponse.json({ error: 'Missing due_date' }, { status: 400 });
+    if (!row.due_date && !(typeof row.notes === 'string' && row.notes.trim())) {
+      return NextResponse.json({ error: 'Provide a due_date or notes' }, { status: 400 });
+    }
     if (badDate(row.due_date) || badDate(row.completed_date)) {
       return NextResponse.json({ error: 'Dates must be YYYY-MM-DD' }, { status: 400 });
     }
@@ -100,9 +104,6 @@ export async function PATCH(req: NextRequest) {
   }
   if (badDate(updates.due_date) || badDate(updates.completed_date)) {
     return NextResponse.json({ error: 'Dates must be YYYY-MM-DD' }, { status: 400 });
-  }
-  if ('due_date' in updates && updates.due_date === null) {
-    return NextResponse.json({ error: 'due_date cannot be cleared' }, { status: 400 });
   }
 
   const { data, error } = await supabaseServer

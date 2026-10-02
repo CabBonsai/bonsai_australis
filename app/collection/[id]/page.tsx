@@ -447,6 +447,42 @@ function VariantCareInfo({ variantSpNo }: { variantSpNo: number | null | undefin
 
 const EVENT_TYPE_OPTIONS = ['repot', 'prune', 'fertilise', 'wire_check', 'wire_removal', 'recovery', 'other']
 
+// Local-date helpers (avoid toISOString(), which shifts the day in Australian time zones).
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function addDaysFrom(base: string | null, days: number): string {
+  const start = base ? new Date(base + 'T00:00:00') : new Date()
+  start.setDate(start.getDate() + days)
+  return toLocalDateString(start)
+}
+
+// Last day of the current month; if that is today or already passed, the end of next month.
+function endOfMonthFromToday(): string {
+  const now = new Date()
+  let last = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  if (toLocalDateString(last) <= toLocalDateString(now)) {
+    last = new Date(now.getFullYear(), now.getMonth() + 2, 0)
+  }
+  return toLocalDateString(last)
+}
+
+async function careApi(method: 'POST' | 'PATCH' | 'DELETE' | 'GET', url: string, body?: any): Promise<any> {
+  const res = await fetch(url, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  let json: any = null
+  try { json = await res.json() } catch { /* empty body */ }
+  if (!res.ok) throw new Error((json && json.error) || `Request failed (${res.status})`)
+  return json
+}
+
 function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefined }) {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -455,48 +491,174 @@ function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefi
   const [newType, setNewType] = useState('other')
   const [newDue, setNewDue] = useState('')
   const [newNotes, setNewNotes] = useState('')
+  const [message, setMessage] = useState<{ kind: 'error' | 'ok'; text: string } | null>(null)
+  const [busyId, setBusyId] = useState<number | null>(null)
 
-  function fetchEvents() {
+  // Which event is open for editing / deferring (only one panel at a time).
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [deferringId, setDeferringId] = useState<number | null>(null)
+  const [editType, setEditType] = useState('other')
+  const [editDue, setEditDue] = useState('')
+  const [editDone, setEditDone] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [deferDate, setDeferDate] = useState('')
+  const [deferReason, setDeferReason] = useState('')
+
+  async function fetchEvents() {
     if (!treeNumber) { setEvents([]); return }
     setLoading(true)
-    let query = supabase.from('care_schedule').select('*').eq('tree_number', treeNumber)
-    query = showCompleted ? query.order('due_date', { ascending: false }) : query.is('completed_date', null).order('due_date', { ascending: true, nullsFirst: false })
-    query.then(({ data }) => { setEvents(data || []); setLoading(false) })
+    try {
+      const status = showCompleted ? '' : '&status=open'
+      const data: any[] = await careApi('GET', `/api/care-schedule?tree_number=${treeNumber}${status}`)
+      const rows = Array.isArray(data) ? data.slice() : []
+      // Pending: soonest first. With completed shown: newest first. Undated events last.
+      rows.sort((a, b) => {
+        if (!a.due_date && !b.due_date) return 0
+        if (!a.due_date) return 1
+        if (!b.due_date) return -1
+        return showCompleted ? b.due_date.localeCompare(a.due_date) : a.due_date.localeCompare(b.due_date)
+      })
+      setEvents(rows)
+    } catch (e: any) {
+      setMessage({ kind: 'error', text: `Could not load events: ${e.message}` })
+    }
+    setLoading(false)
   }
 
   useEffect(() => { fetchEvents() }, [treeNumber, showCompleted])
+
+  function closePanels() {
+    setEditingId(null)
+    setDeferringId(null)
+  }
 
   async function addEvent() {
     if (!treeNumber) return
     if (!newDue && !newNotes.trim()) return
     setAdding(true)
-    await supabase.from('care_schedule').insert({
-      tree_number: treeNumber,
-      event_type: newType,
-      due_date: newDue || null,
-      notes: newNotes.trim() || null,
-    })
-    setNewDue('')
-    setNewNotes('')
-    setNewType('other')
+    setMessage(null)
+    try {
+      await careApi('POST', '/api/care-schedule', {
+        tree_number: treeNumber,
+        event_type: newType,
+        due_date: newDue || null,
+        notes: newNotes.trim() || null,
+      })
+      setNewDue('')
+      setNewNotes('')
+      setNewType('other')
+      setMessage({ kind: 'ok', text: 'Event added.' })
+    } catch (e: any) {
+      setMessage({ kind: 'error', text: `Could not add the event: ${e.message}` })
+    }
     setAdding(false)
     fetchEvents()
   }
 
   async function markComplete(id: number) {
-    await supabase.from('care_schedule').update({ completed_date: new Date().toISOString().slice(0, 10) }).eq('id', id)
+    setBusyId(id)
+    setMessage(null)
+    try {
+      await careApi('PATCH', '/api/care-schedule', { id, completed_date: toLocalDateString(new Date()) })
+      setMessage({ kind: 'ok', text: 'Marked as done.' })
+    } catch (e: any) {
+      setMessage({ kind: 'error', text: `Could not mark it done: ${e.message}` })
+    }
+    setBusyId(null)
     fetchEvents()
   }
 
-  async function deleteEvent(id: number) {
-    await supabase.from('care_schedule').delete().eq('id', id)
+  async function reopenEvent(id: number) {
+    setBusyId(id)
+    setMessage(null)
+    try {
+      await careApi('PATCH', '/api/care-schedule', { id, completed_date: null })
+      setMessage({ kind: 'ok', text: 'Moved back to scheduled.' })
+    } catch (e: any) {
+      setMessage({ kind: 'error', text: `Could not reopen it: ${e.message}` })
+    }
+    setBusyId(null)
+    fetchEvents()
+  }
+
+  async function deleteEvent(ev: any) {
+    const label = `${ev.event_type.replace('_', ' ')}${ev.due_date ? ` (due ${ev.due_date})` : ''}`
+    if (!window.confirm(`Delete this event permanently?\n\n${label}`)) return
+    setBusyId(ev.id)
+    setMessage(null)
+    try {
+      await careApi('DELETE', `/api/care-schedule?id=${ev.id}`)
+      setMessage({ kind: 'ok', text: 'Event deleted.' })
+    } catch (e: any) {
+      setMessage({ kind: 'error', text: `Could not delete the event: ${e.message}` })
+    }
+    setBusyId(null)
+    closePanels()
+    fetchEvents()
+  }
+
+  function openEdit(ev: any) {
+    setDeferringId(null)
+    setEditingId(ev.id)
+    setEditType(ev.event_type)
+    setEditDue(ev.due_date || '')
+    setEditDone(ev.completed_date || '')
+    setEditNotes(ev.notes || '')
+  }
+
+  async function saveEdit(ev: any) {
+    setBusyId(ev.id)
+    setMessage(null)
+    try {
+      await careApi('PATCH', '/api/care-schedule', {
+        id: ev.id,
+        event_type: editType,
+        due_date: editDue || null,
+        completed_date: editDone || null,
+        notes: editNotes.trim() || null,
+      })
+      setMessage({ kind: 'ok', text: 'Event updated.' })
+      closePanels()
+    } catch (e: any) {
+      setMessage({ kind: 'error', text: `Could not save the changes: ${e.message}` })
+    }
+    setBusyId(null)
+    fetchEvents()
+  }
+
+  function openDefer(ev: any) {
+    setEditingId(null)
+    setDeferringId(ev.id)
+    setDeferDate(ev.due_date && ev.due_date > toLocalDateString(new Date()) ? ev.due_date : endOfMonthFromToday())
+    setDeferReason('')
+  }
+
+  async function saveDefer(ev: any) {
+    if (!deferDate) return
+    setBusyId(ev.id)
+    setMessage(null)
+    const today = toLocalDateString(new Date())
+    const reason = deferReason.trim()
+    const line = `Deferred ${today} from ${ev.due_date || 'no date'} to ${deferDate}${reason ? `: ${reason}` : ''}.`
+    const notes = ev.notes ? `${line} ${ev.notes}` : line
+    try {
+      await careApi('PATCH', '/api/care-schedule', { id: ev.id, due_date: deferDate, notes })
+      setMessage({ kind: 'ok', text: `Deferred to ${deferDate}.` })
+      closePanels()
+    } catch (e: any) {
+      setMessage({ kind: 'error', text: `Could not defer the event: ${e.message}` })
+    }
+    setBusyId(null)
     fetchEvents()
   }
 
   function isOverdueDate(dateStr: string | null) {
     if (!dateStr) return false
-    return new Date(dateStr) < new Date(new Date().toDateString())
+    return dateStr < toLocalDateString(new Date())
   }
+
+  const smallInput: React.CSSProperties = { ...inputStyle, minHeight: '40px', padding: '8px 12px', fontSize: '14px' }
+  const smallBtn: React.CSSProperties = { fontSize: '12px', fontWeight: 600, padding: '6px 10px', borderRadius: '8px', border: '1.5px solid #cdd9b4', background: '#fffefb', color: '#3f5228', cursor: 'pointer', whiteSpace: 'nowrap' }
 
   if (!treeNumber) {
     return (
@@ -514,12 +676,30 @@ function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefi
         </span>
         <button
           type="button"
-          onClick={() => setShowCompleted(!showCompleted)}
+          onClick={() => { setShowCompleted(!showCompleted); closePanels() }}
           style={{ fontSize: '12px', color: '#5c7a2a', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
           {showCompleted ? 'Show pending only' : 'Show completed too'}
         </button>
       </div>
+
+      {message && (
+        <p
+          role="status"
+          style={{
+            fontSize: '13px',
+            fontWeight: 600,
+            padding: '8px 12px',
+            borderRadius: '8px',
+            marginBottom: '10px',
+            border: `1.5px solid ${message.kind === 'error' ? '#dc2626' : '#cdd9b4'}`,
+            background: message.kind === 'error' ? '#fef2f2' : '#f3f7ea',
+            color: message.kind === 'error' ? '#991b1b' : '#3f5228',
+          }}
+        >
+          {message.kind === 'error' ? 'Problem: ' : 'Saved: '}{message.text}
+        </p>
+      )}
 
       {loading && <p style={{ fontSize: '13px', color: '#a89e7a' }}>Loading...</p>}
 
@@ -530,69 +710,142 @@ function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefi
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-        {events.map(ev => (
-          <div
-            key={ev.id}
-            style={{
-              padding: '12px 14px',
-              borderRadius: '10px',
-              border: `1.5px solid ${ev.completed_date ? '#e2dac2' : isOverdueDate(ev.due_date) ? '#dc2626' : '#cdd9b4'}`,
-              background: ev.completed_date ? '#f3efe2' : isOverdueDate(ev.due_date) ? '#fef2f2' : '#f3f7ea',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              gap: '10px',
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 600, fontSize: '14px', color: '#2b2620', textTransform: 'capitalize' }}>
-                  {ev.event_type.replace('_', ' ')}
-                </span>
-                {ev.due_date && (
-                  <span style={{ fontSize: '12px', color: isOverdueDate(ev.due_date) && !ev.completed_date ? '#dc2626' : '#8a7f5f', fontWeight: isOverdueDate(ev.due_date) && !ev.completed_date ? 700 : 400 }}>
-                    {ev.completed_date ? `done ${ev.completed_date}` : `due ${ev.due_date}`}
-                  </span>
-                )}
+        {events.map(ev => {
+          const overdue = !ev.completed_date && isOverdueDate(ev.due_date)
+          const busy = busyId === ev.id
+          return (
+            <div
+              key={ev.id}
+              style={{
+                padding: '12px 14px',
+                borderRadius: '10px',
+                border: `1.5px solid ${ev.completed_date ? '#e2dac2' : overdue ? '#dc2626' : '#cdd9b4'}`,
+                background: ev.completed_date ? '#f3efe2' : overdue ? '#fef2f2' : '#f3f7ea',
+                opacity: busy ? 0.6 : 1,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '180px' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, fontSize: '14px', color: '#2b2620', textTransform: 'capitalize' }}>
+                      {ev.event_type.replace('_', ' ')}
+                    </span>
+                    <span style={{ fontSize: '12px', color: overdue ? '#dc2626' : '#8a7f5f', fontWeight: overdue ? 700 : 400 }}>
+                      {ev.completed_date
+                        ? `Done ${ev.completed_date}`
+                        : ev.due_date
+                          ? `${overdue ? 'OVERDUE, was due' : 'Due'} ${ev.due_date}`
+                          : 'No due date'}
+                    </span>
+                  </div>
+                  {ev.notes && <p style={{ fontSize: '13px', color: '#4a4436', margin: '4px 0 0' }}>{ev.notes}</p>}
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {!ev.completed_date && (
+                    <button type="button" disabled={busy} onClick={() => markComplete(ev.id)} style={smallBtn}>✓ Done</button>
+                  )}
+                  {!ev.completed_date && (
+                    <button type="button" disabled={busy} onClick={() => (deferringId === ev.id ? closePanels() : openDefer(ev))} style={smallBtn}>Defer</button>
+                  )}
+                  {ev.completed_date && (
+                    <button type="button" disabled={busy} onClick={() => reopenEvent(ev.id)} style={smallBtn}>Reopen</button>
+                  )}
+                  <button type="button" disabled={busy} onClick={() => (editingId === ev.id ? closePanels() : openEdit(ev))} style={smallBtn}>Edit</button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => deleteEvent(ev)}
+                    style={{ ...smallBtn, border: '1.5px solid #e2dac2', color: '#991b1b' }}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              {ev.notes && <p style={{ fontSize: '13px', color: '#4a4436', margin: '4px 0 0' }}>{ev.notes}</p>}
-            </div>
-            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-              {!ev.completed_date && (
-                <button
-                  type="button"
-                  onClick={() => markComplete(ev.id)}
-                  style={{ fontSize: '12px', fontWeight: 600, padding: '6px 10px', borderRadius: '8px', border: '1.5px solid #cdd9b4', background: '#fffefb', color: '#3f5228', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                >
-                  ✓ Done
-                </button>
+
+              {deferringId === ev.id && (
+                <div style={{ marginTop: '12px', padding: '12px', background: '#fffefb', border: '1px dashed #cdd9b4', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#3f5228' }}>Defer this event to a new date</span>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <button type="button" style={smallBtn} onClick={() => setDeferDate(addDaysFrom(null, 7))}>+1 week</button>
+                    <button type="button" style={smallBtn} onClick={() => setDeferDate(addDaysFrom(null, 14))}>+2 weeks</button>
+                    <button type="button" style={smallBtn} onClick={() => setDeferDate(endOfMonthFromToday())}>End of month</button>
+                    <button type="button" style={smallBtn} onClick={() => setDeferDate(addDaysFrom(null, 30))}>+1 month</button>
+                  </div>
+                  <label style={{ fontSize: '13px' }}>
+                    <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>New due date</span>
+                    <input type="date" value={deferDate} onChange={e => setDeferDate(e.target.value)} style={smallInput} />
+                  </label>
+                  <label style={{ fontSize: '13px' }}>
+                    <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Reason (optional, added to the notes)</span>
+                    <input type="text" value={deferReason} onChange={e => setDeferReason(e.target.value)} placeholder="e.g. tree stressed, wait for recovery" style={smallInput} />
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      disabled={busy || !deferDate}
+                      onClick={() => saveDefer(ev)}
+                      style={{ fontSize: '13px', fontWeight: 600, padding: '10px 14px', borderRadius: '8px', border: 'none', background: '#3f5228', color: '#fdfaf3', cursor: 'pointer', opacity: busy || !deferDate ? 0.5 : 1 }}
+                    >
+                      Save new date
+                    </button>
+                    <button type="button" onClick={closePanels} style={smallBtn}>Cancel</button>
+                  </div>
+                </div>
               )}
-              <button
-                type="button"
-                onClick={() => deleteEvent(ev.id)}
-                style={{ fontSize: '12px', padding: '6px 10px', borderRadius: '8px', border: '1.5px solid #e2dac2', background: '#fffefb', color: '#a89e7a', cursor: 'pointer' }}
-              >
-                ✕
-              </button>
+
+              {editingId === ev.id && (
+                <div style={{ marginTop: '12px', padding: '12px', background: '#fffefb', border: '1px dashed #cdd9b4', borderRadius: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', alignItems: 'end' }}>
+                  <label style={{ fontSize: '13px' }}>
+                    <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Type</span>
+                    <select value={editType} onChange={e => setEditType(e.target.value)} style={smallInput}>
+                      {EVENT_TYPE_OPTIONS.includes(editType) ? null : <option value={editType}>{editType.replace('_', ' ')}</option>}
+                      {EVENT_TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt.replace('_', ' ')}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ fontSize: '13px' }}>
+                    <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Due date</span>
+                    <input type="date" value={editDue} onChange={e => setEditDue(e.target.value)} style={smallInput} />
+                  </label>
+                  <label style={{ fontSize: '13px' }}>
+                    <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Done on (leave empty if still pending)</span>
+                    <input type="date" value={editDone} onChange={e => setEditDone(e.target.value)} style={smallInput} />
+                  </label>
+                  <label style={{ fontSize: '13px', gridColumn: 'span 2' }}>
+                    <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Notes</span>
+                    <input type="text" value={editNotes} onChange={e => setEditNotes(e.target.value)} style={smallInput} />
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px', gridColumn: 'span 2' }}>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => saveEdit(ev)}
+                      style={{ fontSize: '13px', fontWeight: 600, padding: '10px 14px', borderRadius: '8px', border: 'none', background: '#3f5228', color: '#fdfaf3', cursor: 'pointer', opacity: busy ? 0.5 : 1 }}
+                    >
+                      Save changes
+                    </button>
+                    <button type="button" onClick={closePanels} style={smallBtn}>Cancel</button>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       <div style={{ padding: '14px', background: '#fffefb', border: '1px dashed #cdd9b4', borderRadius: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', alignItems: 'end' }}>
         <label style={{ fontSize: '13px' }}>
           <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Type</span>
-          <select value={newType} onChange={e => setNewType(e.target.value)} style={{ ...inputStyle, minHeight: '40px', padding: '8px 12px', fontSize: '14px' }}>
+          <select value={newType} onChange={e => setNewType(e.target.value)} style={smallInput}>
             {EVENT_TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt.replace('_', ' ')}</option>)}
           </select>
         </label>
         <label style={{ fontSize: '13px' }}>
           <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Due date (optional)</span>
-          <input type="date" value={newDue} onChange={e => setNewDue(e.target.value)} style={{ ...inputStyle, minHeight: '40px', padding: '8px 12px', fontSize: '14px' }} />
+          <input type="date" value={newDue} onChange={e => setNewDue(e.target.value)} style={smallInput} />
         </label>
         <label style={{ fontSize: '13px', gridColumn: 'span 2' }}>
           <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Notes</span>
-          <input type="text" value={newNotes} onChange={e => setNewNotes(e.target.value)} placeholder="e.g. keep sheltered until roots recover" style={{ ...inputStyle, minHeight: '40px', padding: '8px 12px', fontSize: '14px' }} />
+          <input type="text" value={newNotes} onChange={e => setNewNotes(e.target.value)} placeholder="e.g. keep sheltered until roots recover" style={smallInput} />
         </label>
         <button
           type="button"
