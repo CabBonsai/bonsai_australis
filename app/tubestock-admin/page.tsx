@@ -49,6 +49,58 @@ function padTag(n: number) {
   return String(n).padStart(3, '0')
 }
 
+// One research_project_trees row for a tubestock batch that sits in a Research
+// Task (project_id set). item = tubestock_item_number, i.e. the plant's tag number.
+type BatchResearchRow = {
+  item: number | null
+  project_id: number
+  collection_id: string | null
+}
+
+type BatchPlant = {
+  tag: string
+  where: 'tubestock' | 'research'
+  projectId: number | null
+  collectionId: string | null
+}
+
+// The main identifier is the tubestock number (TS0001). The sub-number (/001,
+// /002) only says WHICH plant in that batch, and it stays with the plant.
+// Total plants = QTY (still in storage) + Research (moved out). Plants in a
+// Research Task keep the number stored on their research row. The plants still
+// in storage hold whichever numbers in 1..Total are not taken by a research row.
+function storageNumbers(quantity: number, research: BatchResearchRow[]): number[] {
+  const total = quantity + research.length
+  const used = new Set(research.map(r => r.item).filter((n): n is number => n != null))
+  const free: number[] = []
+  for (let n = 1; n <= total; n++) if (!used.has(n)) free.push(n)
+  return free.slice(0, quantity)
+}
+
+// Every individual plant in a batch, each with its own TS####/00n tag.
+function batchPlants(batchCode: string, quantity: number, research: BatchResearchRow[]): BatchPlant[] {
+  const out: { num: number, plant: BatchPlant }[] = []
+  for (const n of storageNumbers(quantity, research)) {
+    out.push({ num: n, plant: { tag: `${batchCode}/${padTag(n)}`, where: 'tubestock', projectId: null, collectionId: null } })
+  }
+  for (const r of research) {
+    out.push({
+      num: r.item != null ? r.item : 9999,
+      plant: {
+        tag: r.item != null ? `${batchCode}/${padTag(r.item)}` : `${batchCode}/???`,
+        where: 'research', projectId: r.project_id, collectionId: r.collection_id,
+      },
+    })
+  }
+  return out.sort((a, b) => a.num - b.num).map(o => o.plant)
+}
+
+// Tag number from a tag string like "TS0001/002" -> 2 (null if there is no /n).
+function tagNumber(tag: string | null): number | null {
+  const m = tag ? /\/(\d+)\s*$/.exec(tag.trim()) : null
+  return m ? parseInt(m[1], 10) : null
+}
+
 // Suggests the next `TS####` batch number by scanning the tubestock_number
 // column — NOT the row id (see spec-fix-tubestock-number-autogen.md). The id is
 // an auto-increment key that climbs past deleted rows and never reuses values,
@@ -106,6 +158,9 @@ function TubestockAdmin() {
   // been promoted out (collection_id IS NOT NULL). Drives the QTY/Research/Total
   // breakdown; batches absent from this map (or mapped to 0) show plain quantity.
   const [researchCounts, setResearchCounts] = useState<Record<number, number>>({})
+  // tubestock_id -> that batch's Research Task rows (tag number + task), used to
+  // show every individual plant in the batch with its own TS####/00n tag.
+  const [researchRows, setResearchRows] = useState<Record<number, BatchResearchRow[]>>({})
   const [deepLinkApplied, setDeepLinkApplied] = useState(false)
 
   useEffect(() => { fetchAll() }, [])
@@ -206,6 +261,17 @@ function TubestockAdmin() {
     }
     setResearchCounts(counts)
 
+    const rowsByBatch: Record<number, BatchResearchRow[]> = {}
+    for (const l of linkData) {
+      if (!rowsByBatch[l.tubestock_id]) rowsByBatch[l.tubestock_id] = []
+      rowsByBatch[l.tubestock_id].push({
+        item: l.tubestock_item_number != null ? Number(l.tubestock_item_number) : null,
+        project_id: l.project_id,
+        collection_id: l.collection_id || null,
+      })
+    }
+    setResearchRows(rowsByBatch)
+
     setLoading(false)
   }
 
@@ -246,6 +312,7 @@ function TubestockAdmin() {
         projects={projects}
         isLinkedToResearch={linkedIds.has(row.id)}
         researchCount={researchCounts[row.id] || 0}
+        researchRows={researchRows[row.id] || []}
         onDone={() => { setEditingId(null); fetchAll() }}
       />
     )
@@ -302,6 +369,15 @@ function TubestockAdmin() {
                     : `Qty ${row.quantity}`}
                   {row.source ? ` \u00b7 ${row.source}` : ''}{row.acquisition_date ? ` \u00b7 ${row.acquisition_date}` : ''}
                 </p>
+                {(researchRows[row.id] || []).length > 0 && (
+                  <p style={{ fontSize: '12px', color: '#374151', margin: '4px 0 0', fontFamily: 'monospace' }}>
+                    {batchPlants(row.tubestock_number || `TS${String(row.id).padStart(4, '0')}`, row.quantity, researchRows[row.id] || []).map(pl => (
+                      <span key={pl.tag + pl.where} style={{ marginRight: '10px' }}>
+                        {pl.tag} {pl.where === 'research' ? '(research task)' : '(tubestock)'}
+                      </span>
+                    ))}
+                  </p>
+                )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end', flexShrink: 0 }}>
                 <span style={{
@@ -328,8 +404,8 @@ function TubestockAdmin() {
   )
 }
 
-function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToResearch, researchCount, onDone }: {
-  row: Tubestock, speciesInfo: SpeciesInfo | undefined, displayLabel: string, projects: Project[], isLinkedToResearch: boolean, researchCount: number, onDone: () => void
+function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToResearch, researchCount, researchRows, onDone }: {
+  row: Tubestock, speciesInfo: SpeciesInfo | undefined, displayLabel: string, projects: Project[], isLinkedToResearch: boolean, researchCount: number, researchRows: BatchResearchRow[], onDone: () => void
 }) {
   const [quantity, setQuantity] = useState(row.quantity)
   const [healthNotes, setHealthNotes] = useState(row.health_notes || '')
@@ -389,8 +465,10 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
   }
 
   const batchCode = row.tubestock_number || `TS${String(row.id).padStart(4, '0')}`
-  const plantTags = Array.from({ length: row.quantity }, (_, i) => `${batchCode}/${padTag(row.quantity - i)}`)
-  const nextTag = row.quantity > 0 ? `${batchCode}/${padTag(row.quantity)}` : null
+  // Plants still in storage, highest number first (that one is promoted first).
+  // They hold the numbers not already carried by a plant in a Research Task.
+  const plantTags = storageNumbers(row.quantity, researchRows).slice().reverse().map(n => `${batchCode}/${padTag(n)}`)
+  const nextTag = plantTags.length > 0 ? plantTags[0] : null
 
   async function createCollectionRow(tag: string | null) {
     const placeholderName = speciesInfo?.species || row.species_name_text || 'Unnamed'
@@ -529,6 +607,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
         body: JSON.stringify({
           id: prePodRow.id,
           project_id: selectedProjectId,
+          ...(tagNumber(tag) != null ? { tubestock_item_number: tagNumber(tag) } : {}),
           baseline_notes: prePodRow.baseline_notes
             ? `${prePodRow.baseline_notes} | Promoted to research pod: ${tag || batchCode}.`
             : `From tubestock ${tag || batchCode}.`,
@@ -544,6 +623,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
           project_id: selectedProjectId,
           tubestock_id: row.id,
           sp_no: row.sp_no,
+          ...(tagNumber(tag) != null ? { tubestock_item_number: tagNumber(tag) } : {}),
           baseline_notes: `From tubestock ${tag || batchCode}.`,
         }),
       })
@@ -706,6 +786,32 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       })()}
 
       <TubestockGrowthLog row={row} />
+
+      {researchRows.length > 0 && (
+        <div style={{ marginBottom: '16px' }}>
+          <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 6px' }}>Plants in this batch</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {batchPlants(batchCode, row.quantity, researchRows).map(pl => {
+              const project = pl.projectId != null ? projects.find(p => p.id === pl.projectId) : undefined
+              return (
+                <div key={pl.tag + pl.where} style={{ fontSize: '13px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 10px' }}>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#374151', marginRight: '8px' }}>{pl.tag}</span>
+                  {pl.where === 'tubestock' ? (
+                    <span style={{ color: '#2563eb' }}>In tubestock</span>
+                  ) : (
+                    <span>
+                      <a href={`/research-projects/${pl.projectId}`} style={{ color: '#16a34a', textDecoration: 'none', fontWeight: 600 }}>
+                        Research Task: {project ? project.title : `project ${pl.projectId}`} &rarr;
+                      </a>
+                      {pl.collectionId && <span style={{ color: '#6b7280' }}> &middot; also a Collection tree</span>}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {row.quantity > 0 && (
         <div style={{ marginBottom: '16px' }}>

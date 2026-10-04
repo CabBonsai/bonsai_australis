@@ -162,7 +162,9 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
         const ts = tubestockMap[t.tubestock_id]
         return {
           ...t,
-          displayName: (ts.tubestock_number ? ts.tubestock_number + ' \u2014 ' : '') + (speciesMap[ts.sp_no] || ts.species_name_text || 'Unnamed'),
+          displayName: (ts.tubestock_number
+            ? ts.tubestock_number + (t.tubestock_item_number != null ? '/' + String(t.tubestock_item_number).padStart(3, '0') : '') + ' \u2014 '
+            : '') + (speciesMap[ts.sp_no] || ts.species_name_text || 'Unnamed'),
           speciesLabel: speciesMap[ts.sp_no] || ts.species_name_text || '',
           imageUrl: null,
           sourceLabel: ts.source || null,
