@@ -10,6 +10,9 @@
 //   - tubestock: appends a dated line to growing_on_notes
 //     (PATCH /api/tubestock) -- tubestock has no fertiliser date column
 // Tap a plant marked Done to undo it.
+//
+// Species with a feeding interval set (fertilisation.feed_interval_days, e.g. 56 for
+// every 8 weeks) show when they are next due, and appear under "Due for feeding".
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -31,11 +34,13 @@ type Plant = {
   baseKeys: string[] // which fertiliser lists this plant belongs to (fixed at load)
   spNo: number | null // species number, used to look up the favourite fertiliser
   fav: string // key of the species' favourite fertiliser, or '' when none is recorded
+  intervalDays: number | null // feeding interval in days from the species record, or null
 }
 
 type UndoEntry = { rec: string; date: string }
 
 const PRODUCTS: Product[] = [
+  { key: 'due', label: 'Due for feeding (by schedule)', write: '', re: null },
   { key: 'bt', label: 'Neutrog Bush Tucker', write: 'Neutrog Bush Tucker', re: /bush tucker/i },
   { key: 'sm', label: 'Seamungus', write: 'Seamungus', re: /seamungus/i },
   { key: 'cc', label: 'Charlie Carp', write: 'Charlie Carp', re: /charlie carp/i },
@@ -157,38 +162,63 @@ async function fetchNames(table: 'species' | 'variants', nums: number[]): Promis
   return out
 }
 
-// Favourite fertiliser per species. Taken from the species fertilisation record
-// (the first product named in recommended_products) and only for species whose
-// record has been researched (Provisional or Verified), so generic default text
-// is never shown as a favourite. Returns sp_no -> product key.
-async function fetchFavourites(spNos: number[]): Promise<Record<number, string>> {
-  const out: Record<number, string> = {}
+// Favourite fertiliser and feeding interval per species, from the species
+// fertilisation record. The favourite is the first product named in
+// recommended_products and is only used for researched species (Provisional or
+// Verified), so generic default text is never shown as a favourite. The interval
+// (feed_interval_days) is an owner setting and is used whenever it is present.
+type SpeciesFeed = { fav: string; interval: number | null }
+
+async function fetchFavourites(spNos: number[]): Promise<Record<number, SpeciesFeed>> {
+  const out: Record<number, SpeciesFeed> = {}
   try {
     for (let i = 0; i < spNos.length; i += 100) {
       const chunk = spNos.slice(i, i + 100)
       const { data } = await supabase
         .from('fertilisation')
-        .select('sp_no, recommended_products, research_status')
+        .select('sp_no, recommended_products, research_status, feed_interval_days')
         .in('sp_no', chunk)
       for (const r of data || []) {
-        if (r.research_status !== 'Provisional' && r.research_status !== 'Verified') continue
-        const text = String(r.recommended_products || '')
         let best = ''
-        let bestAt = Infinity
-        for (const pr of REAL_PRODUCTS) {
-          const m = pr.re ? pr.re.exec(text) : null
-          if (m && m.index < bestAt) {
-            bestAt = m.index
-            best = pr.key
+        if (r.research_status === 'Provisional' || r.research_status === 'Verified') {
+          const text = String(r.recommended_products || '')
+          let bestAt = Infinity
+          for (const pr of REAL_PRODUCTS) {
+            const m = pr.re ? pr.re.exec(text) : null
+            if (m && m.index < bestAt) {
+              bestAt = m.index
+              best = pr.key
+            }
           }
         }
-        if (best) out[r.sp_no] = best
+        const interval = r.feed_interval_days != null && Number(r.feed_interval_days) > 0 ? Number(r.feed_interval_days) : null
+        if (best || interval) out[r.sp_no] = { fav: best, interval }
       }
     }
   } catch {
-    // favourites are a nicety: if they cannot load, the walk works without them
+    // favourites and schedules are a nicety: if they cannot load, the walk works without them
   }
   return out
+}
+
+// Days until the next feed is due: negative = overdue, 0 = due today,
+// null = no schedule for this plant. A plant never fed counts as due now.
+function daysToDue(p: Plant): number | null {
+  if (!p.intervalDays) return null
+  if (!p.date) return 0
+  return p.intervalDays - daysSince(p.date)
+}
+
+function dueText(p: Plant): string {
+  const d = daysToDue(p)
+  if (d === null) return ''
+  const every = p.intervalDays && p.intervalDays % 7 === 0 ? `every ${p.intervalDays / 7} weeks` : `every ${p.intervalDays} days`
+  if (!p.date) return `Feeding due now: never fed (${every})`
+  if (d < 0) return `Overdue by ${-d} day${-d === 1 ? '' : 's'} (${every})`
+  if (d === 0) return `Due today (${every})`
+  const [y, m, day] = p.date.split('-').map(Number)
+  const due = new Date(Date.UTC(y, m - 1, day + (p.intervalDays || 0)))
+  return `Next feed due ${due.getUTCDate()} ${MONTHS[due.getUTCMonth()]} (in ${d} day${d === 1 ? '' : 's'}, ${every})`
 }
 
 async function patchJson(url: string, body: Record<string, unknown>): Promise<void> {
@@ -270,6 +300,7 @@ export default function FertiliserWalkPage() {
           baseKeys: keysFor(rec),
           spNo: r.sp_no != null ? Number(r.sp_no) : null,
           fav: '',
+          intervalDays: null,
         })
       }
 
@@ -303,13 +334,18 @@ export default function FertiliserWalkPage() {
           baseKeys: keysFor(feed.rec),
           spNo: r.sp_no != null ? Number(r.sp_no) : null,
           fav: '',
+          intervalDays: null,
         })
       }
 
       const favNos = [...new Set(list.map(pl => pl.spNo).filter((n): n is number => n != null))]
       const favs = await fetchFavourites(favNos)
       for (const pl of list) {
-        if (pl.spNo != null && favs[pl.spNo]) pl.fav = favs[pl.spNo]
+        const f = pl.spNo != null ? favs[pl.spNo] : undefined
+        if (f) {
+          pl.fav = f.fav
+          pl.intervalDays = f.interval
+        }
       }
 
       setPlants(list)
@@ -457,7 +493,13 @@ export default function FertiliserWalkPage() {
     saveMix(mix.includes(key) ? mix.filter(k => k !== key) : [...mix, key])
   }
 
-  const list = plants.filter(p => p.baseKeys.includes(selected.key))
+  const list =
+    selected.key === 'due'
+      ? plants.filter(p => {
+          const d = daysToDue(p)
+          return (d !== null && d <= 0) || isDone(p)
+        })
+      : plants.filter(p => p.baseKeys.includes(selected.key))
   const doneCount = list.filter(p => isDone(p)).length
 
   const groups: { title: string; items: Plant[] }[] = []
@@ -556,6 +598,11 @@ export default function FertiliserWalkPage() {
             {fedText(p)}
             {showLoc && p.kind === 'tree' ? ` - ${p.loc}` : ''}
           </div>
+          {dueText(p) && (
+            <div style={{ fontSize: '14px', color: C.ink, marginTop: '2px', fontWeight: (daysToDue(p) ?? 1) <= 0 ? 700 : 400 }}>
+              {dueText(p)}
+            </div>
+          )}
           {p.fav && (
             <div style={{ fontSize: '14px', color: C.muted, marginTop: '2px' }}>
               Favourite: {PRODUCTS.find(x => x.key === p.fav)?.label || ''}
@@ -638,7 +685,10 @@ export default function FertiliserWalkPage() {
           style={selectStyle}
         >
           {PRODUCTS.map(p => {
-            const n = plants.filter(x => x.baseKeys.includes(p.key)).length
+            const n =
+              p.key === 'due'
+                ? plants.filter(x => { const d = daysToDue(x); return d !== null && d <= 0 }).length
+                : plants.filter(x => x.baseKeys.includes(p.key)).length
             if (!n && p.key !== fert) return null
             return (
               <option key={p.key} value={p.key}>
