@@ -29,6 +29,8 @@ type Plant = {
   rec: string // fertiliser text as recorded
   notes: string // tubestock growing_on_notes
   baseKeys: string[] // which fertiliser lists this plant belongs to (fixed at load)
+  spNo: number | null // species number, used to look up the favourite fertiliser
+  fav: string // key of the species' favourite fertiliser, or '' when none is recorded
 }
 
 type UndoEntry = { rec: string; date: string }
@@ -155,6 +157,40 @@ async function fetchNames(table: 'species' | 'variants', nums: number[]): Promis
   return out
 }
 
+// Favourite fertiliser per species. Taken from the species fertilisation record
+// (the first product named in recommended_products) and only for species whose
+// record has been researched (Provisional or Verified), so generic default text
+// is never shown as a favourite. Returns sp_no -> product key.
+async function fetchFavourites(spNos: number[]): Promise<Record<number, string>> {
+  const out: Record<number, string> = {}
+  try {
+    for (let i = 0; i < spNos.length; i += 100) {
+      const chunk = spNos.slice(i, i + 100)
+      const { data } = await supabase
+        .from('fertilisation')
+        .select('sp_no, recommended_products, research_status')
+        .in('sp_no', chunk)
+      for (const r of data || []) {
+        if (r.research_status !== 'Provisional' && r.research_status !== 'Verified') continue
+        const text = String(r.recommended_products || '')
+        let best = ''
+        let bestAt = Infinity
+        for (const pr of REAL_PRODUCTS) {
+          const m = pr.re ? pr.re.exec(text) : null
+          if (m && m.index < bestAt) {
+            bestAt = m.index
+            best = pr.key
+          }
+        }
+        if (best) out[r.sp_no] = best
+      }
+    }
+  } catch {
+    // favourites are a nicety: if they cannot load, the walk works without them
+  }
+  return out
+}
+
 async function patchJson(url: string, body: Record<string, unknown>): Promise<void> {
   const res = await fetch(url, {
     method: 'PATCH',
@@ -232,6 +268,8 @@ export default function FertiliserWalkPage() {
           rec,
           notes: '',
           baseKeys: keysFor(rec),
+          spNo: r.sp_no != null ? Number(r.sp_no) : null,
+          fav: '',
         })
       }
 
@@ -263,7 +301,15 @@ export default function FertiliserWalkPage() {
           rec: feed.rec,
           notes,
           baseKeys: keysFor(feed.rec),
+          spNo: r.sp_no != null ? Number(r.sp_no) : null,
+          fav: '',
         })
+      }
+
+      const favNos = [...new Set(list.map(pl => pl.spNo).filter((n): n is number => n != null))]
+      const favs = await fetchFavourites(favNos)
+      for (const pl of list) {
+        if (pl.spNo != null && favs[pl.spNo]) pl.fav = favs[pl.spNo]
       }
 
       setPlants(list)
@@ -510,6 +556,11 @@ export default function FertiliserWalkPage() {
             {fedText(p)}
             {showLoc && p.kind === 'tree' ? ` - ${p.loc}` : ''}
           </div>
+          {p.fav && (
+            <div style={{ fontSize: '14px', color: C.muted, marginTop: '2px' }}>
+              Favourite: {PRODUCTS.find(x => x.key === p.fav)?.label || ''}
+            </div>
+          )}
           {done && <div style={{ fontSize: '14px', color: C.muted, marginTop: '2px' }}>Tap again to undo</div>}
           {recNote && <div style={{ fontSize: '14px', color: C.muted, marginTop: '2px' }}>{recNote}</div>}
           {caution && (
