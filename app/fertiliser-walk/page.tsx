@@ -241,7 +241,7 @@ export default function FertiliserWalkPage() {
   // Products logged when a plant is ticked. Tick several for a mix (for example a
   // slow-release pellet plus a liquid plus Seasol) and all are recorded together.
   const [mix, setMix] = useState<string[]>(['bt'])
-  const [order, setOrder] = useState<'loc' | 'old'>('loc')
+  const [order, setOrder] = useState<'loc' | 'old' | 'due'>('loc')
   const [busy, setBusy] = useState<Set<string>>(new Set())
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -519,6 +519,23 @@ export default function FertiliserWalkPage() {
       const items = list.filter(p => p.loc === loc).sort((a, b) => a.num - b.num)
       groups.push({ title: loc, items })
     }
+  } else if (order === 'due') {
+    // Due now first (most overdue at the top), then not due yet (soonest first),
+    // then plants with no feeding schedule. A plant ticked in this session stays
+    // in the Due now group, at the end, so it can still be tapped again to undo.
+    const dueKey = (p: Plant): number => (isDone(p) ? 100000 : (daysToDue(p) ?? 99999))
+    const byDue = (a: Plant, b: Plant) => {
+      const ak = dueKey(a)
+      const bk = dueKey(b)
+      if (ak !== bk) return ak - bk
+      return a.num - b.num
+    }
+    const dueNow = list.filter(p => isDone(p) || (daysToDue(p) !== null && (daysToDue(p) as number) <= 0)).sort(byDue)
+    const notYet = list.filter(p => !isDone(p) && daysToDue(p) !== null && (daysToDue(p) as number) > 0).sort(byDue)
+    const noSchedule = list.filter(p => !isDone(p) && daysToDue(p) === null).sort((a, b) => a.num - b.num)
+    if (dueNow.length) groups.push({ title: 'Due now', items: dueNow })
+    if (notYet.length) groups.push({ title: 'Not due yet', items: notYet })
+    if (noSchedule.length) groups.push({ title: 'No feeding schedule', items: noSchedule })
   } else {
     const items = list.slice().sort((a, b) => {
       const ad = a.date || '0000-00-00'
@@ -727,11 +744,12 @@ export default function FertiliserWalkPage() {
           id="fw-order"
           className="fw-focus"
           value={order}
-          onChange={e => setOrder(e.target.value as 'loc' | 'old')}
+          onChange={e => setOrder(e.target.value as 'loc' | 'old' | 'due')}
           style={selectStyle}
         >
           <option value="loc">By location</option>
           <option value="old">Longest since fed first</option>
+          <option value="due">Due now</option>
         </select>
 
         <div
@@ -817,7 +835,7 @@ export default function FertiliserWalkPage() {
                 </span>
               </h2>
             )}
-            {g.items.map(p => renderRow(p, order === 'old'))}
+            {g.items.map(p => renderRow(p, order !== 'loc'))}
           </div>
         ))}
 
