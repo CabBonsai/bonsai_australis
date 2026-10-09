@@ -13,6 +13,11 @@
 //
 // Species with a feeding interval set (fertilisation.feed_interval_days, e.g. 56 for
 // every 8 weeks) show when they are next due, and appear under "Due for feeding".
+//
+// Trees: the due date comes from the open 'fertilise' row in care_schedule (the same
+// row the collection page shows and lets you defer). Ticking a tree completes that row
+// and adds the next one at today + the species interval (30 days if none is set).
+// Tubestock has no care_schedule rows, so it still works out due dates from the interval.
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -35,9 +40,11 @@ type Plant = {
   spNo: number | null // species number, used to look up the favourite fertiliser
   fav: string // key of the species' favourite fertiliser, or '' when none is recorded
   intervalDays: number | null // feeding interval in days from the species record, or null
+  careId: number | null // open 'fertilise' care_schedule row for a tree, or null
+  careDue: string // that row's due date, yyyy-mm-dd, or ''
 }
 
-type UndoEntry = { rec: string; date: string }
+type UndoEntry = { rec: string; date: string; doneId?: number; doneDue?: string; newId?: number }
 
 const PRODUCTS: Product[] = [
   { key: 'due', label: 'Due for feeding (by schedule)', write: '', re: null },
@@ -204,6 +211,7 @@ async function fetchFavourites(spNos: number[]): Promise<Record<number, SpeciesF
 // Days until the next feed is due: negative = overdue, 0 = due today,
 // null = no schedule for this plant. A plant never fed counts as due now.
 function daysToDue(p: Plant): number | null {
+  if (p.careDue) return -daysSince(p.careDue)
   if (!p.intervalDays) return null
   if (!p.date) return 0
   return p.intervalDays - daysSince(p.date)
@@ -212,7 +220,13 @@ function daysToDue(p: Plant): number | null {
 function dueText(p: Plant): string {
   const d = daysToDue(p)
   if (d === null) return ''
-  const every = p.intervalDays && p.intervalDays % 7 === 0 ? `every ${p.intervalDays / 7} weeks` : `every ${p.intervalDays} days`
+  const iv = p.intervalDays
+  const every = !iv ? 'collection schedule' : iv % 7 === 0 ? `every ${iv / 7} weeks` : `every ${iv} days`
+  if (p.careDue) {
+    if (d < 0) return `Overdue by ${-d} day${-d === 1 ? '' : 's'} (due ${niceDate(p.careDue)}, ${every})`
+    if (d === 0) return `Due today (${every})`
+    return `Next feed due ${niceDate(p.careDue)} (in ${d} day${d === 1 ? '' : 's'}, ${every})`
+  }
   if (!p.date) return `Feeding due now: never fed (${every})`
   if (d < 0) return `Overdue by ${-d} day${-d === 1 ? '' : 's'} (${every})`
   if (d === 0) return `Due today (${every})`
@@ -301,6 +315,8 @@ export default function FertiliserWalkPage() {
           spNo: r.sp_no != null ? Number(r.sp_no) : null,
           fav: '',
           intervalDays: null,
+          careId: null,
+          careDue: '',
         })
       }
 
@@ -335,7 +351,34 @@ export default function FertiliserWalkPage() {
           spNo: r.sp_no != null ? Number(r.sp_no) : null,
           fav: '',
           intervalDays: null,
+          careId: null,
+          careDue: '',
         })
+      }
+
+      // Open fertilise rows from care_schedule: earliest per tree is that tree's due date.
+      try {
+        const cs = await fetch('/api/care-schedule?status=open&event_type=fertilise')
+        if (cs.ok) {
+          const rows: any[] = await cs.json()
+          const byTree: Record<number, { id: number; due: string }> = {}
+          for (const r of rows || []) {
+            if (!r.due_date) continue
+            const t = Number(r.tree_number)
+            const due = String(r.due_date).slice(0, 10)
+            if (!byTree[t] || due < byTree[t].due) byTree[t] = { id: r.id, due }
+          }
+          for (const pl of list) {
+            if (pl.kind !== 'tree') continue
+            const c = byTree[pl.num]
+            if (c) {
+              pl.careId = c.id
+              pl.careDue = c.due
+            }
+          }
+        }
+      } catch {
+        // without care_schedule the walk falls back to interval-based due dates
       }
 
       const favNos = [...new Set(list.map(pl => pl.spNo).filter((n): n is number => n != null))]
@@ -399,10 +442,50 @@ export default function FertiliserWalkPage() {
         fertiliser_used: newRec,
         last_fertilised: today,
       })
+      const entry: UndoEntry = { rec: p.rec, date: p.date }
+      let nextId: number | null = p.careId
+      let nextDue = p.careDue
+      try {
+        // Complete the open fertilise row and schedule the next one.
+        if (p.careId != null) {
+          await patchJson('/api/care-schedule', { id: p.careId, completed_date: today })
+          entry.doneId = p.careId
+          entry.doneDue = p.careDue
+        }
+        const iv = p.intervalDays && p.intervalDays > 0 ? p.intervalDays : 30
+        const [y, m, d] = today.split('-').map(Number)
+        const nd = new Date(Date.UTC(y, m - 1, d + iv))
+        nextDue = `${nd.getUTCFullYear()}-${String(nd.getUTCMonth() + 1).padStart(2, '0')}-${String(nd.getUTCDate()).padStart(2, '0')}`
+        const res = await fetch('/api/care-schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tree_number: p.num,
+            event_type: 'fertilise',
+            due_date: nextDue,
+            notes: `Next feed after ${mixLabel} on ${today} (${iv} days)`,
+          }),
+        })
+        if (!res.ok) throw new Error('Could not add the next feed to the collection schedule.')
+        const created = await res.json()
+        const newId = Array.isArray(created) ? created[0]?.id : created?.id
+        if (newId != null) {
+          entry.newId = newId
+          nextId = newId
+        }
+      } catch (e) {
+        const undoMap = readUndo()
+        undoMap[`${p.id}:${today}`] = entry
+        writeUndo(undoMap)
+        patchPlant(p.key, { rec: newRec, date: today })
+        throw new Error(
+          `${p.ident} was marked fed, but the collection schedule was not fully updated (${e instanceof Error ? e.message : 'unknown error'}). Check its care events.`
+        )
+      }
       const undo = readUndo()
-      undo[`${p.id}:${today}`] = { rec: p.rec, date: p.date }
+      undo[`${p.id}:${today}`] = entry
       writeUndo(undo)
-      patchPlant(p.key, { rec: newRec, date: today })
+      patchPlant(p.key, { rec: newRec, date: today, careId: nextId, careDue: nextDue })
     } else {
       const line = `${today}: fertilised with ${mixLabel}.`
       const base = p.notes.replace(/\s+$/, '')
@@ -427,9 +510,22 @@ export default function FertiliserWalkPage() {
         fertiliser_used: prev.rec || null,
         last_fertilised: prev.date || null,
       })
+      // Put the care schedule back: drop the row added on tick, reopen the completed one.
+      if (prev.newId != null) {
+        const del = await fetch(`/api/care-schedule?id=${prev.newId}`, { method: 'DELETE' })
+        if (!del.ok) throw new Error('Could not remove the next feed row. Edit it in the collection.')
+      }
+      if (prev.doneId != null) {
+        await patchJson('/api/care-schedule', { id: prev.doneId, completed_date: null })
+      }
       delete map[`${p.id}:${today}`]
       writeUndo(map)
-      patchPlant(p.key, { rec: prev.rec, date: prev.date })
+      patchPlant(p.key, {
+        rec: prev.rec,
+        date: prev.date,
+        careId: prev.doneId ?? null,
+        careDue: prev.doneDue ?? '',
+      })
     } else {
       const remaining = p.notes
         .split('\n')
