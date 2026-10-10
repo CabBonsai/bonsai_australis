@@ -138,6 +138,21 @@ function lastFeedFromNotes(notes: string): { date: string; rec: string } {
   return { date, rec }
 }
 
+// A hold line in a tubestock's growing_on_notes defers its next feed, for example after a repot:
+//   "2026-10-09: repotted. Hold fertiliser until 2026-10-31."
+// The date before the colon is when the hold was written. The hold stops applying as soon as a
+// feed is logged after that date, so ticking the plant clears it. Returns the hold-until date or ''.
+function holdFromNotes(notes: string, lastFeedDate: string): string {
+  const re = /(\d{4}-\d{2}-\d{2}):[^\n]*?hold fertiliser until (\d{4}-\d{2}-\d{2})/gi
+  let until = ''
+  let m: RegExpExecArray | null = re.exec(notes)
+  while (m) {
+    if ((!lastFeedDate || lastFeedDate <= m[1]) && m[2] > until) until = m[2]
+    m = re.exec(notes)
+  }
+  return until
+}
+
 function readUndo(): Record<string, UndoEntry> {
   try {
     return JSON.parse(localStorage.getItem(UNDO_KEY) || '{}') || {}
@@ -352,7 +367,7 @@ export default function FertiliserWalkPage() {
           fav: '',
           intervalDays: null,
           careId: null,
-          careDue: '',
+          careDue: holdFromNotes(notes, feed.date),
         })
       }
 
@@ -492,7 +507,7 @@ export default function FertiliserWalkPage() {
       const newNotes = base ? `${base}\n${line}` : line
       await patchJson('/api/tubestock', { id: p.id, growing_on_notes: newNotes })
       const feed = lastFeedFromNotes(newNotes)
-      patchPlant(p.key, { notes: newNotes, date: feed.date, rec: feed.rec })
+      patchPlant(p.key, { notes: newNotes, date: feed.date, rec: feed.rec, careDue: holdFromNotes(newNotes, feed.date) })
     }
   }
 
@@ -538,7 +553,7 @@ export default function FertiliserWalkPage() {
         .replace(/\s+$/, '')
       await patchJson('/api/tubestock', { id: p.id, growing_on_notes: remaining || null })
       const feed = lastFeedFromNotes(remaining)
-      patchPlant(p.key, { notes: remaining, date: feed.date, rec: feed.rec })
+      patchPlant(p.key, { notes: remaining, date: feed.date, rec: feed.rec, careDue: holdFromNotes(remaining, feed.date) })
     }
   }
 
