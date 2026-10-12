@@ -402,6 +402,9 @@ export default function Home() {
           <Link href="/fertiliser-walk" style={{ fontSize: '13px', background: '#15803d', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Fertiliser Walk
           </Link>
+          <Link href="/soil-mixes" style={{ fontSize: '13px', background: '#7c5a2a', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Soil Mixes
+          </Link>
           <Link href="/reminders" style={{ fontSize: '13px', background: '#b45309', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Reminders
           </Link>

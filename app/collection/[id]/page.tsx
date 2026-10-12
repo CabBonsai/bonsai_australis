@@ -939,6 +939,26 @@ export default function CollectionDetailPage() {
     setTree((prev: any) => ({ ...prev, [field]: value }))
   }
 
+  // Saved potting mixes for the "Soil Mix Used" dropdown (managed on /soil-mixes).
+  const [soilMixes, setSoilMixes] = useState<{ id: string; name: string; archived: boolean }[]>([])
+  useEffect(() => {
+    fetch('/api/soil-mixes')
+      .then(r => r.json())
+      .then(j => setSoilMixes(Array.isArray(j.mixes) ? j.mixes : []))
+      .catch(() => setSoilMixes([]))
+  }, [])
+
+  // Picking a mix sets the link and keeps the old free-text field in step with
+  // the mix name, so exports and anything else still reading it stay correct.
+  function pickSoilMix(mixId: string) {
+    const mix = soilMixes.find(m => m.id === mixId)
+    setTree((prev: any) => ({
+      ...prev,
+      soil_mix_id: mix ? mix.id : null,
+      soil_mix_used: mix ? mix.name : null,
+    }))
+  }
+
   useEffect(() => {
     if (!tree) return
     const baseSpecies = (speciesName || '').split(' — ')[0]
@@ -1517,7 +1537,22 @@ export default function CollectionDetailPage() {
           <Field label="Pot Size"><input type="text" value={tree.pot_size || ''} onChange={e => set('pot_size', e.target.value)} style={inputStyle} /></Field>
           <Field label="Pot Type"><input type="text" value={tree.pot_type || ''} onChange={e => set('pot_type', e.target.value)} style={inputStyle} /></Field>
           <Field label="Best Soil Mix"><textarea value={tree.best_soil_mix || ''} onChange={e => set('best_soil_mix', e.target.value)} style={{ ...inputStyle, minHeight: '72px', resize: 'vertical' }} rows={3} /></Field>
-          <Field label="Soil Mix Used"><textarea value={tree.soil_mix_used || ''} onChange={e => set('soil_mix_used', e.target.value)} style={{ ...inputStyle, minHeight: '72px', resize: 'vertical' }} rows={3} /></Field>
+          <Field label="Soil Mix Used">
+            <select value={tree.soil_mix_id || ''} onChange={e => pickSoilMix(e.target.value)} style={inputStyle}>
+              <option value="">{tree.soil_mix_used && !tree.soil_mix_id ? 'Choose a saved mix…' : 'None'}</option>
+              {soilMixes
+                .filter(m => !m.archived || m.id === tree.soil_mix_id)
+                .map(m => (
+                  <option key={m.id} value={m.id}>{m.name}{m.archived ? ' (archived)' : ''}</option>
+                ))}
+            </select>
+            {tree.soil_mix_used && !tree.soil_mix_id && (
+              <span style={{ display: 'block', marginTop: '6px', fontSize: '13px', color: '#6b6248' }}>
+                Earlier free-text entry, not linked to a saved mix: {tree.soil_mix_used}
+              </span>
+            )}
+            <a href="/soil-mixes" style={{ display: 'inline-block', marginTop: '6px', fontSize: '13px', color: '#3f5228' }}>Manage mixes</a>
+          </Field>
         </Section>
 
         <Section title="Care Schedule" defaultOpen>
