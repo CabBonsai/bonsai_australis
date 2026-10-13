@@ -469,6 +469,9 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
   // They hold the numbers not already carried by a plant in a Research Task.
   const plantTags = storageNumbers(row.quantity, researchRows).slice().reverse().map(n => `${batchCode}/${padTag(n)}`)
   const nextTag = plantTags.length > 0 ? plantTags[0] : null
+  // Pot labels: EVERY plant in the batch needs a tag, including ones promoted into a
+  // Research Task -- a Research Pod link doesn't mean the plant has physically moved.
+  const labelPlants = batchPlants(batchCode, row.quantity, researchRows).slice().reverse()
 
   async function createCollectionRow(tag: string | null) {
     const placeholderName = speciesInfo?.species || row.species_name_text || 'Unnamed'
@@ -813,13 +816,13 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
         </div>
       )}
 
-      {row.quantity > 0 && (
+      {labelPlants.length > 0 && (
         <div style={{ marginBottom: '16px' }}>
           <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 6px' }}>Plant tags (for pot labels)</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {plantTags.map(tag => (
-              <span key={tag} style={{ fontSize: '12px', fontFamily: 'monospace', background: '#f1f5f9', color: '#374151', borderRadius: '6px', padding: '4px 8px' }}>
-                {tag}
+            {labelPlants.map(pl => (
+              <span key={pl.tag + pl.where} style={{ fontSize: '12px', fontFamily: 'monospace', background: pl.where === 'research' ? '#dcfce7' : '#f1f5f9', color: '#374151', borderRadius: '6px', padding: '4px 8px' }}>
+                {pl.tag}{pl.where === 'research' ? ' (Research Pod)' : ''}
               </span>
             ))}
           </div>
