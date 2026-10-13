@@ -365,7 +365,7 @@ function TubestockAdmin() {
                 )}
                 <p style={{ fontSize: '12px', color: '#9ca3af', margin: '4px 0 0' }}>
                   {researchCounts[row.id] > 0
-                    ? `Total ${row.quantity + researchCounts[row.id]} \u00b7 ${row.quantity} in tubestock \u00b7 ${researchCounts[row.id]} in Research Pod`
+                    ? `QTY ${row.quantity} \u00b7 Research ${researchCounts[row.id]} \u00b7 Total ${row.quantity + researchCounts[row.id]}`
                     : `Qty ${row.quantity}`}
                   {row.source ? ` \u00b7 ${row.source}` : ''}{row.acquisition_date ? ` \u00b7 ${row.acquisition_date}` : ''}
                 </p>
@@ -833,7 +833,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       )}
 
       <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
-        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Total quantity (all {batchCode} plants{researchRows.length > 0 ? `: ${Math.max(0, quantity - researchRows.length)} in tubestock + ${researchRows.length} in Research Pod` : ''})</span>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Total quantity (all {batchCode} plants)</span>
         <input type="number" min={researchRows.length} value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 0)} style={inputStyle} />
       </label>
 
