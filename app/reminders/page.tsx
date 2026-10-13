@@ -205,9 +205,9 @@ export default function RemindersPage() {
   const overdue = open.filter(r => daysBetween(today, r.due_date) < 0)
   const soon = open.filter(r => {
     const d = daysBetween(today, r.due_date)
-    return d >= 0 && d <= 7
+    return d >= 0 && d <= 3
   })
-  const later = open.filter(r => daysBetween(today, r.due_date) > 7)
+  const later = open.filter(r => daysBetween(today, r.due_date) > 3)
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
@@ -480,7 +480,7 @@ export default function RemindersPage() {
         {!loading && !loadError && (
           <>
             {section('Overdue', overdue, 'overdue', 'Nothing overdue.')}
-            {section('Due in the next 7 days', soon, 'soon', 'Nothing due in the next 7 days.')}
+            {section('Due in the next 3 days', soon, 'soon', 'Nothing due in the next 3 days.')}
             {section('Later', later, 'later', 'Nothing scheduled further out.')}
 
             <details style={{ marginTop: '24px' }}>

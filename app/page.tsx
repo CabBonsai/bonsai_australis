@@ -254,7 +254,7 @@ export default function Home() {
   }
 
   const now = new Date()
-  const soonCutoff = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const soonCutoff = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
 
   function daysUntil(dateStr: string) {
     const d = new Date(dateStr)
@@ -549,10 +549,10 @@ export default function Home() {
 
           <section style={{ marginBottom: '28px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px', color: '#b45309' }}>
-              Due Soon (next 7 days) &mdash; {soonItems.length + soonReminders.length} item{soonItems.length + soonReminders.length !== 1 ? 's' : ''}
+              Due Soon (next 3 days) &mdash; {soonItems.length + soonReminders.length} item{soonItems.length + soonReminders.length !== 1 ? 's' : ''}
             </h2>
             {soonItems.length + soonReminders.length === 0 && (
-              <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>Nothing coming up in the next 7 days.</p>
+              <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>Nothing coming up in the next 3 days.</p>
             )}
             {soonReminders.map((r: any) => (
               <Link
@@ -619,7 +619,7 @@ export default function Home() {
               Research Pod Measurements Due &mdash; {overdueMeasurements.length + soonMeasurements.length} item{(overdueMeasurements.length + soonMeasurements.length) !== 1 ? 's' : ''}
             </h2>
             {overdueMeasurements.length === 0 && soonMeasurements.length === 0 && (
-              <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>No measurements due in the next 7 days.</p>
+              <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>No measurements due in the next 3 days.</p>
             )}
             {overdueMeasurements.map((item, i) => (
               <Link
