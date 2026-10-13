@@ -365,7 +365,7 @@ function TubestockAdmin() {
                 )}
                 <p style={{ fontSize: '12px', color: '#9ca3af', margin: '4px 0 0' }}>
                   {researchCounts[row.id] > 0
-                    ? `QTY ${row.quantity} \u00b7 Research ${researchCounts[row.id]} \u00b7 Total ${row.quantity + researchCounts[row.id]}`
+                    ? `Total ${row.quantity + researchCounts[row.id]} \u00b7 ${row.quantity} in tubestock \u00b7 ${researchCounts[row.id]} in Research Pod`
                     : `Qty ${row.quantity}`}
                   {row.source ? ` \u00b7 ${row.source}` : ''}{row.acquisition_date ? ` \u00b7 ${row.acquisition_date}` : ''}
                 </p>
@@ -407,7 +407,10 @@ function TubestockAdmin() {
 function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToResearch, researchCount, researchRows, onDone }: {
   row: Tubestock, speciesInfo: SpeciesInfo | undefined, displayLabel: string, projects: Project[], isLinkedToResearch: boolean, researchCount: number, researchRows: BatchResearchRow[], onDone: () => void
 }) {
-  const [quantity, setQuantity] = useState(row.quantity)
+  // The Quantity box is the batch TOTAL (every TS####/00n plant, including ones promoted
+  // to a Research Task). tubestock.quantity in the DB stays 'still in storage', so the
+  // box converts on the way in and out (stored = total - research).
+  const [quantity, setQuantity] = useState(row.quantity + researchRows.length)
   const [healthNotes, setHealthNotes] = useState(row.health_notes || '')
   const [growingOnNotes, setGrowingOnNotes] = useState(row.growing_on_notes || '')
   const [targetCriteria, setTargetCriteria] = useState(row.target_criteria || '')
@@ -545,7 +548,7 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
         sp_no: selectedSpNo,
         variant_sp_no: selectedVariantSpNo,
         species_name_text: selectedSpNo ? null : (speciesNameText.trim() || null),
-        quantity,
+        quantity: Math.max(0, quantity - researchRows.length),
         health_notes: healthNotes || null,
         growing_on_notes: growingOnNotes || null,
         target_criteria: targetCriteria || null,
@@ -830,8 +833,8 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       )}
 
       <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
-        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Quantity</span>
-        <input type="number" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 0)} style={inputStyle} />
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Total quantity (all {batchCode} plants{researchRows.length > 0 ? `: ${Math.max(0, quantity - researchRows.length)} in tubestock + ${researchRows.length} in Research Pod` : ''})</span>
+        <input type="number" min={researchRows.length} value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 0)} style={inputStyle} />
       </label>
 
       <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
