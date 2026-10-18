@@ -1842,19 +1842,27 @@ export default function SpeciesDetail() {
       {toxicity && (
         <Section title="Toxicity">
           <Field label="Toxicity level" value={toxicity.toxicity_level} onChange={v => updateToxicity('toxicity_level', v)} />
-          <div style={{ display: 'flex', gap: '20px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#2b2620' }}>
-              <input type="checkbox" checked={toxicity.toxic_to_humans || false} onChange={e => updateToxicity('toxic_to_humans', e.target.checked)} style={{ width: '18px', height: '18px' }} />
-              Toxic to humans
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#2b2620' }}>
-              <input type="checkbox" checked={toxicity.toxic_to_pets || false} onChange={e => updateToxicity('toxic_to_pets', e.target.checked)} style={{ width: '18px', height: '18px' }} />
-              Toxic to pets
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#2b2620' }}>
-              <input type="checkbox" checked={toxicity.toxic_to_livestock || false} onChange={e => updateToxicity('toxic_to_livestock', e.target.checked)} style={{ width: '18px', height: '18px' }} />
-              Toxic to livestock
-            </label>
+          {/* Three states, not two: blank means "not assessed" and must never be read as "No".
+              A plain checkbox cannot show that, so each field is a small select. */}
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+            {([
+              ['toxic_to_humans', 'Toxic to humans'],
+              ['toxic_to_pets', 'Toxic to pets'],
+              ['toxic_to_livestock', 'Toxic to livestock'],
+            ] as const).map(([field, label]) => (
+              <label key={field} style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '15px', color: '#2b2620' }}>
+                {label}
+                <select
+                  value={toxicity[field] === true ? 'yes' : toxicity[field] === false ? 'no' : ''}
+                  onChange={e => updateToxicity(field, e.target.value === 'yes' ? true : e.target.value === 'no' ? false : null)}
+                  style={{ padding: '6px 8px', border: '1px solid #ccc', borderRadius: 4, fontSize: '15px' }}
+                >
+                  <option value="">Not assessed</option>
+                  <option value="no">No</option>
+                  <option value="yes">Yes</option>
+                </select>
+              </label>
+            ))}
           </div>
           <Field label="Toxic parts" value={toxicity.toxic_parts} onChange={v => updateToxicity('toxic_parts', v)} type="textarea" />
           <Field label="Toxic principle" value={toxicity.toxic_principle} onChange={v => updateToxicity('toxic_principle', v)} />
