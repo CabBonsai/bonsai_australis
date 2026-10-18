@@ -140,7 +140,7 @@ function AdvancedReport({ report }: { report: Report }) {
           {sec.rows.map((row) => {
             const flagged = row.value ? INTERNAL_WORDING.test(row.value) : false;
             return (
-              <div key={row.label} className="report-row">
+              <div key={row.label} className={`report-row${(row.value?.length ?? 0) < 450 ? ' short' : ''}`}>
                 <div className="report-label">{row.label}</div>
                 <div className="report-value">
                   {row.value}
@@ -576,17 +576,22 @@ export default function BookletsPage() {
           break-after: avoid;
           page-break-after: avoid;
         }
+        /* Rows use normal block flow with a floated label rather than CSS grid: grid items do not
+           fragment across printed pages in WebKit/Chrome, which sliced lines in half at page edges.
+           Short rows are kept whole; long rows (e.g. Refinement Method) flow across pages normally,
+           because forcing a taller-than-page block to stay together is what truncates printing. */
         .report-row {
-          display: grid;
-          grid-template-columns: 34% 1fr;
-          column-gap: 18px;
+          display: flow-root;
           padding: 9px 0;
           border-bottom: 1px solid var(--bk-hair);
           font-size: 14px;
           line-height: 1.6;
+          orphans: 3;
+          widows: 3;
         }
-        .report-label { color: var(--bk-green); font-weight: 600; }
-        .report-value { white-space: pre-wrap; overflow-wrap: anywhere; }
+        .report-row.short { break-inside: avoid; page-break-inside: avoid; }
+        .report-label { float: left; width: 34%; padding-right: 18px; box-sizing: border-box; color: var(--bk-green); font-weight: 600; }
+        .report-value { margin-left: 34%; white-space: pre-wrap; overflow-wrap: anywhere; }
         .internal-flag {
           display: inline-block;
           font-size: 10px;
