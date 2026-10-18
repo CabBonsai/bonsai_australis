@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { INTERNAL_WORDING } from '@/lib/advancedReport';
 
 type SpeciesResult = { sp_no: number; species: string; species_genus: string; common_name: string | null };
 type BookletListItem = {
@@ -26,6 +27,9 @@ type Booklet = {
   content: string | null;
   pdf_url: string | null;
 };
+type ReportRow = { label: string; value: string | null };
+type ReportSectionData = { id: string; title: string; rows: ReportRow[] };
+type Report = { species: { sp_no: number; name: string; common_name: string | null }; sections: ReportSectionData[] };
 type ReferenceCategory = { id: string; label: string; sections: { table: string; data: Record<string, unknown> | null }[] };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -88,6 +92,73 @@ function renderMarkdown(md: string): string {
   return html.join('\n');
 }
 
+// Part One: eyebrow, title, Latin name, gold rule, then the chapter text. If the chapter text
+// starts with its own "# Title" line, that becomes the title (so existing booklets keep working);
+// otherwise the booklet's title field is used.
+function ChapterBody({ content, fallbackTitle, latinName }: { content: string; fallbackTitle: string; latinName: string }) {
+  const lines = content.split('\n');
+  const first = lines.findIndex((l) => l.trim() !== '');
+  let title = fallbackTitle;
+  let body = content;
+  if (first !== -1 && lines[first].trim().startsWith('# ')) {
+    title = lines[first].trim().slice(2);
+    body = lines.slice(first + 1).join('\n');
+  }
+  return (
+    <>
+      <header className="chapter-header">
+        <div className="chapter-eyebrow">BONSAI AUSTRALIS</div>
+        <h1 className="chapter-title">{title}</h1>
+        {latinName && <div className="chapter-latin">{latinName}</div>}
+        <div className="chapter-rule" />
+      </header>
+      <div className="chapter-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }} />
+    </>
+  );
+}
+
+// Part Two: "Advanced Species Report" - built from the database, never typed by hand. Rows whose
+// text still contains project-internal wording are marked (screen only, never printed) so they can
+// be reworded in the database before the chapter is published.
+function AdvancedReport({ report }: { report: Report }) {
+  return (
+    <section className="report">
+      <header className="chapter-header report-start">
+        <div className="chapter-eyebrow">PART TWO</div>
+        <h1 className="chapter-title">Advanced Species Report</h1>
+        <div className="chapter-latin">
+          {report.species.name} &middot; sp_no {report.species.sp_no}
+        </div>
+        <p className="report-disclaimer">
+          This information is provided for discussion and research purposes only and does not constitute professional
+          horticultural, arboricultural, or bonsai advice. Always verify against multiple sources before acting.
+        </p>
+      </header>
+      {report.sections.map((sec) => (
+        <div key={sec.id} className="report-section">
+          <h2 className="report-band">{sec.title}</h2>
+          {sec.rows.map((row) => {
+            const flagged = row.value ? INTERNAL_WORDING.test(row.value) : false;
+            return (
+              <div key={row.label} className="report-row">
+                <div className="report-label">{row.label}</div>
+                <div className="report-value">
+                  {row.value}
+                  {flagged && (
+                    <span className="no-print internal-flag" title="Contains project-internal wording - reword in the database before publishing">
+                      {' '}internal wording
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export default function BookletsPage() {
   const [view, setView] = useState<'dashboard' | 'editor'>('dashboard');
   const [booklets, setBooklets] = useState<BookletListItem[]>([]);
@@ -102,6 +173,8 @@ export default function BookletsPage() {
   const [booklet, setBooklet] = useState<Booklet | null>(null);
   const [editorMode, setEditorMode] = useState<'write' | 'preview'>('write');
   const [reference, setReference] = useState<{ species: SpeciesResult; categories: ReferenceCategory[] } | null>(null);
+  const [report, setReport] = useState<Report | null>(null);
+  const [includeReport, setIncludeReport] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
@@ -135,6 +208,7 @@ export default function BookletsPage() {
     setView('editor');
     setBooklet(null);
     setReference(null);
+    setReport(null);
     setQuery('');
     setSpeciesResults([]);
 
@@ -145,6 +219,10 @@ export default function BookletsPage() {
     fetch(`/api/booklets?mode=reference&sp_no=${spNo}`)
       .then((r) => r.json())
       .then((d) => setReference(d));
+
+    fetch(`/api/booklets?mode=report&sp_no=${spNo}`)
+      .then((r) => r.json())
+      .then((d) => setReport(d.sections ? d : null));
   }, []);
 
   const saveBooklet = useCallback(
@@ -370,6 +448,10 @@ export default function BookletsPage() {
                   Preview
                 </button>
               </div>
+              <label style={{ fontSize: '12px', color: '#555', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input type="checkbox" checked={includeReport} onChange={(e) => setIncludeReport(e.target.checked)} />
+                Include Advanced Species Report
+              </label>
               <button
                 onClick={printBooklet}
                 style={{ padding: '6px 14px', background: '#55702A', color: '#FBF7EC', border: 'none', borderRadius: 4, cursor: 'pointer' }}
@@ -395,8 +477,12 @@ export default function BookletsPage() {
 
             {editorMode === 'preview' && (
               <div id="booklet-preview" className="booklet-preview">
-                <div className="booklet-brand">BONSAI AUSTRALIS</div>
-                <div dangerouslySetInnerHTML={{ __html: renderMarkdown(booklet?.content ?? '') }} />
+                <ChapterBody
+                  content={booklet?.content ?? ''}
+                  fallbackTitle={booklet?.title ?? ''}
+                  latinName={reference?.species.species ?? report?.species.name ?? ''}
+                />
+                {includeReport && report && <AdvancedReport report={report} />}
                 <div className="booklet-footer">
                   &copy; {new Date().getFullYear()} Bonsai Australis. All rights reserved. This booklet may not be
                   reproduced or redistributed without permission.
@@ -408,55 +494,116 @@ export default function BookletsPage() {
       )}
 
       <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+        /* Chapter + report styling follows chapter-01-queensland-bottle-tree-REFERENCE.pdf.
+           Tokens first so the whole look can be re-themed in one place. */
         .booklet-preview {
+          --bk-cream: #FBF7EC;
+          --bk-ink: #2E2510;
+          --bk-gold: #D9A02B;
+          --bk-green: #55702A;
+          --bk-band: #E9E8D6;
+          --bk-hair: #DAD6C4;
+          --bk-muted: #8A7F63;
           box-sizing: border-box;
-          max-width: 720px;
+          max-width: 760px;
           margin: 0 auto;
-          padding: 24px 8px;
-          font-family: Georgia, 'Times New Roman', serif;
-          font-size: 16px;
-          line-height: 1.7;
-          color: #2E2510;
+          padding: 28px 40px 24px;
+          background: var(--bk-cream);
+          font-family: 'IBM Plex Sans', system-ui, sans-serif;
+          font-size: 15px;
+          line-height: 1.75;
+          color: var(--bk-ink);
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
-        .booklet-brand {
-          text-align: center;
-          font-family: Georgia, 'Times New Roman', serif;
-          font-size: 13px;
-          letter-spacing: 3px;
-          color: #D9A02B;
-          font-weight: bold;
-          margin-bottom: 20px;
+        .chapter-header { text-align: center; margin-bottom: 28px; }
+        .chapter-eyebrow {
+          font-size: 12px;
+          letter-spacing: 4px;
+          color: var(--bk-gold);
+          font-weight: 600;
+          margin-bottom: 10px;
         }
-        .booklet-preview h1 {
-          font-size: 30px;
-          margin: 0 0 8px;
-          text-align: center;
-        }
-        .booklet-preview h2 {
-          font-size: 20px;
-          margin: 32px 0 12px;
-          border-bottom: 1px solid #D9A02B;
-          padding-bottom: 4px;
-        }
-        .booklet-preview p {
+        .chapter-title {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 38px;
+          line-height: 1.15;
+          font-weight: 700;
           margin: 0 0 14px;
+          color: var(--bk-ink);
         }
-        .booklet-preview hr {
-          border: none;
-          border-top: 1px solid #ccc;
-          margin: 32px 0;
+        .chapter-latin {
+          font-family: 'Fraunces', Georgia, serif;
+          font-style: italic;
+          font-size: 22px;
+          color: var(--bk-green);
         }
-        .booklet-preview strong {
-          color: #2E2510;
+        .chapter-rule { width: 96px; height: 2px; background: var(--bk-gold); margin: 20px auto 0; }
+        .chapter-text h2 {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 24px;
+          font-weight: 700;
+          color: var(--bk-green);
+          margin: 34px 0 14px;
+          padding-bottom: 6px;
+          border-bottom: 1px solid var(--bk-hair);
+        }
+        .chapter-text p { margin: 0 0 14px; }
+        .chapter-text hr { border: none; border-top: 1px solid var(--bk-hair); margin: 32px 0; }
+        .chapter-text strong { color: var(--bk-ink); }
+
+        /* Part Two */
+        .report { margin-top: 56px; }
+        .report-start { break-before: page; page-break-before: always; }
+        .report-disclaimer {
+          font-style: italic;
+          font-size: 12px;
+          line-height: 1.5;
+          color: var(--bk-muted);
+          max-width: 620px;
+          margin: 16px auto 0;
+        }
+        .report-section { margin-bottom: 26px; }
+        .report-band {
+          font-family: 'Fraunces', Georgia, serif;
+          font-size: 19px;
+          font-weight: 600;
+          background: var(--bk-band);
+          margin: 0;
+          padding: 10px 14px;
+          break-after: avoid;
+          page-break-after: avoid;
+        }
+        .report-row {
+          display: grid;
+          grid-template-columns: 34% 1fr;
+          column-gap: 18px;
+          padding: 9px 0;
+          border-bottom: 1px solid var(--bk-hair);
+          font-size: 14px;
+          line-height: 1.6;
+        }
+        .report-label { color: var(--bk-green); font-weight: 600; }
+        .report-value { white-space: pre-wrap; overflow-wrap: anywhere; }
+        .internal-flag {
+          display: inline-block;
+          font-size: 10px;
+          color: #8a4b00;
+          background: #fdebc8;
+          border-radius: 8px;
+          padding: 0 6px;
+          margin-left: 6px;
+          vertical-align: middle;
         }
         .booklet-footer {
           margin-top: 40px;
           padding-top: 16px;
-          border-top: 1px solid #ccc;
+          border-top: 1px solid var(--bk-hair);
           font-size: 11px;
-          color: #888;
+          color: var(--bk-muted);
           text-align: center;
-          font-family: Georgia, 'Times New Roman', serif;
         }
 
         @media print {
@@ -483,7 +630,7 @@ export default function BookletsPage() {
             padding: 0;
             margin: 0;
           }
-          .booklet-preview h2 {
+          .chapter-text h2 {
             page-break-after: avoid;
           }
           /* page-break-inside: avoid on paragraphs was removed here - it's the likely real
