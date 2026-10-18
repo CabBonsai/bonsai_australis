@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabaseServer';
+import { REPORT_SECTIONS, SPECIES_INFO_FIELDS, SUITABILITY_FIELDS, formatValue } from '@/lib/advancedReport';
 
 // ---- Same 13-category topic config as /api/research-search - reused here so the booklet prep
 // page can pull the full reference picture for a species in one call. Keep these two files in
@@ -184,6 +185,108 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json({ species: speciesRow, categories });
+  }
+
+  // mode=report&sp_no= -> everything Part Two (Advanced Species Report) prints, already shaped into
+  // sections of label/value rows. Only whitelisted fields from lib/advancedReport.ts are returned.
+  if (mode === 'report') {
+    const spNo = Number(searchParams.get('sp_no'));
+    if (!spNo) return NextResponse.json({ error: 'sp_no required' }, { status: 400 });
+
+    const { data: speciesRow } = await supabaseServer
+      .from('species')
+      .select(SPECIES_INFO_FIELDS)
+      .eq('sp_no', spNo)
+      .maybeSingle<Record<string, unknown>>();
+    if (!speciesRow) return NextResponse.json({ error: 'species not found' }, { status: 404 });
+
+    const { data: suit } = await supabaseServer
+      .from('bonsai_suitability')
+      .select(SUITABILITY_FIELDS)
+      .eq('sp_no', spNo)
+      .maybeSingle<Record<string, unknown>>();
+
+    const speciesInfo = [
+      { label: 'Research Status', value: formatValue(speciesRow.research_status) },
+      { label: 'Genus', value: formatValue(speciesRow.species_genus) },
+      { label: 'Family', value: formatValue(speciesRow.species_family) },
+      {
+        label: 'Pure Species / AU Native',
+        value: `${formatValue(speciesRow.pure_species) ?? '—'} / ${formatValue(speciesRow.australian_native) ?? '—'}`,
+      },
+      { label: 'Origin', value: formatValue(speciesRow.species_origin) },
+      { label: 'Natural Habitat', value: formatValue(speciesRow.natural_habitat) },
+      { label: 'Species Notes', value: formatValue(speciesRow.species_notes) },
+    ].filter((r) => r.value);
+
+    const suitability: { label: string; value: string | null }[] = [];
+    if (suit) {
+      const score = formatValue(suit.final_bonsai_score);
+      if (score) {
+        suitability.push({
+          label: 'Suitability (Final Score)',
+          value: `${score} / 100${formatValue(suit.bonsai_tier) ? ` — Tier: ${formatValue(suit.bonsai_tier)}` : ''}`,
+        });
+      }
+      const diff = formatValue(suit.difficulty);
+      if (diff) suitability.push({ label: 'Difficulty', value: `${diff} (0 = Hardest, 100 = Easiest)` });
+      suitability.push({ label: 'Recommended Styles', value: formatValue(suit.recommended_bonsai_styles) });
+      const scored: [string, string, string | null][] = [
+        ['Vigor', 'vigor', 'vigor_notes'],
+        ['Back Budding', 'back_budding_ability', 'back_budding_notes'],
+        ['Ramification', 'ramification_potential', 'ramification_notes'],
+        ['Leaf Reduction', 'leaf_reduction_potential', 'leaf_reduction_notes'],
+        ['Root Tolerance', 'root_tolerance_score', 'root_tolerance_notes'],
+        ['Wire/Bend Tolerance', 'wire_bend_tolerance', 'wire_bend_notes'],
+        ['Nebari Potential', 'nebari_potential_score', null],
+        ['Bark Character', 'bark_character_score', null],
+        ['Taper & Movement', 'taper_movement_score', null],
+      ];
+      for (const [label, scoreField, notesField] of scored) {
+        const s = formatValue(suit[scoreField]);
+        if (!s) continue;
+        const notes = notesField ? formatValue(suit[notesField]) : null;
+        suitability.push({
+          label: `${label} — ${s}`,
+          value: notes ?? `See ${label === 'Nebari Potential' ? 'Nebari & Root' : label} section below.`,
+        });
+      }
+      const longevity = formatValue(suit.longevity_score);
+      const nativeBonus = formatValue(suit.native_bonus);
+      if (longevity || nativeBonus) {
+        suitability.push({
+          label: [longevity ? `Longevity — ${longevity}` : null, nativeBonus ? `Native Bonus — ${nativeBonus}` : null]
+            .filter(Boolean)
+            .join(' · '),
+          value: 'All ratings expressed on a 1–100 scale.',
+        });
+      }
+    }
+
+    const sections = await Promise.all(
+      REPORT_SECTIONS.map(async (sec) => {
+        const { data, error } = await supabaseServer
+          .from(sec.table)
+          .select(sec.rows.map((r) => r.field).join(','))
+          .eq('sp_no', spNo)
+          .maybeSingle<Record<string, unknown>>();
+        const rows = error || !data
+          ? []
+          : sec.rows
+              .map((r) => ({ label: r.label, value: formatValue(data[r.field]) }))
+              .filter((r) => r.value);
+        return { id: sec.id, title: sec.title, rows };
+      })
+    );
+
+    return NextResponse.json({
+      species: { sp_no: spNo, name: speciesRow.species, common_name: speciesRow.common_name },
+      sections: [
+        { id: 'species_info', title: 'Species Info', rows: speciesInfo },
+        { id: 'suitability', title: 'Bonsai Suitability Profile', rows: suitability.filter((r) => r.value) },
+        ...sections,
+      ].filter((s) => s.rows.length > 0),
+    });
   }
 
   if (mode === 'get') {
