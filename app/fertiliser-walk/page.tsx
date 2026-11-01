@@ -44,7 +44,7 @@ type Plant = {
   careDue: string // that row's due date, yyyy-mm-dd, or ''
 }
 
-type UndoEntry = { rec: string; date: string; doneId?: number; doneDue?: string; newId?: number }
+type UndoEntry = { rec: string; date: string; doneId?: number; doneDue?: string; newId?: number; reminderIds?: string[] }
 
 const PRODUCTS: Product[] = [
   { key: 'due', label: 'Due for feeding (by schedule)', write: '', re: null },
@@ -497,6 +497,30 @@ export default function FertiliserWalkPage() {
           `${p.ident} was marked fed, but the collection schedule was not fully updated (${e instanceof Error ? e.message : 'unknown error'}). Check its care events.`
         )
       }
+      // Also complete any open "Feed tree N ..." reminder for this tree, so it
+      // does not stay overdue on the Reminders page. Best effort: a failure here
+      // never blocks the feed being recorded.
+      try {
+        const rr = await fetch('/api/reminders?open=1')
+        if (rr.ok) {
+          const open = (await rr.json()) as { id: string; title: string; related: string | null }[]
+          const matches = open.filter(
+            r => String(r.related || '').trim() === `Tree ${p.num}` && /^feed tree/i.test(String(r.title || ''))
+          )
+          const doneIds: string[] = []
+          for (const r of matches) {
+            const res = await fetch('/api/reminders', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: r.id, completed_date: today }),
+            })
+            if (res.ok) doneIds.push(r.id)
+          }
+          if (doneIds.length > 0) entry.reminderIds = doneIds
+        }
+      } catch {
+        // leave the reminder open; it can still be ticked Done by hand
+      }
       const undo = readUndo()
       undo[`${p.id}:${today}`] = entry
       writeUndo(undo)
@@ -532,6 +556,18 @@ export default function FertiliserWalkPage() {
       }
       if (prev.doneId != null) {
         await patchJson('/api/care-schedule', { id: prev.doneId, completed_date: null })
+      }
+      // Reopen any reminder that the tick completed.
+      for (const rid of prev.reminderIds ?? []) {
+        try {
+          await fetch('/api/reminders', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: rid, completed_date: null }),
+          })
+        } catch {
+          // best effort
+        }
       }
       delete map[`${p.id}:${today}`]
       writeUndo(map)
