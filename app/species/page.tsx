@@ -203,12 +203,44 @@ export default function SpeciesList() {
         : Promise.resolve({ data: [] as any[], error: null, count: null as number | null }),
     ])
 
+    // Cultivars and hybrids live in `variants`, so a search for e.g. "Okame" found nothing here.
+    // On the first page of a text search, also look them up and list them as cultivar rows that
+    // open their parent species page (where the variant cards live). Commas/parentheses are
+    // stripped because they break PostgREST's or() filter syntax.
+    let variantRows: any[] = []
+    const vTerm = trimmed.replace(/[,()]/g, ' ').trim()
+    if (vTerm.length >= 2 && pageNum === 0 && nativeFilter === 'all') {
+      const { data: vData } = await supabase
+        .from('variants')
+        .select('sp_no, variant_name, common_name, parent_sp_no')
+        .eq('is_deprecated', false)
+        .not('parent_sp_no', 'is', null)
+        .or(`variant_name.ilike.%${vTerm}%,common_name.ilike.%${vTerm}%`)
+        .order('variant_name', { ascending: true })
+        .limit(25)
+      const parentIds = Array.from(new Set((vData || []).map(v => v.parent_sp_no)))
+      const { data: parents } = parentIds.length
+        ? await supabase.from('species').select('sp_no, species, species_family').in('sp_no', parentIds)
+        : { data: [] as any[] }
+      const parentBySpNo = new Map((parents || []).map(p => [p.sp_no, p]))
+      variantRows = (vData || []).map(v => ({
+        sp_no: v.sp_no,
+        species: v.variant_name,
+        common_name: v.common_name,
+        species_family: parentBySpNo.get(v.parent_sp_no)?.species_family ?? null,
+        research_status: null,
+        _isVariant: true,
+        _parentSpNo: v.parent_sp_no,
+        _parentName: parentBySpNo.get(v.parent_sp_no)?.species ?? null,
+      }))
+    }
+
     if (textRes.error) {
       setError(textRes.error.message)
     } else if (spNoRes.error) {
       setError(spNoRes.error.message)
     } else {
-      const merged = [...(spNoRes.data || []), ...(textRes.data || [])]
+      const merged = [...(spNoRes.data || []), ...variantRows, ...(textRes.data || [])]
       const seen = new Set<number>()
       const deduped = merged.filter(s => (seen.has(s.sp_no) ? false : (seen.add(s.sp_no), true)))
       setSpecies(deduped)
@@ -337,7 +369,7 @@ export default function SpeciesList() {
               </li>
             )}
           <li style={{ borderBottom: '1px solid #e5e7eb' }}>
-            <Link href={`/species/${s.sp_no}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', textDecoration: 'none' }}>
+            <Link href={`/species/${(s as any)._isVariant ? (s as any)._parentSpNo : s.sp_no}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', textDecoration: 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
                 {s.reference_photo && (
                   <img
@@ -351,6 +383,11 @@ export default function SpeciesList() {
                   <p style={{ fontSize: '13px', color: '#6b7280', margin: '2px 0 0 0' }}>
                     {s.common_name !== 'Unknown' ? s.common_name : ''}{s.species_family ? ` · ${s.species_family}` : ''}
                   </p>
+                  {(s as any)._isVariant && (
+                    <p style={{ fontSize: '12px', color: '#b45309', margin: '2px 0 0 0' }}>
+                      Cultivar / hybrid{(s as any)._parentName ? ` of ${(s as any)._parentName}` : ''} · opens parent species
+                    </p>
+                  )}
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', marginLeft: '8px', flexShrink: 0 }}>
@@ -365,9 +402,11 @@ export default function SpeciesList() {
                 {s.australian_native && (
                   <span style={{ fontSize: '11px', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '999px', whiteSpace: 'nowrap' }}>AU Native</span>
                 )}
-                <span style={{ fontSize: '11px', background: '#f3f4f6', color: '#6b7280', padding: '2px 8px', borderRadius: '999px', whiteSpace: 'nowrap' }}>
-                  {s.research_status || 'Not Started'}
-                </span>
+                {!(s as any)._isVariant && (
+                  <span style={{ fontSize: '11px', background: '#f3f4f6', color: '#6b7280', padding: '2px 8px', borderRadius: '999px', whiteSpace: 'nowrap' }}>
+                    {s.research_status || 'Not Started'}
+                  </span>
+                )}
               </div>
             </Link>
           </li>
