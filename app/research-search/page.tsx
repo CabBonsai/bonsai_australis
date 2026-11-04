@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
-type SpeciesResult = { sp_no: number; species: string; species_genus: string; common_name: string | null };
+type SpeciesResult = { sp_no: number; species: string; species_genus: string; common_name: string | null; kind?: 'species' | 'variant' };
 type VariantResult = { sp_no: number; variant_name: string; common_name: string | null; botanical_rank: string | null; is_deprecated: boolean };
 type Topic = { id: string; label: string };
 type Section = { table: string; data: Record<string, unknown> | null; inheritedFields?: string[]; error: string | null };
@@ -52,6 +52,11 @@ export default function ResearchSearchPage() {
     setSpeciesResults([]);
     setQuery(s.species);
     setContent(null);
+    // A cultivar/hybrid picked straight from the search results is its own sp_no: no parent dropdown needed.
+    if (s.kind === 'variant') {
+      setVariants([]);
+      return;
+    }
     fetch(`/api/research-search?mode=variants&sp_no=${s.sp_no}`)
       .then((r) => r.json())
       .then((d) => setVariants(d.results ?? []));
@@ -116,12 +121,13 @@ export default function ResearchSearchPage() {
           >
             {speciesResults.map((s) => (
               <li
-                key={s.sp_no}
+                key={`${s.kind ?? 'species'}-${s.sp_no}`}
                 onClick={() => pickSpecies(s)}
                 style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid #eee' }}
               >
                 <strong>{s.species}</strong>
                 {s.common_name ? ` — ${s.common_name}` : ''} <span style={{ color: '#888' }}>({s.species_genus})</span>
+                {s.kind === 'variant' && <span style={{ color: '#D9A02B', marginLeft: 6, fontSize: 12 }}>cultivar / hybrid</span>}
               </li>
             ))}
           </ul>

@@ -138,14 +138,37 @@ export async function GET(req: NextRequest) {
   if (mode === 'species') {
     const q = (searchParams.get('q') || '').trim();
     if (q.length < 2) return NextResponse.json({ results: [] });
-    const { data, error } = await supabaseServer
-      .from('species')
-      .select('sp_no, species, species_genus, common_name')
-      .or(`species.ilike.%${q}%,common_name.ilike.%${q}%`)
-      .order('species')
-      .limit(25);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ results: data });
+    // Commas and parentheses break PostgREST's or() filter syntax, so strip them from the term.
+    const term = q.replace(/[,()]/g, ' ').trim();
+    if (term.length < 2) return NextResponse.json({ results: [] });
+    // Cultivars and hybrids live in `variants`, so search them too: otherwise a cultivar name
+    // (e.g. Okame) or a common name only found on a variant can't be located without leaving the app.
+    const [speciesRes, variantsRes] = await Promise.all([
+      supabaseServer
+        .from('species')
+        .select('sp_no, species, species_genus, common_name')
+        .or(`species.ilike.%${term}%,common_name.ilike.%${term}%`)
+        .order('species')
+        .limit(25),
+      supabaseServer
+        .from('variants')
+        .select('sp_no, variant_name, common_name, parent_sp_no')
+        .eq('is_deprecated', false)
+        .or(`variant_name.ilike.%${term}%,common_name.ilike.%${term}%`)
+        .order('variant_name')
+        .limit(25),
+    ]);
+    if (speciesRes.error) return NextResponse.json({ error: speciesRes.error.message }, { status: 500 });
+    if (variantsRes.error) return NextResponse.json({ error: variantsRes.error.message }, { status: 500 });
+    const speciesResults = (speciesRes.data ?? []).map((s) => ({ ...s, kind: 'species' as const }));
+    const variantResults = (variantsRes.data ?? []).map((v) => ({
+      sp_no: v.sp_no,
+      species: v.variant_name,
+      species_genus: String(v.variant_name).split(' ')[0],
+      common_name: v.common_name,
+      kind: 'variant' as const,
+    }));
+    return NextResponse.json({ results: [...speciesResults, ...variantResults] });
   }
 
   // ---- mode=variants: populate the second dropdown once a species is picked ----
