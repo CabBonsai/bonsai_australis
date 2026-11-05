@@ -2,7 +2,14 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { ZONES, ZONE_CODES, ZONE_DESCRIPTIONS } from '@/lib/wateringZones';
+import { ZONES, ZONE_CODES, ZONE_DESCRIPTIONS, mistStatus } from '@/lib/wateringZones';
+
+const MIST_BADGE: Record<string, string> = {
+  ok: 'bg-green-50 text-green-700 border-green-200',
+  optional: 'bg-gray-50 text-gray-600 border-gray-200',
+  flowers: 'bg-amber-50 text-amber-700 border-amber-200',
+  no: 'bg-red-50 text-red-700 border-red-200',
+};
 
 // Formal zone names (Zone A-H) are a display-layer convention only — the underlying
 // collection.watering_zone column still stores the original descriptive label
@@ -136,6 +143,12 @@ export default function WateringZonesPage() {
             <span className="font-semibold">Unassigned</span> — no zone set yet
           </div>
         </div>
+        <div className="mt-3 pt-2 border-t text-xs text-gray-600">
+          <span className="font-semibold">Mist column</span> (hot-afternoon misting as a backup to hand
+          watering; it does not replace root watering): <b>Mist OK</b> zones A–C;{' '}
+          <b>Optional</b> zone D; <b>Mist, flowers dry</b> Callistemon; <b>No mist</b> zones E–H, unassigned,
+          Banksia and Melaleuca fulgens. Rule-based from the zone guide, so it follows zone changes.
+        </div>
       </div>
 
       {error && (
@@ -230,6 +243,7 @@ function ZoneSection({
               <th className="px-3 py-2 font-medium">Species</th>
               <th className="px-3 py-2 font-medium">Common Name</th>
               <th className="px-3 py-2 font-medium">Zone</th>
+              <th className="px-3 py-2 font-medium">Mist</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -261,6 +275,19 @@ function ZoneSection({
                   {savingTree === t.tree_number && (
                     <span className="ml-2 text-xs text-gray-400 no-print">saving…</span>
                   )}
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  {(() => {
+                    const m = mistStatus(t.watering_zone, t.species, t.display_name);
+                    return (
+                      <span
+                        title={m.reason}
+                        className={`inline-block border rounded px-2 py-0.5 text-xs ${MIST_BADGE[m.level]}`}
+                      >
+                        {m.label}
+                      </span>
+                    );
+                  })()}
                 </td>
               </tr>
             ))}
