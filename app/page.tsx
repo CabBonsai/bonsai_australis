@@ -163,10 +163,39 @@ export default function Home() {
           .select('sp_no, species, common_name')
           .in('sp_no', promSpNos)
         ;(promSpeciesData || []).forEach((s: any) => { promSpeciesMap[s.sp_no] = s })
+
+        // Cultivars/hybrids have their own sp_no in `variants`, not `species`.
+        // Look those up too so they show a name (and link to the parent
+        // species page) instead of "Unknown species".
+        const missing = promSpNos.filter((n: any) => !promSpeciesMap[n])
+        if (missing.length > 0) {
+          const { data: promVariantData } = await supabase
+            .from('variants')
+            .select('sp_no, variant_name, common_name, parent_sp_no')
+            .in('sp_no', missing)
+          const parentNos = [...new Set((promVariantData || []).map((v: any) => v.parent_sp_no).filter(Boolean))]
+          let parentMap: Record<number, any> = {}
+          if (parentNos.length > 0) {
+            const { data: parentData } = await supabase
+              .from('species')
+              .select('sp_no, species')
+              .in('sp_no', parentNos)
+            ;(parentData || []).forEach((s: any) => { parentMap[s.sp_no] = s })
+          }
+          ;(promVariantData || []).forEach((v: any) => {
+            const parentName = parentMap[v.parent_sp_no]?.species
+            promSpeciesMap[v.sp_no] = {
+              sp_no: v.sp_no,
+              species: parentName ? `${parentName} '${v.variant_name}'` : v.variant_name,
+              common_name: v.common_name,
+              link_sp_no: v.parent_sp_no || v.sp_no,
+            }
+          })
+        }
       }
 
       setPromisingSpecies(promisingData.map((p: any) => ({
-        sp_no: p.sp_no,
+        sp_no: promSpeciesMap[p.sp_no]?.link_sp_no ?? p.sp_no,
         species: promSpeciesMap[p.sp_no]?.species || 'Unknown species',
         common_name: promSpeciesMap[p.sp_no]?.common_name || '',
         research_notes: p.research_notes || '',
