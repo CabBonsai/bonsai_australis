@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const covers = request.nextUrl.searchParams.get('covers') === '0' ? '0' : '1';
   const report = request.nextUrl.searchParams.get('report') === '0' ? '0' : '1';
   const cookie = request.cookies.get('admin_auth')?.value;
-  if (!cookie) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  // Access is already enforced by middleware.ts; the cookie is only forwarded to the page we render.
 
   // PDF_RENDER_ORIGIN lets a local test point at the dev server; otherwise render via this deployment.
   const origin = process.env.PDF_RENDER_ORIGIN || request.nextUrl.origin;
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const page = await browser.newPage();
     await page.setViewport({ width: 794, height: 1123 });
     const host = new URL(origin);
-    await page.setCookie({ name: 'admin_auth', value: cookie, domain: host.hostname, path: '/' });
+    if (cookie) await page.setCookie({ name: 'admin_auth', value: cookie, domain: host.hostname, path: '/' });
     await page.goto(`${origin}/booklets?print=${spNo}&covers=${covers}&report=${report}`, {
       waitUntil: 'networkidle0',
       timeout: 45000,
