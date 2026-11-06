@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { INTERNAL_WORDING } from '@/lib/advancedReport';
+import { INTERNAL_WORDING, PRINT_BLOCK, PRINT_ROWS, isPrintable } from '@/lib/advancedReport';
 
 type SpeciesResult = { sp_no: number; species: string; species_genus: string; common_name: string | null };
 type BookletListItem = {
@@ -146,34 +146,40 @@ function AdvancedReport({ report }: { report: Report }) {
         <div className="chapter-eyebrow">PART TWO</div>
         <h1 className="chapter-title">Advanced Species Report</h1>
         <div className="chapter-latin">
-          {report.species.name} &middot; sp_no {report.species.sp_no}
+          {report.species.name}<span className="no-print"> &middot; sp_no {report.species.sp_no}</span>
         </div>
         <p className="report-disclaimer">
           This information is provided for discussion and research purposes only and does not constitute professional
           horticultural, arboricultural, or bonsai advice. Always verify against multiple sources before acting.
         </p>
       </header>
-      {report.sections.map((sec) => (
-        <div key={sec.id} className="report-section">
-          <h2 className="report-band">{sec.title}</h2>
-          {sec.rows.map((row) => {
-            const flagged = row.value ? INTERNAL_WORDING.test(row.value) : false;
-            return (
-              <div key={row.label} className={`report-row${(row.value?.length ?? 0) < 450 ? ' short' : ''}`}>
-                <div className="report-label">{row.label}</div>
-                <div className="report-value">
-                  {row.value}
-                  {flagged && (
-                    <span className="no-print internal-flag" title="Contains project-internal wording - reword in the database before publishing">
-                      {' '}internal wording
-                    </span>
-                  )}
+      {report.sections.map((sec) => {
+        const anyPrint = sec.rows.some((r) => isPrintable(sec.id, r.label, r.value));
+        return (
+          <div key={sec.id} className={`report-section${anyPrint ? '' : ' no-print'}`}>
+            <h2 className="report-band">{sec.title}</h2>
+            {sec.rows.map((row) => {
+              const printable = isPrintable(sec.id, row.label, row.value);
+              const held = !!row.value && PRINT_ROWS[sec.id] !== undefined && !printable &&
+                (PRINT_ROWS[sec.id] === 'all' || (PRINT_ROWS[sec.id] as string[]).includes(row.label));
+              const flagged = row.value ? INTERNAL_WORDING.test(row.value) || PRINT_BLOCK.test(row.value) : false;
+              return (
+                <div key={row.label} className={`report-row${(row.value?.length ?? 0) < 450 ? ' short' : ''}${printable ? '' : ' no-print not-printed'}`}>
+                  <div className="report-label">{row.label}</div>
+                  <div className="report-value">
+                    {row.value}
+                    {!printable && (
+                      <span className="no-print internal-flag" title="Rows with internal wording are held back from print until reworded in the database">
+                        {held || flagged ? ' held back: internal wording' : ' not printed'}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      ))}
+              );
+            })}
+          </div>
+        );
+      })}
     </section>
   );
 }
@@ -685,6 +691,7 @@ export default function BookletsPage() {
         }
         .report-label { flex: 0 0 34%; box-sizing: border-box; color: var(--bk-green); font-weight: 600; overflow-wrap: break-word; }
         .report-value { flex: 1 1 auto; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .not-printed { opacity: 0.55; }
         .internal-flag {
           display: inline-block;
           font-size: 10px;
