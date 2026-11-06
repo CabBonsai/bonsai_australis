@@ -261,6 +261,49 @@ export const SUITABILITY_FIELDS =
 // automatically - the database text is the source of truth.
 export const INTERNAL_WORDING = /\b(session\s*\d+|REVISED|CORRECTED|owner'?s standard|Family Default|genus-inferred|research_notes|sp_no|\w+_\w+\.\w+|\w+\.\w+_\w+)\b|\b[a-z]+(?:_[a-z]+){1,}\b/i;
 
+// What actually PRINTS in Part Two (and in the downloaded PDF). The Studio screen still shows every
+// field so gaps and problems are visible, but only the rows listed here are printed, and any of those
+// whose text still contains working-note wording (PRINT_BLOCK) is held back until it is reworded.
+// Sections not listed (Advanced & Expert, Propagation, long free-text notes) never print.
+// A section with no label list prints every row it has (Bonsai Suitability Profile).
+export const PRINT_ROWS: Record<string, string[] | 'all'> = {
+  species_info: ['Genus', 'Family', 'Pure Species / AU Native', 'Origin', 'Natural Habitat'],
+  suitability: 'all',
+  care_guide: [
+    'Growth Season', 'Watering', 'Watering (Summer)', 'Watering (Winter)', 'Sun / Light', 'Fertilising',
+    'Best Fertiliser (AU)', 'Repotting', 'Best Soil Mix', 'Pests & Diseases', 'Frost Risk', 'Min Temp (°C)',
+    'Pruning Season', 'Repotting Season', 'Repotting Frequency (yrs)',
+  ],
+  toxicity: ['Toxicity Level', 'Toxic to Humans', 'Toxic to Pets', 'Toxic to Livestock', 'Toxic Parts', 'Symptoms'],
+  fertilisation: ['P Tolerance', 'N Requirement', 'Preferred Types', 'Avoid', 'Recommended Products'],
+  pruning: ['Core Rules', 'Structural Timing', 'Structural Limits', 'Maintenance Timing', 'Common Mistakes'],
+  nebari: [
+    'Root Architecture', 'Natural Nebari Form', 'Taproot Removal Tolerance', 'Root Reduction Tolerance',
+    'Typical Faults', 'Preferred Pot Depth', 'Preferred Pot Width',
+  ],
+  seasonal: ['Spring', 'Summer', 'Autumn', 'Winter', 'General Notes'],
+  regional: ['Tropical', 'Subtropical', 'Temperate', 'Cold', 'Cold Risk', 'Availability (Australia)'],
+  placement: [
+    'Full Sun (A)', 'Morning Sun (B)', 'Dappled Shade (C)', 'Full Sun, Windy (D)',
+    'Variable, Cold Drainage (E)', 'Variable, Sheltered (F)', 'Full Shade (G)',
+  ],
+  bark: ['Bark Texture', 'Natural Character', 'Ultimate Quality', 'Expected Mature Form'],
+  taper: ['Natural Taper', 'Trunk Movement'],
+  pot_style: ['Pot Colour', 'Pot Texture', 'Pot Shape', 'Pot Depth', 'Glazed or Unglazed', 'Recommended Style', 'Companion Plants'],
+};
+
+// Working-note wording that must not reach a buyer: held back from print (not deleted).
+export const PRINT_BLOCK =
+  /\b(this session|earlier this session|session\s*\d+|owner|flagged|care_guide|BAMSR|sp_no|research_notes|needs[_ ]verification|genus-inferred|Family Default|Provisional|Verified|REVISED|CORRECTED|unverified)\b|\b[a-z]+(?:_[a-z]+)+\b|\w+\.\w+_\w+/i;
+
+export function isPrintable(sectionId: string, label: string, value: string | null | undefined): boolean {
+  if (!value) return false;
+  const allow = PRINT_ROWS[sectionId];
+  if (!allow) return false;
+  if (allow !== 'all' && !allow.includes(label)) return false;
+  return !PRINT_BLOCK.test(value);
+}
+
 export function formatValue(v: unknown): string | null {
   if (v === null || v === undefined) return null;
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
