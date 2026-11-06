@@ -39,6 +39,34 @@ export async function GET(request: NextRequest) {
     await page.waitForSelector('[data-print-ready="1"]', { timeout: 30000 });
     await page.evaluate(() => document.fonts.ready);
     await page.emulateMediaType('print');
+    // Avoid a stray, almost-empty page when Part One runs just over a page boundary: measure the
+    // chapter at the printed text width and, only if its last page would hold a few lines, tighten
+    // the spacing very slightly (never more than ~8%) so it fits on the pages before it.
+    await page.setViewport({ width: 665, height: 1123 }); // A4 less 17mm side margins, in CSS px
+    await page.evaluate(() => {
+      const header = document.querySelector('.chapter-header:not(.report-start)') as HTMLElement | null;
+      const text = document.querySelector('.chapter-text') as HTMLElement | null;
+      if (!header || !text) return;
+      const PAGE = (297 - 16 - 18) * 3.7795; // printable height of one page in CSS px
+      // Real page breaks waste a few percent (headings are kept with their text, widows/orphans), so
+      // the continuous-flow height is scaled up by an allowance before counting pages.
+      const LOSS = 1.05;
+      const measure = () => (text.getBoundingClientRect().bottom - header.getBoundingClientRect().top) * LOSS;
+      const cs = getComputedStyle(text);
+      const baseLh = parseFloat(cs.lineHeight) / parseFloat(cs.fontSize) || 1.7;
+      const H0 = measure();
+      const n = Math.ceil(H0 / PAGE);
+      const tail = H0 - (n - 1) * PAGE;
+      if (n < 2 || tail > 0.3 * PAGE) return; // fine as it is
+      for (let f = 0.99; f >= 0.92; f -= 0.01) {
+        text.style.setProperty('--fit', String(f));
+        text.style.lineHeight = String(baseLh * f);
+        if (measure() <= (n - 1) * PAGE * 0.99) return; // fits with a little headroom
+      }
+      text.style.removeProperty('--fit'); // could not fit within 8%: leave it alone
+      text.style.lineHeight = '';
+    });
+    await page.setViewport({ width: 794, height: 1123 });
     const title = await page.title();
     const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
     const name = (title || `booklet-${spNo}`).replace(/[^A-Za-z0-9 _-]+/g, '').trim().replace(/\s+/g, '_') || `booklet-${spNo}`;
