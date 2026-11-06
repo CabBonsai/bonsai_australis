@@ -669,8 +669,7 @@ export default function BookletsPage() {
         /* Rows are a two-column flex layout: a fixed-width label and a value column that is allowed to
            shrink (min-width: 0) and break long words. The earlier floated-label layout let a value
            run past the right edge of the printed page, where the print engine clipped it mid-word.
-           Each row is kept whole on a page; every row is far shorter than a page, so this cannot
-           trigger the truncate-the-rest-of-the-document failure described in the print rules. */
+           Long rows are allowed to split across pages (see .report-row below). */
         .report-row {
           display: flex;
           gap: 18px;
@@ -678,8 +677,11 @@ export default function BookletsPage() {
           border-bottom: 1px solid var(--bk-hair);
           font-size: 14px;
           line-height: 1.6;
-          break-inside: avoid;
-          page-break-inside: avoid;
+          /* Long rows (Species Notes runs most of a page) may split across pages; keeping them whole
+             left a big empty gap on the first Part Two page. orphans/widows stop one-line stragglers. */
+          break-inside: auto;
+          orphans: 3;
+          widows: 3;
         }
         .report-label { flex: 0 0 34%; box-sizing: border-box; color: var(--bk-green); font-weight: 600; overflow-wrap: break-word; }
         .report-value { flex: 1 1 auto; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
