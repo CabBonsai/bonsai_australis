@@ -606,11 +606,11 @@ export default function BookletsPage() {
           font-size: 24px;
           font-weight: 700;
           color: var(--bk-green);
-          margin: 34px 0 14px;
+          margin: calc(34px * var(--fit, 1)) 0 calc(14px * var(--fit, 1));
           padding-bottom: 6px;
           border-bottom: 1px solid var(--bk-hair);
         }
-        .chapter-text p { margin: 0 0 14px; }
+        .chapter-text p { margin: 0 0 calc(14px * var(--fit, 1)); }
         .chapter-text hr { border: none; border-top: 1px solid var(--bk-hair); margin: 32px 0; }
         .chapter-text strong { color: var(--bk-ink); }
 
