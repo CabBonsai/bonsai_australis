@@ -298,7 +298,7 @@ export default function BookletsPage() {
   }, []);
 
   return (
-    <div style={{ maxWidth: view === 'editor' ? '1400px' : '900px', margin: '0 auto', padding: '16px' }}>
+    <div className="booklet-shell" style={{ maxWidth: view === 'editor' ? '1400px' : '900px', margin: '0 auto', padding: '16px' }}>
       <div style={{ marginBottom: '4px' }} className="no-print">
         {view === 'editor' ? (
           <button
@@ -688,6 +688,7 @@ export default function BookletsPage() {
           .no-print { display: none !important; }
           .editor-flex-container {
             display: block !important;
+            margin: 0 !important; /* the screen layout has a top margin that pushed the cover down 4mm */
           }
           .editor-column {
             width: 100% !important;
@@ -716,22 +717,32 @@ export default function BookletsPage() {
              Printing with the browser's "Save as PDF" destination keeps these exactly; the
              Windows "Microsoft Print to PDF" printer ignores several of them. */
           html, body { background: #FBF7EC !important; }
+          /* The root layout makes <body> a flex column, and this wrapper centres itself with
+             margin: auto, which makes a flex item shrink to fit its widest content. A fixed-width
+             child (the 210mm cover) or a long line then widened the whole wrapper past the page,
+             and the print engine clipped everything beyond the right edge. Print as plain
+             full-width blocks instead. */
+          body { display: block !important; margin: 0 !important; }
+          .booklet-shell {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
           /* Cover and closing pages are edge to edge A4 with no margin and no page number. */
           .booklet-page {
             page: fullbleed;
             width: 210mm;
-            height: 297mm;
+            height: 296.8mm; /* a hair under the page so rounding can never spill a blank page */
             aspect-ratio: auto;
             border-radius: 0;
             margin: 0;
-            break-before: page;
-            break-after: page;
+            overflow: hidden;
           }
-          .booklet-cover { break-before: auto; }
-          .booklet-closing { break-after: auto; }
           @page fullbleed {
             size: A4;
             margin: 0;
+            background: #1f1f22;
             @bottom-center { content: none; }
           }
           @page {
