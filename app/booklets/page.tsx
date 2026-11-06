@@ -117,6 +117,25 @@ function ChapterBody({ content, fallbackTitle, latinName }: { content: string; f
   );
 }
 
+// Cover and closing pages. The artwork is a fixed image (public/booklet) with the chapter line left
+// blank; the line is real text laid over it, so every booklet gets its own species name without a
+// new picture. The closing page is one fixed image. Sizes use container units so the lettering
+// scales with the page on screen and in print.
+function BookletCover({ line }: { line: string }) {
+  const text = `Chapter: ${line}`;
+  // 4.35cqw fits a 31-character line; longer names shrink to stay inside the gold rule.
+  const size = Math.min(4.35, (4.35 * 31) / Math.max(text.length, 1));
+  return (
+    <div className="booklet-page booklet-cover" role="img" aria-label={`Cover: ${text}`}>
+      <div className="booklet-cover-line" style={{ fontSize: `${size}cqw` }}>{text}</div>
+    </div>
+  );
+}
+
+function BookletClosing() {
+  return <div className="booklet-page booklet-closing" role="img" aria-label="Closing page" />;
+}
+
 // Part Two: "Advanced Species Report" - built from the database, never typed by hand. Rows whose
 // text still contains project-internal wording are marked (screen only, never printed) so they can
 // be reworded in the database before the chapter is published.
@@ -175,6 +194,7 @@ export default function BookletsPage() {
   const [reference, setReference] = useState<{ species: SpeciesResult; categories: ReferenceCategory[] } | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [includeReport, setIncludeReport] = useState(true);
+  const [includeCovers, setIncludeCovers] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
@@ -452,6 +472,10 @@ export default function BookletsPage() {
                 <input type="checkbox" checked={includeReport} onChange={(e) => setIncludeReport(e.target.checked)} />
                 Include Advanced Species Report
               </label>
+              <label style={{ fontSize: '12px', color: '#555', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input type="checkbox" checked={includeCovers} onChange={(e) => setIncludeCovers(e.target.checked)} />
+                Cover &amp; closing pages
+              </label>
               <button
                 onClick={printBooklet}
                 style={{ padding: '6px 14px', background: '#55702A', color: '#FBF7EC', border: 'none', borderRadius: 4, cursor: 'pointer' }}
@@ -477,6 +501,9 @@ export default function BookletsPage() {
 
             {editorMode === 'preview' && (
               <div id="booklet-preview" className="booklet-preview">
+                {includeCovers && (
+                  <BookletCover line={reference?.species.species ?? report?.species.name ?? booklet?.title ?? ''} />
+                )}
                 <ChapterBody
                   content={booklet?.content ?? ''}
                   fallbackTitle={booklet?.title ?? ''}
@@ -487,6 +514,7 @@ export default function BookletsPage() {
                   &copy; {new Date().getFullYear()} Bonsai Australis. All rights reserved. This booklet may not be
                   reproduced or redistributed without permission.
                 </div>
+                {includeCovers && <BookletClosing />}
               </div>
             )}
           </div>
@@ -494,7 +522,7 @@ export default function BookletsPage() {
       )}
 
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=Cinzel:wght@600&display=swap');
 
         /* Chapter + report styling follows chapter-01-queensland-bottle-tree-REFERENCE.pdf.
            Tokens first so the whole look can be re-themed in one place. */
@@ -553,6 +581,42 @@ export default function BookletsPage() {
         .chapter-text p { margin: 0 0 14px; }
         .chapter-text hr { border: none; border-top: 1px solid var(--bk-hair); margin: 32px 0; }
         .chapter-text strong { color: var(--bk-ink); }
+
+        /* Cover and closing pages */
+        .booklet-page {
+          container-type: inline-size;
+          position: relative;
+          width: 100%;
+          aspect-ratio: 210 / 297;
+          background-color: #1f1f22;
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          border-radius: 4px;
+          margin: 0 auto 28px;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .booklet-cover { background-image: url('/booklet/cover-blank.jpg'); }
+        .booklet-closing { background-image: url('/booklet/closing.jpg'); margin: 28px auto 0; }
+        .booklet-cover-line {
+          position: absolute;
+          left: 11%;
+          width: 80.6%;
+          top: 71.8%;
+          transform: translateY(-50%);
+          text-align: center;
+          white-space: nowrap;
+          text-transform: capitalize;
+          font-family: 'Cinzel', Georgia, serif;
+          font-weight: 600;
+          line-height: 1.2;
+          background: linear-gradient(180deg, #e9c880 0%, #cf9c3f 50%, #a4731f 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.55));
+        }
 
         /* Part Two */
         .report { margin-top: 56px; }
@@ -652,6 +716,24 @@ export default function BookletsPage() {
              Printing with the browser's "Save as PDF" destination keeps these exactly; the
              Windows "Microsoft Print to PDF" printer ignores several of them. */
           html, body { background: #FBF7EC !important; }
+          /* Cover and closing pages are edge to edge A4 with no margin and no page number. */
+          .booklet-page {
+            page: fullbleed;
+            width: 210mm;
+            height: 297mm;
+            aspect-ratio: auto;
+            border-radius: 0;
+            margin: 0;
+            break-before: page;
+            break-after: page;
+          }
+          .booklet-cover { break-before: auto; }
+          .booklet-closing { break-after: auto; }
+          @page fullbleed {
+            size: A4;
+            margin: 0;
+            @bottom-center { content: none; }
+          }
           @page {
             size: A4;
             margin: 16mm 17mm 18mm;
