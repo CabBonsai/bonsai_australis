@@ -195,6 +195,10 @@ export default function BookletsPage() {
   const [report, setReport] = useState<Report | null>(null);
   const [includeReport, setIncludeReport] = useState(true);
   const [includeCovers, setIncludeCovers] = useState(true);
+  // Set when the server-side PDF renderer opens /booklets?print=<sp_no>: load that booklet's
+  // preview, skip autosave, and flag when everything has loaded so the renderer knows to print.
+  const [printMode, setPrintMode] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
@@ -209,6 +213,19 @@ export default function BookletsPage() {
   useEffect(() => {
     loadList();
   }, [loadList]);
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const sp = Number(q.get('print'));
+    if (Number.isInteger(sp) && sp > 0) {
+      setPrintMode(true);
+      setEditorMode('preview');
+      setIncludeCovers(q.get('covers') !== '0');
+      setIncludeReport(q.get('report') !== '0');
+      openBooklet(sp);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (query.trim().length < 2) {
@@ -229,6 +246,7 @@ export default function BookletsPage() {
     setBooklet(null);
     setReference(null);
     setReport(null);
+    setReportDone(false);
     setQuery('');
     setSpeciesResults([]);
 
@@ -242,7 +260,9 @@ export default function BookletsPage() {
 
     fetch(`/api/booklets?mode=report&sp_no=${spNo}`)
       .then((r) => r.json())
-      .then((d) => setReport(d.sections ? d : null));
+      .then((d) => setReport(d.sections ? d : null))
+      .catch(() => setReport(null))
+      .finally(() => setReportDone(true));
   }, []);
 
   const saveBooklet = useCallback(
@@ -266,7 +286,7 @@ export default function BookletsPage() {
 
   // Debounced autosave for the content textarea
   useEffect(() => {
-    if (!booklet) return;
+    if (!booklet || printMode) return;
     const handle = setTimeout(() => {
       saveBooklet({ content: booklet.content });
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -476,6 +496,12 @@ export default function BookletsPage() {
                 <input type="checkbox" checked={includeCovers} onChange={(e) => setIncludeCovers(e.target.checked)} />
                 Cover &amp; closing pages
               </label>
+              <a
+                href={`/api/booklets/pdf?sp_no=${activeSpNo ?? ''}&covers=${includeCovers ? 1 : 0}&report=${includeReport ? 1 : 0}`}
+                style={{ padding: '6px 14px', background: '#2E2510', color: '#FBF7EC', border: 'none', borderRadius: 4, textDecoration: 'none', fontSize: '13.33px' }}
+              >
+                Download PDF
+              </a>
               <button
                 onClick={printBooklet}
                 style={{ padding: '6px 14px', background: '#55702A', color: '#FBF7EC', border: 'none', borderRadius: 4, cursor: 'pointer' }}
@@ -500,7 +526,7 @@ export default function BookletsPage() {
             )}
 
             {editorMode === 'preview' && (
-              <div id="booklet-preview" className="booklet-preview">
+              <div id="booklet-preview" className="booklet-preview" data-print-ready={booklet && reference && reportDone ? '1' : '0'}>
                 {includeCovers && (
                   <BookletCover line={reference?.species.species ?? report?.species.name ?? booklet?.title ?? ''} />
                 )}
