@@ -576,22 +576,23 @@ export default function BookletsPage() {
           break-after: avoid;
           page-break-after: avoid;
         }
-        /* Rows use normal block flow with a floated label rather than CSS grid: grid items do not
-           fragment across printed pages in WebKit/Chrome, which sliced lines in half at page edges.
-           Short rows are kept whole; long rows (e.g. Refinement Method) flow across pages normally,
-           because forcing a taller-than-page block to stay together is what truncates printing. */
+        /* Rows are a two-column flex layout: a fixed-width label and a value column that is allowed to
+           shrink (min-width: 0) and break long words. The earlier floated-label layout let a value
+           run past the right edge of the printed page, where the print engine clipped it mid-word.
+           Each row is kept whole on a page; every row is far shorter than a page, so this cannot
+           trigger the truncate-the-rest-of-the-document failure described in the print rules. */
         .report-row {
-          display: flow-root;
+          display: flex;
+          gap: 18px;
           padding: 9px 0;
           border-bottom: 1px solid var(--bk-hair);
           font-size: 14px;
           line-height: 1.6;
-          orphans: 3;
-          widows: 3;
+          break-inside: avoid;
+          page-break-inside: avoid;
         }
-        .report-row.short { break-inside: avoid; page-break-inside: avoid; }
-        .report-label { float: left; width: 34%; padding-right: 18px; box-sizing: border-box; color: var(--bk-green); font-weight: 600; }
-        .report-value { margin-left: 34%; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .report-label { flex: 0 0 34%; box-sizing: border-box; color: var(--bk-green); font-weight: 600; overflow-wrap: break-word; }
+        .report-value { flex: 1 1 auto; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
         .internal-flag {
           display: inline-block;
           font-size: 10px;
@@ -647,8 +648,20 @@ export default function BookletsPage() {
              paragraph split across two pages looks slightly less polished than one that
              doesn't, but a document that silently stops halfway through is a much worse
              outcome, and it's exactly what was happening. */
+          /* A4, cream paper edge to edge, and a page number at the foot of each page.
+             Printing with the browser's "Save as PDF" destination keeps these exactly; the
+             Windows "Microsoft Print to PDF" printer ignores several of them. */
+          html, body { background: #FBF7EC !important; }
           @page {
-            margin: 0.75in;
+            size: A4;
+            margin: 16mm 17mm 18mm;
+            background: #FBF7EC;
+            @bottom-center {
+              content: counter(page);
+              font-family: 'IBM Plex Sans', sans-serif;
+              font-size: 8pt;
+              color: #8A7F63;
+            }
           }
         }
       `}</style>
