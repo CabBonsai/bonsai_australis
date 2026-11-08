@@ -48,6 +48,14 @@ function renderMarkdown(md: string): string {
   const lines = md.split('\n');
   const html: string[] = [];
   let paragraph: string[] = [];
+  let list: { tag: 'ul' | 'ol'; items: string[] } | null = null;
+
+  const flushList = () => {
+    if (list) {
+      html.push(`<${list.tag}>${list.items.map((i) => `<li>${inlineFormat(i)}</li>`).join('')}</${list.tag}>`);
+      list = null;
+    }
+  };
 
   const flushParagraph = () => {
     if (paragraph.length) {
@@ -67,6 +75,17 @@ function renderMarkdown(md: string): string {
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
+    const bullet = line.match(/^[-*] +(.+)$/);
+    const numbered = line.match(/^\d+[.)] +(.+)$/);
+    if (bullet || numbered) {
+      flushParagraph();
+      const tag = bullet ? 'ul' : 'ol';
+      if (list && list.tag !== tag) flushList();
+      if (!list) list = { tag, items: [] };
+      list.items.push((bullet || numbered)![1]);
+      continue;
+    }
+    flushList();
     if (line === '') {
       flushParagraph();
       continue;
@@ -89,6 +108,7 @@ function renderMarkdown(md: string): string {
     paragraph.push(line);
   }
   flushParagraph();
+  flushList();
   return html.join('\n');
 }
 
@@ -611,6 +631,10 @@ export default function BookletsPage() {
           border-bottom: 1px solid var(--bk-hair);
         }
         .chapter-text p { margin: 0 0 calc(14px * var(--fit, 1)); }
+        .chapter-text ul, .chapter-text ol { margin: 0 0 calc(14px * var(--fit, 1)); padding-left: 1.4em; }
+        .chapter-text li { margin: 0 0 calc(6px * var(--fit, 1)); }
+        .chapter-text ul { list-style: disc; }
+        .chapter-text ol { list-style: decimal; }
         .chapter-text hr { border: none; border-top: 1px solid var(--bk-hair); margin: 32px 0; }
         .chapter-text strong { color: var(--bk-ink); }
 
