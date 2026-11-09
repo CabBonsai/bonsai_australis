@@ -220,6 +220,7 @@ export default function BookletsPage() {
   const [reference, setReference] = useState<{ species: SpeciesResult; categories: ReferenceCategory[] } | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [includeReport, setIncludeReport] = useState(true);
+  const [printEdition, setPrintEdition] = useState(false); // A5 + page count padded to a multiple of 4
   const [includeCovers, setIncludeCovers] = useState(true);
   // Set when the server-side PDF renderer opens /booklets?print=<sp_no>: load that booklet's
   // preview, skip autosave, and flag when everything has loaded so the renderer knows to print.
@@ -522,8 +523,12 @@ export default function BookletsPage() {
                 <input type="checkbox" checked={includeCovers} onChange={(e) => setIncludeCovers(e.target.checked)} />
                 Cover &amp; closing pages
               </label>
+              <label style={{ fontSize: '12px', color: '#555', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input type="checkbox" checked={printEdition} onChange={(e) => setPrintEdition(e.target.checked)} />
+                Print edition (A5, pages in 4s)
+              </label>
               <a
-                href={`/api/booklets/pdf?sp_no=${activeSpNo ?? ''}&covers=${includeCovers ? 1 : 0}&report=${includeReport ? 1 : 0}`}
+                href={`/api/booklets/pdf?sp_no=${activeSpNo ?? ''}&covers=${includeCovers ? 1 : 0}&report=${includeReport ? 1 : 0}${printEdition ? '&size=a5&pad=1' : ''}`}
                 style={{ padding: '6px 14px', background: '#2E2510', color: '#FBF7EC', border: 'none', borderRadius: 4, textDecoration: 'none', fontSize: '13.33px' }}
               >
                 Download PDF

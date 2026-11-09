@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import chromium from '@sparticuz/chromium';
 import puppeteer from 'puppeteer-core';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 // Server-side booklet PDF. Opens the real Booklet Studio preview in headless Chromium and prints
 // it, so the file is identical on every device (iOS Safari ignores the print settings the page
@@ -15,6 +16,10 @@ export async function GET(request: NextRequest) {
   }
   const covers = request.nextUrl.searchParams.get('covers') === '0' ? '0' : '1';
   const report = request.nextUrl.searchParams.get('report') === '0' ? '0' : '1';
+  // size=a5 reflows the booklet onto A5 pages at the same type size (more pages than A4); pad=1 adds
+  // blank "Notes" pages before the closing page so the total is a multiple of 4 (saddle-stitch).
+  const a5 = request.nextUrl.searchParams.get('size') === 'a5';
+  const pad = request.nextUrl.searchParams.get('pad') === '1';
   const cookie = request.cookies.get('admin_auth')?.value;
   // Access is already enforced by middleware.ts; the cookie is only forwarded to the page we render.
 
@@ -39,15 +44,22 @@ export async function GET(request: NextRequest) {
     await page.waitForSelector('[data-print-ready="1"]', { timeout: 30000 });
     await page.evaluate(() => document.fonts.ready);
     await page.emulateMediaType('print');
+    if (a5) {
+      await page.addStyleTag({
+        content: `@page { size: A5; margin: 12mm 12mm 14mm; }
+          @page fullbleed { size: A5; margin: 0; }
+          .booklet-page { width: 148mm !important; height: 209.8mm !important; }`,
+      });
+    }
     // Avoid a stray, almost-empty page when Part One runs just over a page boundary: measure the
     // chapter at the printed text width and, only if its last page would hold a few lines, tighten
     // the spacing very slightly (never more than ~8%) so it fits on the pages before it.
-    await page.setViewport({ width: 665, height: 1123 }); // A4 less 17mm side margins, in CSS px
-    await page.evaluate(() => {
+    await page.setViewport({ width: a5 ? 469 : 665, height: a5 ? 794 : 1123 }); // page less side margins, in CSS px
+    await page.evaluate((isA5: boolean) => {
       const header = document.querySelector('.chapter-header:not(.report-start)') as HTMLElement | null;
       const text = document.querySelector('.chapter-text') as HTMLElement | null;
       if (!header || !text) return;
-      const PAGE = (297 - 16 - 18) * 3.7795; // printable height of one page in CSS px
+      const PAGE = (isA5 ? 210 - 12 - 14 : 297 - 16 - 18) * 3.7795; // printable height of one page in CSS px
       // Real page breaks waste a few percent (headings are kept with their text, widows/orphans), so
       // the continuous-flow height is scaled up by an allowance before counting pages.
       const LOSS = 1.05;
@@ -65,10 +77,24 @@ export async function GET(request: NextRequest) {
       }
       text.style.removeProperty('--fit'); // could not fit within 8%: leave it alone
       text.style.lineHeight = '';
-    });
+    }, a5);
     await page.setViewport({ width: 794, height: 1123 });
     const title = await page.title();
-    const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+    let pdf: Uint8Array = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+    if (pad) {
+      const doc = await PDFDocument.load(pdf);
+      const font = await doc.embedFont(StandardFonts.HelveticaOblique);
+      const missing = (4 - (doc.getPageCount() % 4)) % 4;
+      const at = covers === '1' && doc.getPageCount() > 1 ? doc.getPageCount() - 1 : doc.getPageCount();
+      for (let i = 0; i < missing; i++) {
+        const ref = doc.getPage(Math.min(1, doc.getPageCount() - 1));
+        const { width, height } = ref.getSize();
+        const blank = doc.insertPage(at + i, [width, height]);
+        blank.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.984, 0.969, 0.925) });
+        blank.drawText('Notes', { x: width * 0.12, y: height * 0.9, size: 14, font, color: rgb(0.54, 0.5, 0.39) });
+      }
+      pdf = await doc.save();
+    }
     const name = (title || `booklet-${spNo}`).replace(/[^A-Za-z0-9 _-]+/g, '').trim().replace(/\s+/g, '_') || `booklet-${spNo}`;
     return new NextResponse(Buffer.from(pdf), {
       headers: {
