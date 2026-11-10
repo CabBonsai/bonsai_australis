@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { displayPhoto } from '@/lib/treePhoto'
 
 const inputClass = "w-full border rounded px-4 py-3 text-base min-h-[48px]"
 
@@ -50,7 +51,7 @@ export default function GalleryAdmin() {
 
     const { data: treeData, error: treeError } = await supabase
       .from('collection')
-      .select('collection_id, sp_no, tree_number, display_name, tree_name, variation_or_cultivar, image_url, photo_1, photo_2, photo_3, inspiration_photo, location')
+      .select('collection_id, sp_no, tree_number, display_name, tree_name, variation_or_cultivar, image_url, photo_1, photo_2, photo_3, inspiration_photo, location, status, health_status')
       .order('tree_number', { ascending: false, nullsFirst: false })
 
     if (treeError) {
@@ -153,7 +154,7 @@ export default function GalleryAdmin() {
                 <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">{section.heading}</h2>
                 <div className="space-y-2">
                   {section.trees.map(tree => {
-                    const thumb = tree.image_url || tree.photo_1 || tree.photo_2 || tree.photo_3 || tree.inspiration_photo
+                    const thumb = displayPhoto(tree as any, tree.image_url || tree.photo_1 || tree.photo_2 || tree.photo_3 || tree.inspiration_photo)
                     return (
                       <button
                         key={tree.collection_id}

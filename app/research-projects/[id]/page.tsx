@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use as usePromise } from 'react'
 import { supabase } from '@/lib/supabase'
+import { displayPhoto } from '@/lib/treePhoto'
 
 const statusColor: Record<string, string> = {
   active: '#16a34a',
@@ -120,7 +121,7 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
     if (collectionIds.length > 0) {
       const { data: collectionData } = await supabase
         .from('collection')
-        .select('collection_id, display_name, tree_name, sp_no, image_url')
+        .select('collection_id, display_name, tree_name, sp_no, image_url, status, health_status, location')
         .in('collection_id', collectionIds)
       ;(collectionData || []).forEach((c: any) => {
         collectionMap[c.collection_id] = c
@@ -154,7 +155,7 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
           ...t,
           displayName: c.display_name || c.tree_name || 'Unnamed tree',
           speciesLabel: speciesMap[c.sp_no] || '',
-          imageUrl: c.image_url || null,
+          imageUrl: displayPhoto(c, c.image_url),
           sourceLabel: null,
         }
       }
