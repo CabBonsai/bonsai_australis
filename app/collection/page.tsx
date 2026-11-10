@@ -117,7 +117,10 @@ function CollectionPageInner() {
     const { data } = await supabase
       .from('collection')
       .select('*')
-      .eq('in_collection', true).order('tree_number', { ascending: false })
+      // Active trees plus deceased ones (kept out of in_collection so they stay
+      // out of the fertiliser walk, watering zones and dashboard counts).
+      .or('in_collection.eq.true,status.in.(Deceased,Dead),health_status.in.(Deceased,Dead),location.eq.Deceased')
+      .order('tree_number', { ascending: false })
 
     const rows = data || []
     const spNos = [...new Set(rows.map((t: any) => t.sp_no).filter(Boolean))]
