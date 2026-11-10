@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { zoneLetter } from '@/lib/wateringZones'
+import { displayPhoto } from '@/lib/treePhoto'
 
 // Starter suggestions only, shown even before any tree has a location set.
 // The real dropdown list is built dynamically from whatever locations are
@@ -620,8 +621,8 @@ function CollectionPageInner() {
         return (
           <Link key={t.collection_id} href={`/collection/${t.collection_id}`} style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'stretch' }}>
-              {t.image_url ? (
-                <img src={t.image_url} alt={t.display_name} style={{ width: '90px', height: '90px', objectFit: 'cover', flexShrink: 0 }} />
+              {displayPhoto(t, t.image_url) ? (
+                <img src={displayPhoto(t, t.image_url) as string} alt={t.display_name} style={{ width: '90px', height: '90px', objectFit: 'cover', flexShrink: 0 }} />
               ) : (
                 <div style={{ width: '90px', height: '90px', background: '#f1f5f9', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>&#127807;</div>
               )}

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { uploadPhoto } from '@/lib/uploadPhoto'
 import { zoneLetter } from '@/lib/wateringZones'
+import { displayPhoto } from '@/lib/treePhoto'
 import JournalSection from '@/components/JournalSection'
 
 function Section({ title, defaultOpen, children }: { title: string, defaultOpen?: boolean, children: React.ReactNode }) {
@@ -1367,7 +1368,7 @@ export default function CollectionDetailPage() {
         )}
       </div>
 
-      <HeroPhotoField value={tree.image_url || ''} onChange={v => set('image_url', v)} />
+      <HeroPhotoField value={displayPhoto(tree, tree.image_url) || ''} onChange={v => set('image_url', v)} />
 
       {/* Identity header - always visible */}
       <div style={{ marginBottom: '18px' }}>
