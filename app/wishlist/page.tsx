@@ -13,6 +13,14 @@ const SIZE_OPTIONS = [
 
 const STATUS_OPTIONS = ['watching', 'purchased', 'passed']
 
+const URGENCY_OPTIONS = ['High', 'Medium', 'Low']
+
+const urgencyColor: Record<string, string> = {
+  High: '#dc2626',
+  Medium: '#d97706',
+  Low: '#6b7280',
+}
+
 const statusColor: Record<string, string> = {
   watching: '#2563eb',
   purchased: '#16a34a',
@@ -30,6 +38,7 @@ type SpeciesRow = { sp_no: number; species: string; common_name: string | null; 
 type WishlistItem = {
   id: number; supplier_id: number; sp_no: number | null; variant_sp_no: number | null; size_category: string
   price: number | null; notes: string | null; date_seen: string; status: string
+  urgency: string | null
 }
 
 export default function WishlistPage() {
@@ -58,6 +67,7 @@ export default function WishlistPage() {
   const [wishlist, setWishlist] = useState<WishlistItem[]>([])
   const [speciesMap, setSpeciesMap] = useState<Record<number, SpeciesRow>>({})
   const [filterSupplierId, setFilterSupplierId] = useState<number | 'all'>('all')
+  const [filterUrgency, setFilterUrgency] = useState<string>('all')
   const [viewMode, setViewMode] = useState<'supplier' | 'species'>('supplier')
   const [speciesSearch, setSpeciesSearch] = useState('')
 
@@ -66,6 +76,7 @@ export default function WishlistPage() {
   const [editPrice, setEditPrice] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [editStatus, setEditStatus] = useState('watching')
+  const [editUrgency, setEditUrgency] = useState('Medium')
   const [savingEdit, setSavingEdit] = useState(false)
 
   useEffect(() => { fetchAll() }, [])
@@ -233,6 +244,7 @@ export default function WishlistPage() {
     setEditPrice(item.price !== null ? String(item.price) : '')
     setEditNotes(item.notes || '')
     setEditStatus(item.status)
+    setEditUrgency(item.urgency || 'Medium')
   }
 
   async function handleSaveEdit(id: number) {
@@ -246,6 +258,7 @@ export default function WishlistPage() {
         price: editPrice ? parseFloat(editPrice) : null,
         notes: editNotes || null,
         status: editStatus,
+        urgency: editUrgency,
       }),
     })
     const data = await res.json()
@@ -271,7 +284,8 @@ export default function WishlistPage() {
     fetchAll()
   }
 
-  const visibleWishlist = wishlist.filter(w => filterSupplierId === 'all' || w.supplier_id === filterSupplierId)
+  const matchesUrgency = (w: WishlistItem) => filterUrgency === 'all' || (w.urgency || 'Medium') === filterUrgency
+  const visibleWishlist = wishlist.filter(w => (filterSupplierId === 'all' || w.supplier_id === filterSupplierId) && matchesUrgency(w))
   const supplierMap = Object.fromEntries(suppliers.map(s => [s.id, s]))
 
   // Species-comparison view: group every wishlist entry by sp_no regardless
@@ -290,7 +304,7 @@ export default function WishlistPage() {
     return sp.species.toLowerCase().includes(searchLower) || (sp.common_name || '').toLowerCase().includes(searchLower)
   }
   const groupedBySpecies = new Map<number, WishlistItem[]>()
-  wishlist.filter(w => matchesSearch(keyOf(w))).forEach(w => {
+  wishlist.filter(w => matchesSearch(keyOf(w)) && matchesUrgency(w)).forEach(w => {
     const key = keyOf(w)
     if (!groupedBySpecies.has(key)) groupedBySpecies.set(key, [])
     groupedBySpecies.get(key)!.push(w)
@@ -332,6 +346,12 @@ export default function WishlistPage() {
                   {STATUS_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
               </div>
+              <div>
+                <label style={labelStyle}>Urgency</label>
+                <select value={editUrgency} onChange={e => setEditUrgency(e.target.value)} style={inputStyle}>
+                  {URGENCY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={labelStyle}>Notes</label>
                 <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} style={inputStyle} />
@@ -364,6 +384,9 @@ export default function WishlistPage() {
                     BEST PRICE
                   </span>
                 )}
+                <span style={{ fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: (urgencyColor[item.urgency || 'Medium'] || '#6b7280') + '22', color: urgencyColor[item.urgency || 'Medium'] || '#6b7280' }}>
+                  {item.urgency || 'Medium'}
+                </span>
                 <span style={{ fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px', background: (statusColor[item.status] || '#6b7280') + '22', color: statusColor[item.status] || '#6b7280', textTransform: 'capitalize' }}>
                   {item.status}
                 </span>
@@ -548,10 +571,16 @@ export default function WishlistPage() {
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <h2 style={{ fontSize: '15px', fontWeight: '700', margin: 0 }}>Wishlist ({visibleWishlist.length})</h2>
-              <select value={filterSupplierId} onChange={e => setFilterSupplierId(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10))} style={{ ...inputStyle, width: 'auto' }}>
-                <option value="all">All suppliers</option>
-                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <select value={filterUrgency} onChange={e => setFilterUrgency(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
+                  <option value="all">All urgency</option>
+                  {URGENCY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <select value={filterSupplierId} onChange={e => setFilterSupplierId(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10))} style={{ ...inputStyle, width: 'auto' }}>
+                  <option value="all">All suppliers</option>
+                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
             </div>
 
             {visibleWishlist.length === 0 && <p style={{ color: '#9ca3af', fontSize: '13px' }}>Nothing on the wishlist yet.</p>}
@@ -560,7 +589,7 @@ export default function WishlistPage() {
           </>
         ) : (
           <>
-            <div style={{ marginBottom: '10px' }}>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
               <input
                 type="text"
                 value={speciesSearch}
@@ -568,6 +597,10 @@ export default function WishlistPage() {
                 placeholder="Search species or common name..."
                 style={inputStyle}
               />
+              <select value={filterUrgency} onChange={e => setFilterUrgency(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
+                <option value="all">All urgency</option>
+                {URGENCY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
             </div>
 
             <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 12px' }}>{speciesGroups.length} species tracked &middot; sorted cheapest-first within each</p>
