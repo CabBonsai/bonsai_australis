@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { readCollection } from '@/lib/collectionRead'
 import { supabase } from '@/lib/supabase'
 import { displayPhoto } from '@/lib/treePhoto'
 
@@ -49,10 +50,7 @@ export default function GalleryAdmin() {
     setLoading(true)
     setFetchError(null)
 
-    const { data: treeData, error: treeError } = await supabase
-      .from('collection')
-      .select('collection_id, sp_no, tree_number, display_name, tree_name, variation_or_cultivar, image_url, photo_1, photo_2, photo_3, inspiration_photo, location, status, health_status')
-      .order('tree_number', { ascending: false, nullsFirst: false })
+    const { data: treeData, error: treeError } = await readCollection({ select: 'collection_id, sp_no, tree_number, display_name, tree_name, variation_or_cultivar, image_url, photo_1, photo_2, photo_3, inspiration_photo, location, status, health_status', order: 'tree_number', asc: '0' })
 
     if (treeError) {
       setFetchError(treeError.message)

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { readCollection } from '@/lib/collectionRead'
 import { supabase } from '@/lib/supabase'
 import { uploadPhoto } from '@/lib/uploadPhoto'
 import { zoneLetter } from '@/lib/wateringZones'
@@ -915,11 +916,7 @@ export default function CollectionDetailPage() {
 
   async function fetchTree() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('collection')
-      .select('*')
-      .eq('collection_id', id)
-      .single()
+    const { data, error } = await readCollection({ ids: String(id) }).then(r => ({ data: r.data[0] ?? null, error: r.error }))
 
     if (error) {
       alert('Error loading tree: ' + error.message)

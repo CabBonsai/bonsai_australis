@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { readCollection } from '@/lib/collectionRead'
 import { supabase } from '@/lib/supabase'
 
 type Todo = {
@@ -90,11 +91,7 @@ export default function Home() {
 
   async function fetchDashboard() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('collection')
-      .select('*')
-      .eq('in_collection', true)
-      .order('tree_number', { ascending: true })
+    const { data, error } = await readCollection({ in_collection: 'true', order: 'tree_number', asc: '1' })
 
     if (error) {
       setError(error.message)
@@ -221,10 +218,7 @@ export default function Home() {
       let rptSpeciesMap: Record<number, string> = {}
 
       if (collectionIds.length > 0) {
-        const { data: collData } = await supabase
-          .from('collection')
-          .select('collection_id, display_name, tree_number')
-          .in('collection_id', collectionIds)
+        const { data: collData } = await readCollection({ select: 'collection_id, display_name, tree_number', ids: collectionIds.join(',') })
         ;(collData || []).forEach((c: any) => { collectionMap[c.collection_id] = c })
       }
 
