@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { readCollection } from '@/lib/collectionRead'
 import { supabase } from '@/lib/supabase'
 import { zoneLetter } from '@/lib/wateringZones'
 import { displayPhoto } from '@/lib/treePhoto'
@@ -114,13 +115,7 @@ function CollectionPageInner() {
 
   async function fetchTrees() {
     setLoading(true)
-    const { data } = await supabase
-      .from('collection')
-      .select('*')
-      // Active trees plus deceased ones (kept out of in_collection so they stay
-      // out of the fertiliser walk, watering zones and dashboard counts).
-      .or('in_collection.eq.true,status.in.(Deceased,Dead),health_status.in.(Deceased,Dead),location.eq.Deceased')
-      .order('tree_number', { ascending: false })
+    const { data } = await readCollection({ active_or_deceased: '1', order: 'tree_number', asc: '0' })
 
     const rows = data || []
     const spNos = [...new Set(rows.map((t: any) => t.sp_no).filter(Boolean))]

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { readCollection } from '@/lib/collectionRead'
 import { supabase } from '@/lib/supabase'
 import { uploadPhoto } from '@/lib/uploadPhoto'
 import { zoneLetter } from '@/lib/wateringZones'
@@ -78,7 +79,8 @@ function Dropdown({ value, onChange, options, category }: { value: string, onCha
   const [newValue, setNewValue] = useState('')
 
   useEffect(() => {
-    supabase.from('dropdown_options').select('value').eq('category', category)
+    fetch(`/api/dropdown-options?category=${encodeURIComponent(category)}`)
+      .then(r => r.json())
       .then(({ data }) => setCustomOptions((data || []).map((d: any) => d.value)))
   }, [category])
 
@@ -87,7 +89,11 @@ function Dropdown({ value, onChange, options, category }: { value: string, onCha
   async function handleAdd() {
     const trimmed = newValue.trim()
     if (!trimmed) return
-    await supabase.from('dropdown_options').upsert({ category, value: trimmed }, { onConflict: 'category,value' })
+    await fetch('/api/dropdown-options', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category, value: trimmed }),
+    })
     setCustomOptions(prev => [...prev, trimmed])
     onChange(trimmed)
     setNewValue('')
@@ -910,11 +916,7 @@ export default function CollectionDetailPage() {
 
   async function fetchTree() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('collection')
-      .select('*')
-      .eq('collection_id', id)
-      .single()
+    const { data, error } = await readCollection({ ids: String(id) }).then(r => ({ data: r.data[0] ?? null, error: r.error }))
 
     if (error) {
       alert('Error loading tree: ' + error.message)

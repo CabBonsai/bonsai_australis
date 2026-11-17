@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, use as usePromise } from 'react'
+import { readCollection } from '@/lib/collectionRead'
 import { supabase } from '@/lib/supabase'
 import { displayPhoto } from '@/lib/treePhoto'
 
@@ -119,10 +120,7 @@ export default function ResearchProjectDetail({ params }: { params: Promise<{ id
     const spNosNeeded = new Set<number>()
 
     if (collectionIds.length > 0) {
-      const { data: collectionData } = await supabase
-        .from('collection')
-        .select('collection_id, display_name, tree_name, sp_no, image_url, status, health_status, location')
-        .in('collection_id', collectionIds)
+      const { data: collectionData } = await readCollection({ select: 'collection_id, display_name, tree_name, sp_no, image_url, status, health_status, location', ids: collectionIds.join(',') })
       ;(collectionData || []).forEach((c: any) => {
         collectionMap[c.collection_id] = c
         if (c.sp_no) spNosNeeded.add(c.sp_no)

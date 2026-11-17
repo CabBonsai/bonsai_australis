@@ -84,22 +84,18 @@ export default function CommunitySubmissionsAdmin() {
   async function fetchSubmissions() {
     setLoading(true)
 
-    let query = supabase
-      .from('community_submissions')
-      .select('*')
-      .order('submitted_at', { ascending: false })
+    const params = new URLSearchParams({ status: statusFilter, club: clubFilter.trim() })
+    const subRes = await fetch(`/api/community-submissions?${params}`)
+    const subJson = await subRes.json()
 
-    if (statusFilter !== 'all') query = query.eq('status', statusFilter)
-    if (clubFilter.trim()) query = query.ilike('club_name', `%${clubFilter.trim()}%`)
-
-    const { data, error: subError } = await query
-
-    if (subError) {
-      setError(subError.message)
+    if (!subRes.ok) {
+      setError(subJson.error || 'Failed to load submissions')
       setSubmissions([])
       setLoading(false)
       return
     }
+
+    const data = subJson.data as any[]
 
     const rows = data || []
     const spNos = [...new Set(rows.map(r => r.sp_no))]

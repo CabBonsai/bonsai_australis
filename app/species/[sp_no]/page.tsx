@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { readCollection } from '@/lib/collectionRead'
 import { supabase } from '@/lib/supabase'
 import { uploadPhoto } from '@/lib/uploadPhoto'
 import VariantsSection from '@/components/VariantsSection'
@@ -278,7 +279,7 @@ export default function SpeciesDetail() {
         supabase.from('regional_suitability').select('*').eq('sp_no', spNo).single(),
         supabase.from('placement_matrix').select('*').eq('sp_no', spNo).single(),
         supabase.from('toxicity').select('*').eq('sp_no', spNo).single(),
-        supabase.from('collection').select('collection_id, display_name, tree_name, image_url, status, health_status, variant_sp_no').eq('sp_no', spNo).order('display_name', { ascending: true }),
+        readCollection({ select: 'collection_id, display_name, tree_name, image_url, status, health_status, variant_sp_no', sp_no: String(spNo), order: 'display_name', asc: '1' }),
         supabase.from('species').select('sp_no').lt('sp_no', spNo).order('sp_no', { ascending: false }).limit(1).single(),
         supabase.from('species').select('sp_no').gt('sp_no', spNo).order('sp_no', { ascending: true }).limit(1).single(),
         supabase.from('species_completeness').select('overall_completeness, taxonomy_complete, scoring_complete, care_guide_complete, seasonal_complete, fertilisation_complete, pruning_complete, nebari_complete, regional_complete, tubestock_complete, advanced_complete').eq('sp_no', spNo).single(),
