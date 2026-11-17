@@ -15,7 +15,21 @@ interface CareSheetSettings {
   updated_at: string;
 }
 
+interface RankRow {
+  sp_no: number;
+  species: string;
+  common_name: string | null;
+  downloads: number;
+  downloads_30d: number;
+  last_download: string;
+  overall_completeness: number | null;
+  bonsai_tier: string | null;
+  research_status: string | null;
+  needs_verification: boolean | null;
+}
+
 export default function CareSheetSettingsPage() {
+  const [ranking, setRanking] = useState<RankRow[]>([]);
   const [settings, setSettings] = useState<CareSheetSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,6 +53,10 @@ export default function CareSheetSettingsPage() {
 
   useEffect(() => {
     fetchSettings();
+    fetch('/api/care-sheet-downloads')
+      .then(r => r.json())
+      .then(j => setRanking(j.data || []))
+      .catch(() => setRanking([]));
   }, []);
 
   const callUpdate = async (payload: { enabled?: boolean; resetCount?: boolean }) => {
@@ -107,7 +125,7 @@ export default function CareSheetSettingsPage() {
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: 560 }}>
+    <div style={{ padding: '2rem', maxWidth: 960 }}>
       {backLink}
 
       <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>
@@ -189,6 +207,47 @@ export default function CareSheetSettingsPage() {
       </div>
 
       {error && <div style={{ color: '#b3261e', marginBottom: '1rem' }}>{error}</div>}
+
+      <h2 style={{ fontSize: '1.15rem', fontWeight: 600, margin: '0 0 0.25rem' }}>Downloads by species</h2>
+      <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.75rem' }}>
+        Counted from when per-species logging started. Sorted by downloads, then least complete first, so popular species with thin data rise to the top.
+      </div>
+      {ranking.length === 0 ? (
+        <div style={{ fontSize: '0.9rem', color: '#888', marginBottom: '1.5rem' }}>No per-species downloads logged yet.</div>
+      ) : (
+        <div style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+            <thead>
+              <tr style={{ textAlign: 'left', borderBottom: '1px solid #ddd' }}>
+                <th style={{ padding: '6px 8px' }}>Species</th>
+                <th style={{ padding: '6px 8px' }}>Downloads</th>
+                <th style={{ padding: '6px 8px' }}>Last 30d</th>
+                <th style={{ padding: '6px 8px' }}>Completeness</th>
+                <th style={{ padding: '6px 8px' }}>Tier</th>
+                <th style={{ padding: '6px 8px' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ranking.map(r => {
+                const thin = (r.overall_completeness ?? 0) < 50 || r.needs_verification === true;
+                return (
+                  <tr key={r.sp_no} style={{ borderBottom: '1px solid #eee', background: thin ? '#fff7e6' : undefined }}>
+                    <td style={{ padding: '6px 8px' }}>
+                      <Link href={`/species/${r.sp_no}`} style={{ color: '#55702a' }}>{r.species}</Link>
+                      {r.common_name ? <span style={{ color: '#888' }}> — {r.common_name}</span> : null}
+                    </td>
+                    <td style={{ padding: '6px 8px', fontWeight: 600 }}>{r.downloads}</td>
+                    <td style={{ padding: '6px 8px' }}>{r.downloads_30d}</td>
+                    <td style={{ padding: '6px 8px' }}>{r.overall_completeness ?? '—'}{r.overall_completeness != null ? '%' : ''}</td>
+                    <td style={{ padding: '6px 8px' }}>{r.bonsai_tier ?? '—'}</td>
+                    <td style={{ padding: '6px 8px' }}>{r.research_status ?? '—'}{r.needs_verification ? ' · needs verification' : ''}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div style={{ fontSize: '0.85rem', color: '#888' }}>
         Last updated: {settings ? new Date(settings.updated_at).toLocaleString() : '—'}
