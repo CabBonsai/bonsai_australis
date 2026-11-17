@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
 import { uploadPhoto } from '@/lib/uploadPhoto'
 
 function JournalPhotoField({ value, onChange }: { value: string, onChange: (v: string) => void }) {
@@ -183,11 +182,8 @@ export default function JournalSection({ collectionId, spNo }: { collectionId: s
 
   async function fetchEntries() {
     setLoading(true)
-    const { data } = await supabase
-      .from('journal_entries')
-      .select('*')
-      .eq('collection_id', collectionId)
-      .order('entry_date', { ascending: false })
+    const res = await fetch(`/api/journal-entries?collection_id=${encodeURIComponent(String(collectionId))}`)
+    const { data } = await res.json()
 
     setEntries((data || []).map((e: any) => ({ ...e, photo_url: e.photos?.[0] || '' })))
     setLoading(false)
