@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { uploadPhoto } from '@/lib/uploadPhoto'
 import VariantsSection from '@/components/VariantsSection'
 import SpeciesImageGallery from '@/components/SpeciesImageGallery'
+import { ASPECTS } from '@/lib/howToAspects'
 
 // Routes writes through /api/admin-table (service role, RLS bypass) instead
 // of the anon client directly — these tables no longer have anon UPDATE
@@ -255,6 +256,13 @@ export default function SpeciesDetail() {
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [generatingReport, setGeneratingReport] = useState<string | null>(null)
+  const [howToOpen, setHowToOpen] = useState(false)
+  const [howToTask, setHowToTask] = useState<string>('all')
+  const [howToGuides, setHowToGuides] = useState<string[]>([])
+  useEffect(() => {
+    if (!howToOpen || !species?.sp_no) return
+    fetch(`/api/how-to-sheet/tasks?sp_no=${species.sp_no}`).then(r => r.json()).then(d => setHowToGuides(d.guides ?? [])).catch(() => {})
+  }, [howToOpen, species?.sp_no])
   const [spotlightUrl, setSpotlightUrl] = useState<string | null>(null)
 
   useEffect(() => {
@@ -1443,7 +1451,25 @@ export default function SpeciesDetail() {
         <button type="button" onClick={() => generateSpotlightPDF()} disabled={generatingReport !== null} style={{fontSize:'13px',background:'#d9a02b',color:'#2b2620',padding:'9px 16px',borderRadius:'8px',border:'none',cursor:'pointer',opacity:generatingReport!==null?0.5:1,fontWeight:600}}>
           {generatingReport === 'spotlight' ? 'Generating...' : '✨ Spotlight PDF'}
         </button>
+        <button type="button" onClick={() => setHowToOpen(o => !o)} style={{fontSize:'13px',background:'#5c7a2a',color:'#fdfaf3',padding:'9px 16px',borderRadius:'8px',border:'none',cursor:'pointer',fontWeight:600}}>
+          📋 How To Guide
+        </button>
       </div>
+      {howToOpen && (
+        <div style={{background:'#f0f4e8',border:'1px solid #cfdcb0',borderRadius:'10px',padding:'14px 18px',marginTop:'-8px',marginBottom:'22px'}}>
+          <p style={{fontSize:'12px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'#5c7a2a',margin:'0 0 8px'}}>How To Guide: choose a task</p>
+          <div style={{display:'flex',alignItems:'center',gap:'12px',flexWrap:'wrap'}}>
+            <select value={howToTask} onChange={e => setHowToTask(e.target.value)} style={{fontSize:'14px',padding:'8px 10px',borderRadius:'8px',border:'1px solid #cfdcb0',background:'#fffefb'}}>
+              <option value="all">Full sheet (all tasks)</option>
+              {ASPECTS.map(a => <option key={a.id} value={a.id}>{a.title}{howToGuides.includes(a.id) ? ' (full guide)' : ''}</option>)}
+            </select>
+            <a href={`/api/how-to-sheet/pdf?sp_no=${species?.sp_no}&aspects=${howToTask === 'all' ? ASPECTS.map(a => a.id).join(',') : howToTask}`} style={{display:'inline-block',fontSize:'13px',background:'#3f5228',color:'#fdfaf3',padding:'9px 16px',borderRadius:'8px',textDecoration:'none',fontWeight:600}}>
+              Download PDF
+            </a>
+          </div>
+          <p style={{fontSize:'12px',color:'#777',margin:'8px 0 0'}}>Tasks with no reader-ready content for this species are left out. Can take 10 to 20 seconds.</p>
+        </div>
+      )}
       {spotlightUrl && (
         // Real anchor tag, not a JS-triggered window.open() -- an auto-opened
         // tab can get silently blocked on iOS Safari once enough time has
