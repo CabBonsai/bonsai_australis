@@ -94,9 +94,10 @@ export function coverHtml(opts: {
   dateLabel: string;
 }): string {
   const { logoDataUri, species, sections, dateLabel } = opts;
+  const year = new Date().getFullYear();
   const css = `
   @page { margin: 0; }
-  .cover { height: 297mm; padding: 28mm 22mm; display: flex; flex-direction: column; align-items: center; text-align: center; background: #fdfaf3; }
+  .cover { height: 297mm; padding: 28mm 22mm; display: flex; flex-direction: column; align-items: center; text-align: center; background: #fff; }
   .cover img { width: 62mm; height: 62mm; object-fit: contain; margin-bottom: 8mm; }
   .brand { font-family: 'Helvetica Neue', Arial, sans-serif; letter-spacing: 6px; font-size: 26pt; color: #3f5228; font-weight: 700; text-transform: uppercase; }
   .rule { width: 60mm; border-top: 2px solid #3f5228; margin: 9mm 0; }
@@ -105,7 +106,8 @@ export function coverHtml(opts: {
   .common { font-size: 14pt; color: #555; }
   .details { margin-top: 14mm; font-size: 10.5pt; line-height: 1.7; max-width: 130mm; }
   .details b { font-family: 'Helvetica Neue', Arial, sans-serif; color: #3f5228; }
-  .note { margin-top: auto; font-size: 8.5pt; color: #777; max-width: 140mm; line-height: 1.5; }
+  .note { margin-top: auto; font-size: 8pt; color: #555; max-width: 150mm; line-height: 1.45; }
+  .note p { margin: 0 0 6px; }
   `;
   const topics = sections.map((s) => esc(s.title)).join(' · ');
   const body = `<div class="cover">
@@ -121,7 +123,10 @@ export function coverHtml(opts: {
       <div><b>Prepared:</b> ${esc(dateLabel)}</div>
       <div><b>Timing basis:</b> Southern Hemisphere (Australian seasons)</div>
     </div>
-    <div class="note">Prepared from the Bonsai Australis species database. Timing and technique vary with your local climate, elevation and the individual tree; treat this as a guide and adjust to what your tree is doing.</div>
+    <div class="note">
+      <p>Prepared from the Bonsai Australis species database. Timing and technique vary with your local climate, elevation and the individual tree; treat this as a guide and adjust to what your tree is doing. It is general information only and comes with no warranty.</p>
+      <p><b>&copy; ${year} Bonsai Australis. All rights reserved.</b> This guide may be printed or copied for your own personal use. No part of it may be reproduced, shared, sold or published without written permission from Bonsai Australis. Sources are credited to their original authors, and their content remains theirs.</p>
+    </div>
   </div>`;
   return wrapDoc(body, css);
 }
