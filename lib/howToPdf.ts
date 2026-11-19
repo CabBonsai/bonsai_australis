@@ -82,7 +82,7 @@ export async function renderHowToPdf(opts: {
     out.getPages().forEach((pg, i) => {
       if (i === 0) return; // no number on the cover
       const { width } = pg.getSize();
-      const label = `Bonsai Australis  |  ${species.species}  |  ${i + 1} of ${total}`;
+      const label = `\u00A9 ${new Date().getFullYear()} Bonsai Australis  |  ${species.species}  |  ${i + 1} of ${total}`;
       const w = font.widthOfTextAtSize(label, 8);
       pg.drawText(label, { x: (width - w) / 2, y: 24, size: 8, font, color: rgb(0.45, 0.45, 0.4) });
     });
