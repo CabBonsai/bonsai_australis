@@ -196,11 +196,18 @@ export default function SpeciesList() {
     if (nativeFilter === 'native') textQuery = textQuery.eq('australian_native', true)
     if (nativeFilter === 'non-native') textQuery = textQuery.eq('australian_native', false)
 
-    const [textRes, spNoRes] = await Promise.all([
+    // Exact species-name match (the parent species itself) is fetched separately so it can
+    // be listed first, ahead of its subspecies, hybrids and cultivars.
+    const exactQuery = trimmed && pageNum === 0 && !isNumeric
+      ? supabase.from('species').select(cols).eq('is_deprecated', false).ilike('species', trimmed.replace(/[%_]/g, ' ')).limit(5)
+      : Promise.resolve({ data: [] as any[], error: null })
+
+    const [textRes, spNoRes, exactRes] = await Promise.all([
       textQuery,
       isNumeric
         ? supabase.from('species').select(cols).eq('is_deprecated', false).eq('sp_no', Number(trimmed)).limit(50)
         : Promise.resolve({ data: [] as any[], error: null, count: null as number | null }),
+      exactQuery,
     ])
 
     // Cultivars and hybrids live in `variants`, so a search for e.g. "Okame" found nothing here.
@@ -240,7 +247,7 @@ export default function SpeciesList() {
     } else if (spNoRes.error) {
       setError(spNoRes.error.message)
     } else {
-      const merged = [...(spNoRes.data || []), ...variantRows, ...(textRes.data || [])]
+      const merged = [...(spNoRes.data || []), ...((exactRes as any).data || []), ...(textRes.data || []), ...variantRows]
       const seen = new Set<number>()
       const deduped = merged.filter(s => (seen.has(s.sp_no) ? false : (seen.add(s.sp_no), true)))
       setSpecies(deduped)
