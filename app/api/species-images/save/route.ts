@@ -49,7 +49,13 @@ export async function POST(req: NextRequest) {
   }
 
   const attribution_text = `${photographer || "Unknown photographer"} — ${licence}, via ${
-    source_api === "openverse" ? "Openverse" : source_api
+    source_api === "openverse"
+      ? "Openverse"
+      : source_api === "inaturalist"
+        ? "iNaturalist"
+        : source_api === "wikimedia-commons"
+          ? "Wikimedia Commons"
+          : source_api
   }. Source: ${source_page_url}`;
 
   const { data, error } = await supabaseServer
