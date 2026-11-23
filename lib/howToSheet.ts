@@ -154,7 +154,7 @@ export function indexHtml(entries: { title: string; page: number }[]): string {
 
 const GUIDE_CSS = `
 table { border-collapse: collapse; width: 100%; margin: 8px 0 12px; font-size: 9pt; line-height: 1.35; break-inside: auto; }
-th { background: #3f5228; color: #fdfaf3; text-align: left; padding: 5px 7px; font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 600; }
+th { background: none; color: #3f5228; text-align: left; padding: 5px 7px; border-top: 1.5px solid #3f5228; border-bottom: 1.5px solid #3f5228; font-family: 'Helvetica Neue', Arial, sans-serif; font-weight: 700; }
 td { border-bottom: 1px solid #d9d4c0; padding: 5px 7px; vertical-align: top; }
 tr { break-inside: avoid; }
 ol { margin: 0 0 6px; padding-left: 20px; }

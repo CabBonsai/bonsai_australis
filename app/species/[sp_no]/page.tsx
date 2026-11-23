@@ -1460,7 +1460,7 @@ export default function SpeciesDetail() {
           <p style={{fontSize:'12px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:'#5c7a2a',margin:'0 0 8px'}}>How To Guide: choose a task</p>
           <div style={{display:'flex',alignItems:'center',gap:'12px',flexWrap:'wrap'}}>
             <select value={howToTask} onChange={e => setHowToTask(e.target.value)} style={{fontSize:'14px',padding:'8px 10px',borderRadius:'8px',border:'1px solid #cfdcb0',background:'#fffefb'}}>
-              <option value="all">Full sheet (all tasks)</option>
+              <option value="all">Full guide (all tasks)</option>
               {ASPECTS.map(a => <option key={a.id} value={a.id}>{a.title}{howToGuides.includes(a.id) ? ' (full guide)' : ''}</option>)}
             </select>
             <a href={`/api/how-to-sheet/pdf?sp_no=${species?.sp_no}&aspects=${howToTask === 'all' ? ASPECTS.map(a => a.id).join(',') : howToTask}`} style={{display:'inline-block',fontSize:'13px',background:'#3f5228',color:'#fdfaf3',padding:'9px 16px',borderRadius:'8px',textDecoration:'none',fontWeight:600}}>
