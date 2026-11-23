@@ -32,6 +32,8 @@ export default function ImageManagerPage() {
   const [spNo, setSpNo] = useState("");
   const [speciesName, setSpeciesName] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [includeBonsai, setIncludeBonsai] = useState(false);
+  const [providers, setProviders] = useState<{ name: string; ok: boolean; count: number; error?: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
@@ -103,9 +105,16 @@ export default function ImageManagerPage() {
     setLoading(true);
     setError(null);
     setResults([]);
+    setProviders([]);
     try {
-      const res = await fetch(`/api/species-images/search?q=${encodeURIComponent(speciesName + " bonsai")}`);
+      // The server searches several sources and merges them. With "bonsai" on it
+      // adds the word to the Openverse and Commons queries and skips iNaturalist
+      // (which searches by taxon name, not keywords).
+      const res = await fetch(
+        `/api/species-images/search?q=${encodeURIComponent(speciesName.trim())}&bonsai=${includeBonsai ? "1" : "0"}`
+      );
       const data = await res.json();
+      if (data.providers) setProviders(data.providers);
       if (!res.ok) {
         setError(data.error || "Search failed.");
       } else {
@@ -159,8 +168,8 @@ export default function ImageManagerPage() {
       <Link href="/" style={{ fontSize: 13, color: "#6b7280", textDecoration: "none" }}>&larr; Dashboard</Link>
       <h1 style={{ fontSize: 24, fontWeight: 700, margin: "4px 0 4px" }}>Image Manager</h1>
       <p style={{ color: "#666", marginBottom: 24, fontSize: 14 }}>
-        Search Openverse for licence-cleared images. Nothing saves automatically — review each
-        result and approve individually.
+        Searches Openverse, iNaturalist and Wikimedia Commons (worldwide) for commercial-use
+        licence-cleared images. Nothing saves automatically — review each result and approve individually.
       </p>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
@@ -205,6 +214,15 @@ export default function ImageManagerPage() {
           </button>
         </div>
       </div>
+
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#444", marginBottom: 12 }}>
+        <input
+          type="checkbox"
+          checked={includeBonsai}
+          onChange={(e) => setIncludeBonsai(e.target.checked)}
+        />
+        Add the word &ldquo;bonsai&rdquo; to the search (finds bonsai photos; skips iNaturalist)
+      </label>
 
       {error && (
         <div style={{ color: "#a33", background: "#fdeeee", padding: "8px 12px", borderRadius: 4, marginBottom: 16, fontSize: 14 }}>
@@ -284,6 +302,12 @@ export default function ImageManagerPage() {
         )}
       </div>
 
+      {providers.length > 0 && (
+        <p style={{ color: "#666", fontSize: 12, marginTop: 8 }}>
+          {providers.map((p) => (p.ok ? `${p.name}: ${p.count}` : `${p.name}: failed (${p.error ?? "error"})`)).join(" · ")}
+        </p>
+      )}
+
       {results.length === 0 && !loading && !error && (
         <p style={{ color: "#888", fontSize: 14 }}>No results yet — search above.</p>
       )}
@@ -314,6 +338,7 @@ export default function ImageManagerPage() {
                   )}
                 </div>
                 <div style={{ color: "#666", marginBottom: 2 }}>{img.photographer}</div>
+                <div style={{ color: "#999", fontSize: 10, marginBottom: 2 }}>via {img.source}</div>
                 <a
                   href={img.source_page_url}
                   target="_blank"
