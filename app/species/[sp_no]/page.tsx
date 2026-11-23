@@ -1510,7 +1510,7 @@ export default function SpeciesDetail() {
       />
       <div style={{marginBottom:'20px'}}>
         <label style={{display:'block',fontSize:'13px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',color:'#8a7f5f',marginBottom:'6px'}}>Quick Notes</label>
-        <textarea value={species.research_notes || ''} onChange={(e) => updateSpecies('research_notes', e.target.value)} style={{width:'100%',minHeight:'110px',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'14px 16px',fontSize:'17px',lineHeight:1.65,fontFamily:'inherit',color:'#2b2620',background:'#fffefb',resize:'vertical',outline:'none'}} rows={4} placeholder="Voice-to-text notes go here..." />
+        <textarea value={species.research_notes || ''} onChange={(e) => updateSpecies('research_notes', e.target.value)} style={{width:'100%',boxSizing:'border-box',minHeight:'110px',border:'1.5px solid #e2dac2',borderRadius:'10px',padding:'14px 16px',fontSize:'17px',lineHeight:1.65,fontFamily:'inherit',color:'#2b2620',background:'#fffefb',resize:'vertical',outline:'none'}} rows={4} placeholder="Voice-to-text notes go here..." />
       </div>
       {tubestockInv.length > 0 && (
         <div style={{background:'#f3efe2',border:'1px solid #ded4bd',borderRadius:'10px',padding:'14px 18px',marginBottom:'18px'}}>
