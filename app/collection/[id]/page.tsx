@@ -1000,8 +1000,17 @@ export default function CollectionDetailPage() {
   // same service-role API route as Save All), rather than making you open
   // a date picker and pick today by hand -- built for walking through many
   // trees in a row (e.g. fertilising day) without a full "Save All" each time.
+  // Quick-log buttons that have a matching care_schedule event type. Watering
+  // has no care_schedule event type, so it only sets the date.
+  const QUICK_LOG_EVENT_TYPE: Record<string, string> = {
+    last_fertilised: 'fertilise',
+    last_repotted: 'repot',
+    last_pruned: 'prune',
+  }
+
   async function quickLog(field: string, label: string) {
-    const today = new Date().toISOString().slice(0, 10)
+    // Local date (not UTC) so a tap before 10am in Brisbane logs today, not yesterday.
+    const today = toLocalDateString(new Date())
     set(field, today)
 
     const res = await fetch('/api/collection', {
@@ -1016,8 +1025,27 @@ export default function CollectionDetailPage() {
       return
     }
 
-    setQuickLogMessage(`✓ ${label} logged for today`)
-    setTimeout(() => setQuickLogMessage(''), 2000)
+    // Also complete this tree's pending care events of the same type that are
+    // due today or earlier, so the Overdue marker clears. Future-dated events stay.
+    let completed = 0
+    const eventType = QUICK_LOG_EVENT_TYPE[field]
+    if (eventType && tree?.tree_number) {
+      try {
+        const open: any[] = await careApi('GET', `/api/care-schedule?tree_number=${tree.tree_number}&event_type=${eventType}&status=open`)
+        const due = (Array.isArray(open) ? open : []).filter(ev => ev.due_date && ev.due_date <= today)
+        for (const ev of due) {
+          await careApi('PATCH', '/api/care-schedule', { id: ev.id, completed_date: today })
+          completed++
+        }
+      } catch (e: any) {
+        setQuickLogMessage(`✓ ${label} logged, but the care schedule was not updated: ${e.message}`)
+        setTimeout(() => setQuickLogMessage(''), 5000)
+        return
+      }
+    }
+
+    setQuickLogMessage(`✓ ${label} logged for today` + (completed ? ` (${completed} scheduled task${completed === 1 ? '' : 's'} marked done)` : ''))
+    setTimeout(() => setQuickLogMessage(''), 3000)
   }
 
   async function handleDelete() {
