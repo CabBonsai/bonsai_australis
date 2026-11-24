@@ -36,7 +36,7 @@ function Section({ title, defaultOpen, children }: { title: string, defaultOpen?
         <span style={{ color: '#8a9a6d', fontSize: '15px' }}>{open ? '▲ collapse' : '▼ expand'}</span>
       </button>
       {open && (
-        <div style={{ padding: '22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px' }}>
+        <div style={{ padding: '22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: '18px' }}>
           {children}
         </div>
       )}
@@ -55,6 +55,7 @@ function Field({ label, children }: { label: string, children: React.ReactNode }
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
+  minWidth: 0,
   border: '1.5px solid #e2dac2',
   borderRadius: '10px',
   padding: '12px 16px',
@@ -802,7 +803,7 @@ function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefi
               )}
 
               {editingId === ev.id && (
-                <div style={{ marginTop: '12px', padding: '12px', background: '#fffefb', border: '1px dashed #cdd9b4', borderRadius: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', alignItems: 'end' }}>
+                <div style={{ marginTop: '12px', padding: '12px', background: '#fffefb', border: '1px dashed #cdd9b4', borderRadius: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: '10px', alignItems: 'end' }}>
                   <label style={{ fontSize: '13px' }}>
                     <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Type</span>
                     <select value={editType} onChange={e => setEditType(e.target.value)} style={smallInput}>
@@ -840,7 +841,7 @@ function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefi
         })}
       </div>
 
-      <div style={{ padding: '14px', background: '#fffefb', border: '1px dashed #cdd9b4', borderRadius: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', alignItems: 'end' }}>
+      <div style={{ padding: '14px', background: '#fffefb', border: '1px dashed #cdd9b4', borderRadius: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: '10px', alignItems: 'end' }}>
         <label style={{ fontSize: '13px' }}>
           <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Type</span>
           <select value={newType} onChange={e => setNewType(e.target.value)} style={smallInput}>
