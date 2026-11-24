@@ -671,14 +671,14 @@ function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefi
 
   if (!treeNumber) {
     return (
-      <div style={{ gridColumn: 'span 2', padding: '14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', fontSize: '13px', color: '#991b1b' }}>
+      <div style={{ gridColumn: '1 / -1', padding: '14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', fontSize: '13px', color: '#991b1b' }}>
         Set a Tree Number and save before adding care schedule events.
       </div>
     )
   }
 
   return (
-    <div style={{ gridColumn: 'span 2' }}>
+    <div style={{ gridColumn: '1 / -1' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
         <span style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8a7f5f' }}>
           Scheduled &amp; Logged Events
@@ -819,11 +819,11 @@ function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefi
                     <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Done on (leave empty if still pending)</span>
                     <input type="date" value={editDone} onChange={e => setEditDone(e.target.value)} style={smallInput} />
                   </label>
-                  <label style={{ fontSize: '13px', gridColumn: 'span 2' }}>
+                  <label style={{ fontSize: '13px', gridColumn: '1 / -1' }}>
                     <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Notes</span>
                     <input type="text" value={editNotes} onChange={e => setEditNotes(e.target.value)} style={smallInput} />
                   </label>
-                  <div style={{ display: 'flex', gap: '8px', gridColumn: 'span 2' }}>
+                  <div style={{ display: 'flex', gap: '8px', gridColumn: '1 / -1' }}>
                     <button
                       type="button"
                       disabled={busy}
@@ -852,7 +852,7 @@ function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefi
           <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Due date (optional)</span>
           <input type="date" value={newDue} onChange={e => setNewDue(e.target.value)} style={smallInput} />
         </label>
-        <label style={{ fontSize: '13px', gridColumn: 'span 2' }}>
+        <label style={{ fontSize: '13px', gridColumn: '1 / -1' }}>
           <span style={{ display: 'block', fontSize: '12px', color: '#8a7f5f', marginBottom: '4px' }}>Notes</span>
           <input type="text" value={newNotes} onChange={e => setNewNotes(e.target.value)} placeholder="e.g. keep sheltered until roots recover" style={smallInput} />
         </label>
@@ -1480,7 +1480,7 @@ export default function CollectionDetailPage() {
             <SpeciesAutocomplete value={tree.sp_no} onChange={(spNo, name) => { set('sp_no', spNo); setSpeciesName(name) }} />
           </Field>
           <Field label="Variation / Cultivar">
-            <div style={{ gridColumn: 'span 2' }} title={tree.variation_or_cultivar || ''}>
+            <div style={{ gridColumn: '1 / -1' }} title={tree.variation_or_cultivar || ''}>
               <VariantAutocomplete
                 spNo={tree.sp_no}
                 value={tree.variation_or_cultivar || ''}
