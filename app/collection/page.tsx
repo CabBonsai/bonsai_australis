@@ -67,6 +67,10 @@ function CollectionPageInner() {
     () => (searchParams.get('frost') as any) || 'all'
   )
 
+  const [filterOverdue, setFilterOverdue] = useState<'all' | 'overdue'>(
+    () => (searchParams.get('overdue') === '1' ? 'overdue' : 'all')
+  )
+
   useEffect(() => { fetchTrees() }, [])
 
   // Keep the URL query string in sync with the current view so it's always
@@ -79,9 +83,10 @@ function CollectionPageInner() {
     if (filterGenus) qs.set('genus', filterGenus)
     if (filterOrigin !== 'all') qs.set('origin', filterOrigin)
     if (filterFrost !== 'all') qs.set('frost', filterFrost)
+    if (filterOverdue !== 'all') qs.set('overdue', '1')
     const query = qs.toString()
     router.replace(query ? `/collection?${query}` : '/collection', { scroll: false })
-  }, [search, groupBy, filterGenus, filterOrigin, filterFrost])
+  }, [search, groupBy, filterGenus, filterOrigin, filterFrost, filterOverdue])
 
   useEffect(() => {
     if (!showAddModal) {
@@ -311,10 +316,12 @@ function CollectionPageInner() {
 
     const matchesFrost = filterFrost === 'all' || (filterFrost === 'required' && t.frostProtectionRequired)
 
-    return matchesSearch && matchesGenus && matchesOrigin && matchesFrost
+    const matchesOverdue = filterOverdue === 'all' || overdueTreeNumbers.has(t.tree_number)
+
+    return matchesSearch && matchesGenus && matchesOrigin && matchesFrost && matchesOverdue
   })
 
-  const activeFilterCount = (filterGenus ? 1 : 0) + (filterOrigin !== 'all' ? 1 : 0) + (filterFrost !== 'all' ? 1 : 0)
+  const activeFilterCount = (filterGenus ? 1 : 0) + (filterOrigin !== 'all' ? 1 : 0) + (filterFrost !== 'all' ? 1 : 0) + (filterOverdue !== 'all' ? 1 : 0)
 
   // Group the filtered list either by species (alphabetical, default) or by
   // physical location (for walking the garden with a specific area in mind).
@@ -371,6 +378,7 @@ function CollectionPageInner() {
     if (filterGenus) qs.set('genus', filterGenus)
     if (filterOrigin !== 'all') qs.set('origin', filterOrigin)
     if (filterFrost !== 'all') qs.set('frost', filterFrost)
+    if (filterOverdue !== 'all') qs.set('overdue', '1')
     const query = qs.toString()
     const backUrl = query ? `/collection?${query}` : '/collection'
     try {
@@ -379,7 +387,7 @@ function CollectionPageInner() {
       // sessionStorage can throw in rare private-browsing edge cases -- Next/Previous
       // and Back just fall back to their defaults on the detail page if this fails.
     }
-  }, [grouped, loading, search, groupBy, filterGenus, filterOrigin, filterFrost])
+  }, [grouped, loading, search, groupBy, filterGenus, filterOrigin, filterFrost, filterOverdue])
 
   const healthColor: Record<string, string> = {
     'Excellent': '#16a34a', 'Good': '#65a30d', 'Stressed': '#d97706',
@@ -575,9 +583,29 @@ function CollectionPageInner() {
             </div>
           </div>
 
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#6b7280', marginBottom: '6px' }}>Care Tasks</label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {(['all', 'overdue'] as const).map(opt => (
+                <button
+                  key={opt}
+                  onClick={() => setFilterOverdue(opt)}
+                  style={{
+                    border: '1px solid ' + (filterOverdue === opt ? '#16a34a' : '#e2e8f0'),
+                    background: filterOverdue === opt ? '#16a34a' : '#fff',
+                    color: filterOverdue === opt ? '#fff' : '#374151',
+                    borderRadius: '6px', padding: '6px 12px', fontSize: '13px', cursor: 'pointer'
+                  }}
+                >
+                  {opt === 'all' ? 'All' : 'Overdue'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {activeFilterCount > 0 && (
             <button
-              onClick={() => { setFilterGenus(''); setFilterOrigin('all'); setFilterFrost('all') }}
+              onClick={() => { setFilterGenus(''); setFilterOrigin('all'); setFilterFrost('all'); setFilterOverdue('all') }}
               style={{ alignSelf: 'flex-end', background: 'none', border: 'none', color: '#dc2626', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}
             >
               Clear filters
