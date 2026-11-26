@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { readCollection } from '@/lib/collectionRead'
 import { supabase } from '@/lib/supabase'
+import OverdueCareRow, { CareEvent } from './components/OverdueCareRow'
 
 type Todo = {
   id: string
@@ -82,6 +83,25 @@ export default function Home() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, is_done: !currentlyDone }),
     })
+  }
+
+  // Called by an overdue row after it saved. null = finished, drop it from the list.
+  function handleCareSaved(id: number, patch: Partial<CareEvent> | null) {
+    setCareEvents(prev => patch === null
+      ? prev.filter(e => e.id !== id)
+      : prev.map(e => e.id === id ? { ...e, ...patch } : e))
+  }
+
+  async function completeReminder(id: string) {
+    const d = new Date()
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const res = await fetch('/api/reminders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, completed_date: today }),
+    })
+    if (res.ok) setReminders(prev => prev.filter((r: any) => r.id !== id))
+    else alert('Could not mark the reminder done.')
   }
 
   async function deleteTodo(id: string) {
@@ -296,7 +316,7 @@ export default function Home() {
     const d = new Date(ev.due_date)
     const careLabel = String(ev.event_type || '').replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
     if (d < now) {
-      careItems.push({ tree: t, careLabel, dateStr: ev.due_date, status: 'overdue' })
+      careItems.push({ tree: t, careLabel, dateStr: ev.due_date, status: 'overdue', ev })
     } else if (d <= soonCutoff) {
       careItems.push({ tree: t, careLabel, dateStr: ev.due_date, status: 'soon' })
     }
@@ -536,37 +556,41 @@ export default function Home() {
               <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>Nothing overdue. Good work.</p>
             )}
             {overdueReminders.map((r: any) => (
-              <Link
+              <div
                 key={`rem-${r.id}`}
-                href="/reminders"
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '6px' }}
+                style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '6px' }}
               >
-                <div style={{ minWidth: 0 }}>
-                  <span style={{ fontWeight: '600', fontSize: '14px' }}>{r.title}</span>
-                  {r.related && <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{r.related}</p>}
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
-                  <p style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626', margin: 0 }}>Reminder</p>
-                  <p style={{ fontSize: '11px', color: '#dc2626', margin: '2px 0 0' }}>Due {formatDate(r.due_date)} ({-reminderDays(r.due_date)}d overdue)</p>
-                </div>
-              </Link>
+                <Link
+                  href="/reminders"
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <span style={{ fontWeight: '600', fontSize: '14px' }}>{r.title}</span>
+                    {r.related && <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{r.related}</p>}
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                    <p style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626', margin: 0 }}>Reminder</p>
+                    <p style={{ fontSize: '11px', color: '#dc2626', margin: '2px 0 0' }}>Due {formatDate(r.due_date)} ({-reminderDays(r.due_date)}d overdue)</p>
+                  </div>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => completeReminder(r.id)}
+                  style={{ marginTop: '8px', fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #166534', background: '#166534', color: 'white', cursor: 'pointer' }}
+                >
+                  Done
+                </button>
+              </div>
             ))}
-            {overdueItems.map((item, i) => (
-              <Link
-                key={i}
-                href={`/collection/${item.tree.collection_id}`}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '6px' }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <span style={{ fontWeight: '600', fontSize: '14px' }}>{item.tree.display_name || 'Unnamed Tree'}</span>
-                  {item.tree.tree_number && <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '6px' }}>#{item.tree.tree_number}</span>}
-                  {item.tree.speciesLabel && <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{item.tree.speciesLabel}</p>}
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
-                  <p style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626', margin: 0 }}>{item.careLabel}</p>
-                  <p style={{ fontSize: '11px', color: '#dc2626', margin: '2px 0 0' }}>Due {formatDate(item.dateStr)}</p>
-                </div>
-              </Link>
+            {overdueItems.map(item => (
+              <OverdueCareRow
+                key={item.ev.id}
+                ev={item.ev}
+                tree={item.tree}
+                careLabel={item.careLabel}
+                formatDate={formatDate}
+                onSaved={handleCareSaved}
+              />
             ))}
           </section>
 
