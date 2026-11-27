@@ -11,6 +11,9 @@
 //     (PATCH /api/tubestock) -- tubestock has no fertiliser date column
 // Tap a plant marked Done to undo it.
 //
+// Pick "All plants (show all)" in the first dropdown to list every tree and tubestock batch with its last feed,
+// whatever it was fed with. "Longest since fed first" under Sort then shows what has gone longest.
+//
 // Species with a feeding interval set (fertilisation.feed_interval_days, e.g. 56 for
 // every 8 weeks) show when they are next due, and appear under "Due for feeding".
 //
@@ -48,6 +51,7 @@ type UndoEntry = { rec: string; date: string; doneId?: number; doneDue?: string;
 
 const PRODUCTS: Product[] = [
   { key: 'due', label: 'Due for feeding (by schedule)', write: '', re: null },
+  { key: 'all', label: 'All plants (show all)', write: '', re: null },
   { key: 'bt', label: 'Neutrog Bush Tucker', write: 'Neutrog Bush Tucker', re: /bush tucker/i },
   { key: 'sm', label: 'Seamungus', write: 'Seamungus', re: /seamungus/i },
   { key: 'cc', label: 'Charlie Carp', write: 'Charlie Carp', re: /charlie carp/i },
@@ -641,12 +645,14 @@ export default function FertiliserWalkPage() {
   }
 
   const list =
-    selected.key === 'due'
-      ? plants.filter(p => {
-          const d = daysToDue(p)
-          return (d !== null && d <= 0) || isDone(p)
-        })
-      : plants.filter(p => p.baseKeys.includes(selected.key))
+    selected.key === 'all'
+      ? plants
+      : selected.key === 'due'
+        ? plants.filter(p => {
+            const d = daysToDue(p)
+            return (d !== null && d <= 0) || isDone(p)
+          })
+        : plants.filter(p => p.baseKeys.includes(selected.key))
   const doneCount = list.filter(p => isDone(p)).length
 
   const groups: { title: string; items: Plant[] }[] = []
@@ -850,9 +856,11 @@ export default function FertiliserWalkPage() {
         >
           {PRODUCTS.map(p => {
             const n =
-              p.key === 'due'
-                ? plants.filter(x => { const d = daysToDue(x); return d !== null && d <= 0 }).length
-                : plants.filter(x => x.baseKeys.includes(p.key)).length
+              p.key === 'all'
+                ? plants.length
+                : p.key === 'due'
+                  ? plants.filter(x => { const d = daysToDue(x); return d !== null && d <= 0 }).length
+                  : plants.filter(x => x.baseKeys.includes(p.key)).length
             if (!n && p.key !== fert) return null
             return (
               <option key={p.key} value={p.key}>
