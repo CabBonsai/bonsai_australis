@@ -966,6 +966,9 @@ export default function CollectionDetailPage() {
   useEffect(() => {
     if (!tree) return
     const baseSpecies = (speciesName || '').split(' — ')[0]
+    // Wait for the species name to load. Without it the label collapsed to the
+    // bare tree number and saving before the lookup finished stored that.
+    if (!baseSpecies) return
     const computed = [baseSpecies, tree.tree_number].filter(Boolean).join(' ')
     if (computed && computed !== tree.display_name) {
       setTree((prev: any) => prev ? { ...prev, display_name: computed } : prev)
