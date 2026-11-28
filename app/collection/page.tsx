@@ -395,8 +395,7 @@ function CollectionPageInner() {
   }
   const statusColor: Record<string, string> = {
     'Developing': '#3b82f6', 'Roots': '#92400e', 'Trunk': '#b45309',
-    'Branches': '#0d9488', 'Ramification': '#0891b2', 'Refine': '#8b5cf6',
-    'Refining': '#8b5cf6', // legacy value, remove once those trees are moved to Refine
+    'Branches': '#0d9488', 'Ramification': '#0891b2', 'Refining': '#8b5cf6',
     'Show Ready': '#16a34a', 'Maintenance': '#6b7280',
   }
 

@@ -1441,7 +1441,7 @@ export default function CollectionDetailPage() {
           <option value="Trunk">Trunk</option>
           <option value="Branches">Branches</option>
           <option value="Ramification">Ramification</option>
-          <option value="Refine">Refine</option>
+          <option value="Refining">Refining</option>
           <option value="Show Ready">Show Ready</option>
           <option value="Maintenance">Maintenance</option>
         </select>
