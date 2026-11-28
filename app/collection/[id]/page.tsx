@@ -1,5 +1,6 @@
 'use client'
 
+import { TREE_DATE_FIELD_FOR_EVENT, TREE_DATE_LABEL, setTreeLastDone, fertiliserWalkUrl } from '@/lib/careEventTreeDate'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -492,7 +493,7 @@ async function careApi(method: 'POST' | 'PATCH' | 'DELETE' | 'GET', url: string,
   return json
 }
 
-function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefined }) {
+function CareScheduleEvents({ treeNumber, collectionId, onTreeDate }: { treeNumber: number | null | undefined; collectionId?: string | number; onTreeDate?: (field: string, date: string) => void }) {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
@@ -568,8 +569,17 @@ function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefi
     setBusyId(id)
     setMessage(null)
     try {
-      await careApi('PATCH', '/api/care-schedule', { id, completed_date: toLocalDateString(new Date()) })
-      setMessage({ kind: 'ok', text: 'Marked as done.' })
+      const today = toLocalDateString(new Date())
+      const ev = events.find(x => x.id === id)
+      // Fertilise / repot / prune also move the tree's last-done date. Do that first
+      // so a failure leaves the task open instead of half-saved.
+      const field = ev ? TREE_DATE_FIELD_FOR_EVENT[ev.event_type] : undefined
+      if (field && collectionId) {
+        await setTreeLastDone(collectionId, field, today)
+        onTreeDate?.(field, today)
+      }
+      await careApi('PATCH', '/api/care-schedule', { id, completed_date: today })
+      setMessage({ kind: 'ok', text: field && collectionId ? `Marked as done. ${TREE_DATE_LABEL[field]} set to today.` : 'Marked as done.' })
     } catch (e: any) {
       setMessage({ kind: 'error', text: `Could not mark it done: ${e.message}` })
     }
@@ -750,9 +760,12 @@ function CareScheduleEvents({ treeNumber }: { treeNumber: number | null | undefi
                   {ev.notes && <p style={{ fontSize: '13px', color: '#4a4436', margin: '4px 0 0' }}>{ev.notes}</p>}
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {!ev.completed_date && (
+                  {!ev.completed_date && (ev.event_type === 'fertilise' ? (
+                    // Feeds are recorded in the Fertiliser Walk (product, next feed, reminders).
+                    <Link href={fertiliserWalkUrl(ev.tree_number ?? treeNumber ?? '')} style={{ ...smallBtn, textDecoration: 'none', display: 'inline-block' }}>Fertiliser walk</Link>
+                  ) : (
                     <button type="button" disabled={busy} onClick={() => markComplete(ev.id)} style={smallBtn}>✓ Done</button>
-                  )}
+                  ))}
                   {!ev.completed_date && (
                     <button type="button" disabled={busy} onClick={() => (deferringId === ev.id ? closePanels() : openDefer(ev))} style={smallBtn}>Defer</button>
                   )}
@@ -1595,7 +1608,7 @@ export default function CollectionDetailPage() {
         </Section>
 
         <Section title="Care Schedule" defaultOpen>
-          <CareScheduleEvents treeNumber={tree.tree_number} />
+          <CareScheduleEvents treeNumber={tree.tree_number} collectionId={id} onTreeDate={(field, date) => set(field, date)} />
           <Field label="Last Watered"><input type="date" value={tree.last_watered || ''} onChange={e => set('last_watered', e.target.value)} style={inputStyle} /></Field>
           <Field label="Fertiliser Used"><input type="text" value={tree.fertiliser_used || ''} onChange={e => set('fertiliser_used', e.target.value)} style={inputStyle} /></Field>
           <Field label="Last Fertilised"><input type="date" value={tree.last_fertilised || ''} onChange={e => set('last_fertilised', e.target.value)} style={inputStyle} /></Field>

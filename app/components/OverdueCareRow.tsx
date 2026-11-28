@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { TREE_DATE_FIELD_FOR_EVENT, setTreeLastDone, fertiliserWalkUrl } from '@/lib/careEventTreeDate'
 
 // One overdue care_schedule row on the home page, with Done / Defer / Edit
 // right in the list. All saves go through the existing /api/care-schedule route
@@ -82,7 +83,12 @@ export default function OverdueCareRow({ ev, tree, careLabel, formatDate, onSave
 
   const markDone = () =>
     run(async () => {
-      await patchCare({ id: ev.id, completed_date: localDate(new Date()) })
+      const today = localDate(new Date())
+      // Update the tree's last-done date first (fertilise / repot / prune), so a
+      // failure leaves the task open rather than closed with a stale tree record.
+      const field = TREE_DATE_FIELD_FOR_EVENT[ev.event_type]
+      if (field && tree?.collection_id) await setTreeLastDone(tree.collection_id, field, today)
+      await patchCare({ id: ev.id, completed_date: today })
       onSaved(ev.id, null)
     })
 
@@ -127,9 +133,16 @@ export default function OverdueCareRow({ ev, tree, careLabel, formatDate, onSave
 
       {mode === 'view' && (
         <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-          <button type="button" disabled={busy} onClick={markDone} style={{ ...btn, background: '#166534', borderColor: '#166534', color: 'white' }}>
-            {busy ? 'Saving…' : 'Done'}
-          </button>
+          {ev.event_type === 'fertilise' ? (
+            // Feeds are recorded in the Fertiliser Walk (product, next feed, reminders), not here.
+            <Link href={fertiliserWalkUrl(ev.tree_number)} style={{ ...btn, background: '#166534', borderColor: '#166534', color: 'white', textDecoration: 'none', display: 'inline-block' }}>
+              Fertiliser walk
+            </Link>
+          ) : (
+            <button type="button" disabled={busy} onClick={markDone} style={{ ...btn, background: '#166534', borderColor: '#166534', color: 'white' }}>
+              {busy ? 'Saving…' : 'Done'}
+            </button>
+          )}
           <button type="button" disabled={busy} onClick={() => setMode('defer')} style={btn}>Defer</button>
           <button type="button" disabled={busy} onClick={() => setMode('edit')} style={btn}>Edit</button>
         </div>

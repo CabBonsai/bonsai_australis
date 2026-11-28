@@ -277,8 +277,16 @@ export default function FertiliserWalkPage() {
   const [order, setOrder] = useState<'loc' | 'old' | 'due'>('loc')
   const [busy, setBusy] = useState<Set<string>>(new Set())
   const [msg, setMsg] = useState<string | null>(null)
+  // ?tree=N (from a fertilise task's Done button) shows just that tree.
+  const [onlyTree, setOnlyTree] = useState<number | null>(null)
 
   useEffect(() => {
+    try {
+      const t = Number(new URLSearchParams(window.location.search).get('tree'))
+      if (Number.isFinite(t) && t > 0) setOnlyTree(t)
+    } catch {
+      // ignore
+    }
     try {
       const saved = localStorage.getItem(PRODUCT_KEY)
       if (saved && PRODUCTS.some(p => p.key === saved)) setFert(saved)
@@ -644,7 +652,7 @@ export default function FertiliserWalkPage() {
     saveMix(mix.includes(key) ? mix.filter(k => k !== key) : [...mix, key])
   }
 
-  const list =
+  const baseList =
     selected.key === 'all'
       ? plants
       : selected.key === 'due'
@@ -653,6 +661,8 @@ export default function FertiliserWalkPage() {
             return (d !== null && d <= 0) || isDone(p)
           })
         : plants.filter(p => p.baseKeys.includes(selected.key))
+  // Single-tree mode ignores the product filter so the tree always shows.
+  const list = onlyTree != null ? plants.filter(p => p.kind === 'tree' && p.num === onlyTree) : baseList
   const doneCount = list.filter(p => isDone(p)).length
 
   const groups: { title: string; items: Plant[] }[] = []
@@ -961,12 +971,28 @@ export default function FertiliserWalkPage() {
           </div>
         )}
 
+        {onlyTree != null && (
+          <div style={{ margin: '8px 0', padding: '10px 12px', background: C.panel, border: `2px solid ${C.line}`, borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '16px' }}>Showing tree {onlyTree} only</span>
+            <button
+              type="button"
+              onClick={() => {
+                setOnlyTree(null)
+                try { window.history.replaceState(null, '', '/fertiliser-walk') } catch { /* ignore */ }
+              }}
+              style={{ fontFamily: BODY_FONT, fontSize: '16px', padding: '6px 12px', border: `2px solid ${C.line}`, borderRadius: '8px', background: 'white', cursor: 'pointer' }}
+            >
+              Show all plants
+            </button>
+          </div>
+        )}
+
         {loadError && (
           <p style={{ color: C.err, fontWeight: 600, padding: '16px 0' }}>Problem: {loadError}</p>
         )}
 
         {!loading && !loadError && list.length === 0 && (
-          <p style={{ color: C.muted, padding: '20px 4px' }}>No plants recorded for this fertiliser.</p>
+          <p style={{ color: C.muted, padding: '20px 4px' }}>{onlyTree != null ? `Tree ${onlyTree} was not found in your collection.` : 'No plants recorded for this fertiliser.'}</p>
         )}
 
         {groups.map(g => (
