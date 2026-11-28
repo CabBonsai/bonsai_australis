@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { TREE_DATE_FIELD_FOR_EVENT, setTreeLastDone, fertiliserWalkUrl } from '@/lib/careEventTreeDate'
+import { dueStatus } from '@/lib/dueStatus'
 
 // One overdue care_schedule row on the home page, with Done / Defer / Edit
 // right in the list. All saves go through the existing /api/care-schedule route
@@ -123,6 +124,9 @@ export default function OverdueCareRow({ ev, tree, careLabel, formatDate, onSave
         </Link>
         <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
           <p style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626', margin: 0 }}>{careLabel}</p>
+          <p style={{ display: 'inline-block', fontSize: '12px', fontWeight: 800, color: '#fff', background: '#dc2626', border: '1.5px solid #b91c1c', borderRadius: '6px', padding: '2px 8px', margin: '4px 0 0' }}>
+            {dueStatus(ev.due_date).headline}
+          </p>
           <p style={{ fontSize: '11px', color: '#dc2626', margin: '2px 0 0' }}>Due {formatDate(ev.due_date)}</p>
         </div>
       </div>

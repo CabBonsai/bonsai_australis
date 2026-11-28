@@ -1,6 +1,7 @@
 'use client'
 
 import { TREE_DATE_FIELD_FOR_EVENT, TREE_DATE_LABEL, setTreeLastDone, fertiliserWalkUrl } from '@/lib/careEventTreeDate'
+import { dueStatus } from '@/lib/dueStatus'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -671,11 +672,6 @@ function CareScheduleEvents({ treeNumber, collectionId, onTreeDate }: { treeNumb
     fetchEvents()
   }
 
-  function isOverdueDate(dateStr: string | null) {
-    if (!dateStr) return false
-    return dateStr < toLocalDateString(new Date())
-  }
-
   const smallInput: React.CSSProperties = { ...inputStyle, minHeight: '40px', padding: '8px 12px', fontSize: '14px' }
   const smallBtn: React.CSSProperties = { fontSize: '12px', fontWeight: 600, padding: '6px 10px', borderRadius: '8px', border: '1.5px solid #cdd9b4', background: '#fffefb', color: '#3f5228', cursor: 'pointer', whiteSpace: 'nowrap' }
 
@@ -730,7 +726,7 @@ function CareScheduleEvents({ treeNumber, collectionId, onTreeDate }: { treeNumb
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
         {events.map(ev => {
-          const overdue = !ev.completed_date && isOverdueDate(ev.due_date)
+          const due = dueStatus(ev.due_date)
           const busy = busyId === ev.id
           return (
             <div
@@ -738,8 +734,8 @@ function CareScheduleEvents({ treeNumber, collectionId, onTreeDate }: { treeNumb
               style={{
                 padding: '12px 14px',
                 borderRadius: '10px',
-                border: `1.5px solid ${ev.completed_date ? '#e2dac2' : overdue ? '#dc2626' : '#cdd9b4'}`,
-                background: ev.completed_date ? '#f3efe2' : overdue ? '#fef2f2' : '#f3f7ea',
+                border: `${!ev.completed_date && due.tone === 'overdue' ? 2.5 : 1.5}px solid ${ev.completed_date ? '#e2dac2' : due.cardBorder}`,
+                background: ev.completed_date ? '#f3efe2' : due.cardBg,
                 opacity: busy ? 0.6 : 1,
               }}
             >
@@ -749,14 +745,22 @@ function CareScheduleEvents({ treeNumber, collectionId, onTreeDate }: { treeNumb
                     <span style={{ fontWeight: 600, fontSize: '14px', color: '#2b2620', textTransform: 'capitalize' }}>
                       {ev.event_type.replace('_', ' ')}
                     </span>
-                    <span style={{ fontSize: '12px', color: overdue ? '#dc2626' : '#8a7f5f', fontWeight: overdue ? 700 : 400 }}>
-                      {ev.completed_date
-                        ? `Done ${ev.completed_date}`
-                        : ev.due_date
-                          ? `${overdue ? 'OVERDUE, was due' : 'Due'} ${ev.due_date}`
-                          : 'No due date'}
-                    </span>
+                    {ev.completed_date && (
+                      <span style={{ fontSize: '12px', color: '#8a7f5f' }}>Done {ev.completed_date}</span>
+                    )}
                   </div>
+                  {!ev.completed_date && (
+                    <div
+                      style={{
+                        display: 'inline-flex', flexDirection: 'column', gap: '1px',
+                        margin: '6px 0 0', padding: '6px 12px', borderRadius: '8px',
+                        background: due.bg, color: due.fg, border: `1.5px solid ${due.border}`,
+                      }}
+                    >
+                      <span style={{ fontSize: due.tone === 'later' || due.tone === 'none' ? '14px' : '16px', fontWeight: 800, letterSpacing: '0.02em' }}>{due.headline}</span>
+                      {due.dateText && <span style={{ fontSize: '12px', fontWeight: 600, opacity: 0.9 }}>{due.dateText}</span>}
+                    </div>
+                  )}
                   {ev.notes && <p style={{ fontSize: '13px', color: '#4a4436', margin: '4px 0 0' }}>{ev.notes}</p>}
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
