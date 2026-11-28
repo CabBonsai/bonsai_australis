@@ -18,9 +18,11 @@ export const TREE_DATE_LABEL: Record<string, string> = {
   last_pruned: 'Last Pruned',
 }
 
-// Fertiliser Walk opened on a single tree.
-export function fertiliserWalkUrl(treeNumber: number | string): string {
-  return `/fertiliser-walk?tree=${encodeURIComponent(String(treeNumber))}`
+// Fertiliser Walk opened on a single tree. `back` is the in-app page to offer a
+// Back button to (for example '/overdue'); the walk only accepts paths on this site.
+export function fertiliserWalkUrl(treeNumber: number | string, back?: string): string {
+  const base = `/fertiliser-walk?tree=${encodeURIComponent(String(treeNumber))}`
+  return back ? `${base}&back=${encodeURIComponent(back)}` : base
 }
 
 // Sets the tree's last-done field. Throws on failure so the caller can leave

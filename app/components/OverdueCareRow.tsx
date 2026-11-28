@@ -135,7 +135,7 @@ export default function OverdueCareRow({ ev, tree, careLabel, formatDate, onSave
         <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
           {ev.event_type === 'fertilise' ? (
             // Feeds are recorded in the Fertiliser Walk (product, next feed, reminders), not here.
-            <Link href={fertiliserWalkUrl(ev.tree_number)} style={{ ...btn, background: '#166534', borderColor: '#166534', color: 'white', textDecoration: 'none', display: 'inline-block' }}>
+            <Link href={fertiliserWalkUrl(ev.tree_number, '/overdue')} style={{ ...btn, background: '#166534', borderColor: '#166534', color: 'white', textDecoration: 'none', display: 'inline-block' }}>
               Fertiliser walk
             </Link>
           ) : (
