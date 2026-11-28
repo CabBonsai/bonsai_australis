@@ -24,8 +24,22 @@ export default function OverduePage() {
   const [reminders, setReminders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Which kind of overdue item to show: 'all', 'reminders', or a care event type.
+  // Remembered between visits so coming back from the Fertiliser Walk keeps the filter.
+  const [typeFilter, setTypeFilter] = useState('all')
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('overdueTypeFilter')
+      if (saved) setTypeFilter(saved)
+    } catch { /* ignore */ }
+    load()
+  }, [])
+
+  function changeFilter(v: string) {
+    setTypeFilter(v)
+    try { localStorage.setItem('overdueTypeFilter', v) } catch { /* ignore */ }
+  }
 
   async function load() {
     setLoading(true)
@@ -121,8 +135,24 @@ export default function OverduePage() {
   })
   overdueItems.sort((a, b) => a.dateStr.localeCompare(b.dateStr))
 
-  const overdueReminders = reminders.filter((r: any) => !r.completed_date && r.due_date && r.due_date < todayStr)
-  const total = overdueItems.length + overdueReminders.length
+  const allOverdueReminders = reminders.filter((r: any) => !r.completed_date && r.due_date && r.due_date < todayStr)
+
+  // Counts per type for the dropdown.
+  const typeCounts: Record<string, number> = {}
+  overdueItems.forEach(i => { typeCounts[i.ev.event_type] = (typeCounts[i.ev.event_type] || 0) + 1 })
+  const typeLabel = (t: string) => String(t || 'other').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+  // The usual task types always appear (with 0 when nothing is overdue) so the list is predictable.
+  const DEFAULT_TYPES = ['fertilise', 'prune', 'wire_check', 'repot', 'recovery', 'other']
+  const typeOptions = [...new Set([...DEFAULT_TYPES, ...Object.keys(typeCounts)])]
+
+  // A saved filter that is no longer an option falls back to showing everything.
+  const filterValid = typeFilter === 'all' || typeFilter === 'reminders' || typeOptions.includes(typeFilter)
+  const activeFilter = filterValid ? typeFilter : 'all'
+
+  const shownItems = activeFilter === 'all' ? overdueItems : activeFilter === 'reminders' ? [] : overdueItems.filter(i => i.ev.event_type === activeFilter)
+  const overdueReminders = activeFilter === 'all' || activeFilter === 'reminders' ? allOverdueReminders : []
+  const grandTotal = overdueItems.length + allOverdueReminders.length
+  const total = shownItems.length + overdueReminders.length
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '16px' }}>
@@ -141,9 +171,21 @@ export default function OverduePage() {
 
       {!loading && !error && (
         <section style={{ marginBottom: '28px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px', color: '#dc2626' }}>
-            Overdue &mdash; {total} item{total !== 1 ? 's' : ''}
+          <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 8px', color: '#dc2626' }}>
+            Overdue &mdash; {total} item{total !== 1 ? 's' : ''}{activeFilter !== 'all' ? ` of ${grandTotal}` : ''}
           </h2>
+          <select
+              value={activeFilter}
+              onChange={e => changeFilter(e.target.value)}
+              aria-label="Filter overdue items by type"
+              style={{ width: '100%', fontSize: '14px', border: '1.5px solid #e2e8f0', borderRadius: '8px', padding: '8px 12px', background: 'white', color: '#2b2620', marginBottom: '10px' }}
+            >
+              <option value="all">All types ({grandTotal})</option>
+              {typeOptions.map(t => (
+                <option key={t} value={t}>{typeLabel(t)} ({typeCounts[t] || 0})</option>
+              ))}
+              <option value="reminders">Reminders ({allOverdueReminders.length})</option>
+          </select>
           {total === 0 && (
             <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>Nothing overdue. Good work.</p>
           )}
@@ -174,7 +216,7 @@ export default function OverduePage() {
               </button>
             </div>
           ))}
-          {overdueItems.map(item => (
+          {shownItems.map(item => (
             <OverdueCareRow
               key={item.ev.id}
               ev={item.ev}
