@@ -394,7 +394,9 @@ function CollectionPageInner() {
     'Recovering': '#9333ea', 'Critical': '#dc2626',
   }
   const statusColor: Record<string, string> = {
-    'Developing': '#3b82f6', 'Refining': '#8b5cf6',
+    'Developing': '#3b82f6', 'Roots': '#92400e', 'Trunk': '#b45309',
+    'Branches': '#0d9488', 'Ramification': '#0891b2', 'Refinement': '#7c3aed',
+    'Refining': '#8b5cf6',
     'Show Ready': '#16a34a', 'Maintenance': '#6b7280',
   }
 
