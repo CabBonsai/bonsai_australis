@@ -762,7 +762,7 @@ function CareScheduleEvents({ treeNumber, collectionId, onTreeDate }: { treeNumb
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {!ev.completed_date && (ev.event_type === 'fertilise' ? (
                     // Feeds are recorded in the Fertiliser Walk (product, next feed, reminders).
-                    <Link href={fertiliserWalkUrl(ev.tree_number ?? treeNumber ?? '')} style={{ ...smallBtn, textDecoration: 'none', display: 'inline-block' }}>Fertiliser walk</Link>
+                    <Link href={fertiliserWalkUrl(ev.tree_number ?? treeNumber ?? '', collectionId ? `/collection/${collectionId}` : undefined)} style={{ ...smallBtn, textDecoration: 'none', display: 'inline-block' }}>Fertiliser walk</Link>
                   ) : (
                     <button type="button" disabled={busy} onClick={() => markComplete(ev.id)} style={smallBtn}>✓ Done</button>
                   ))}

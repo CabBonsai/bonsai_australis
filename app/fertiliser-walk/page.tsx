@@ -279,11 +279,15 @@ export default function FertiliserWalkPage() {
   const [msg, setMsg] = useState<string | null>(null)
   // ?tree=N (from a fertilise task's Done button) shows just that tree.
   const [onlyTree, setOnlyTree] = useState<number | null>(null)
+  // ?back=/overdue: where the Back button goes. Same-site paths only.
+  const [backTo, setBackTo] = useState<string | null>(null)
 
   useEffect(() => {
     try {
       const t = Number(new URLSearchParams(window.location.search).get('tree'))
       if (Number.isFinite(t) && t > 0) setOnlyTree(t)
+      const b = new URLSearchParams(window.location.search).get('back')
+      if (b && b.startsWith('/') && !b.startsWith('//') && !b.includes('\\')) setBackTo(b)
     } catch {
       // ignore
     }
@@ -974,16 +978,27 @@ export default function FertiliserWalkPage() {
         {onlyTree != null && (
           <div style={{ margin: '8px 0', padding: '10px 12px', background: C.panel, border: `2px solid ${C.line}`, borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '16px' }}>Showing tree {onlyTree} only</span>
-            <button
-              type="button"
-              onClick={() => {
-                setOnlyTree(null)
-                try { window.history.replaceState(null, '', '/fertiliser-walk') } catch { /* ignore */ }
-              }}
-              style={{ fontFamily: BODY_FONT, fontSize: '16px', padding: '6px 12px', border: `2px solid ${C.line}`, borderRadius: '8px', background: 'white', cursor: 'pointer' }}
-            >
-              Show all plants
-            </button>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {backTo && (
+                <a
+                  href={backTo}
+                  style={{ fontFamily: BODY_FONT, fontSize: '16px', padding: '6px 12px', border: `2px solid ${C.accent}`, borderRadius: '8px', background: C.accent, color: 'white', textDecoration: 'none', fontWeight: 600 }}
+                >
+                  {backTo === '/overdue' ? 'Back to Overdue' : backTo.startsWith('/collection/') ? 'Back to tree' : 'Back'}
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setOnlyTree(null)
+                  setBackTo(null)
+                  try { window.history.replaceState(null, '', '/fertiliser-walk') } catch { /* ignore */ }
+                }}
+                style={{ fontFamily: BODY_FONT, fontSize: '16px', padding: '6px 12px', border: `2px solid ${C.line}`, borderRadius: '8px', background: 'white', cursor: 'pointer' }}
+              >
+                Show all plants
+              </button>
+            </div>
           </div>
         )}
 
