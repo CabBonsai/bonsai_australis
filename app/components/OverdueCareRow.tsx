@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { TREE_DATE_FIELD_FOR_EVENT, setTreeLastDone } from '@/lib/careEventTreeDate'
+import { TREE_DATE_FIELD_FOR_EVENT, setTreeLastDone, fertiliserWalkUrl } from '@/lib/careEventTreeDate'
 
 // One overdue care_schedule row on the home page, with Done / Defer / Edit
 // right in the list. All saves go through the existing /api/care-schedule route
@@ -133,9 +133,16 @@ export default function OverdueCareRow({ ev, tree, careLabel, formatDate, onSave
 
       {mode === 'view' && (
         <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-          <button type="button" disabled={busy} onClick={markDone} style={{ ...btn, background: '#166534', borderColor: '#166534', color: 'white' }}>
-            {busy ? 'Saving…' : 'Done'}
-          </button>
+          {ev.event_type === 'fertilise' ? (
+            // Feeds are recorded in the Fertiliser Walk (product, next feed, reminders), not here.
+            <Link href={fertiliserWalkUrl(ev.tree_number)} style={{ ...btn, background: '#166534', borderColor: '#166534', color: 'white', textDecoration: 'none', display: 'inline-block' }}>
+              Fertiliser walk
+            </Link>
+          ) : (
+            <button type="button" disabled={busy} onClick={markDone} style={{ ...btn, background: '#166534', borderColor: '#166534', color: 'white' }}>
+              {busy ? 'Saving…' : 'Done'}
+            </button>
+          )}
           <button type="button" disabled={busy} onClick={() => setMode('defer')} style={btn}>Defer</button>
           <button type="button" disabled={busy} onClick={() => setMode('edit')} style={btn}>Edit</button>
         </div>

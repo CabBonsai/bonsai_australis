@@ -1,6 +1,6 @@
 'use client'
 
-import { TREE_DATE_FIELD_FOR_EVENT, TREE_DATE_LABEL, setTreeLastDone } from '@/lib/careEventTreeDate'
+import { TREE_DATE_FIELD_FOR_EVENT, TREE_DATE_LABEL, setTreeLastDone, fertiliserWalkUrl } from '@/lib/careEventTreeDate'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -760,9 +760,12 @@ function CareScheduleEvents({ treeNumber, collectionId, onTreeDate }: { treeNumb
                   {ev.notes && <p style={{ fontSize: '13px', color: '#4a4436', margin: '4px 0 0' }}>{ev.notes}</p>}
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {!ev.completed_date && (
+                  {!ev.completed_date && (ev.event_type === 'fertilise' ? (
+                    // Feeds are recorded in the Fertiliser Walk (product, next feed, reminders).
+                    <Link href={fertiliserWalkUrl(ev.tree_number ?? treeNumber ?? '')} style={{ ...smallBtn, textDecoration: 'none', display: 'inline-block' }}>Fertiliser walk</Link>
+                  ) : (
                     <button type="button" disabled={busy} onClick={() => markComplete(ev.id)} style={smallBtn}>✓ Done</button>
-                  )}
+                  ))}
                   {!ev.completed_date && (
                     <button type="button" disabled={busy} onClick={() => (deferringId === ev.id ? closePanels() : openDefer(ev))} style={smallBtn}>Defer</button>
                   )}
