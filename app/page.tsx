@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { readCollection } from '@/lib/collectionRead'
 import { supabase } from '@/lib/supabase'
-import OverdueCareRow, { CareEvent } from './components/OverdueCareRow'
 
 type Todo = {
   id: string
@@ -16,7 +15,7 @@ export default function Home() {
   const [trees, setTrees] = useState<any[]>([])
   const [careEvents, setCareEvents] = useState<any[]>([])
   const [researchTrees, setResearchTrees] = useState<any[]>([])
-  const [promisingSpecies, setPromisingSpecies] = useState<any[]>([])
+  const [promisingCount, setPromisingCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -85,25 +84,6 @@ export default function Home() {
     })
   }
 
-  // Called by an overdue row after it saved. null = finished, drop it from the list.
-  function handleCareSaved(id: number, patch: Partial<CareEvent> | null) {
-    setCareEvents(prev => patch === null
-      ? prev.filter(e => e.id !== id)
-      : prev.map(e => e.id === id ? { ...e, ...patch } : e))
-  }
-
-  async function completeReminder(id: string) {
-    const d = new Date()
-    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    const res = await fetch('/api/reminders', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, completed_date: today }),
-    })
-    if (res.ok) setReminders(prev => prev.filter((r: any) => r.id !== id))
-    else alert('Could not mark the reminder done.')
-  }
-
   async function deleteTodo(id: string) {
     setTodos(prev => prev.filter(t => t.id !== id))
     await fetch(`/api/todos?id=${id}`, { method: 'DELETE' })
@@ -161,65 +141,12 @@ export default function Home() {
       .not('due_date', 'is', null)
     setCareEvents(careData || [])
 
-    // Bonsai-elite candidates: species with real, promising bonsai evidence
-    // but not enough breadth across the 10 BAMSR traits to trust a computed
-    // score. Convention established 2026-09-19 -- see bonsai_suitability
-    // .research_status. Previously only viewable via a manual SQL filter.
-    const { data: promisingData } = await supabase
+    // Count only; the full Bonsai-Elite Candidates list lives on /elite-candidates.
+    const { count: promCount } = await supabase
       .from('bonsai_suitability')
-      .select('sp_no, research_notes')
+      .select('sp_no', { count: 'exact', head: true })
       .eq('research_status', 'Promising -- Insufficient Data to Score')
-
-    if (promisingData && promisingData.length > 0) {
-      const promSpNos = [...new Set(promisingData.map((p: any) => p.sp_no).filter(Boolean))]
-      let promSpeciesMap: Record<number, any> = {}
-
-      if (promSpNos.length > 0) {
-        const { data: promSpeciesData } = await supabase
-          .from('species')
-          .select('sp_no, species, common_name')
-          .in('sp_no', promSpNos)
-        ;(promSpeciesData || []).forEach((s: any) => { promSpeciesMap[s.sp_no] = s })
-
-        // Cultivars/hybrids have their own sp_no in `variants`, not `species`.
-        // Look those up too so they show a name (and link to the parent
-        // species page) instead of "Unknown species".
-        const missing = promSpNos.filter((n: any) => !promSpeciesMap[n])
-        if (missing.length > 0) {
-          const { data: promVariantData } = await supabase
-            .from('variants')
-            .select('sp_no, variant_name, common_name, parent_sp_no')
-            .in('sp_no', missing)
-          const parentNos = [...new Set((promVariantData || []).map((v: any) => v.parent_sp_no).filter(Boolean))]
-          let parentMap: Record<number, any> = {}
-          if (parentNos.length > 0) {
-            const { data: parentData } = await supabase
-              .from('species')
-              .select('sp_no, species')
-              .in('sp_no', parentNos)
-            ;(parentData || []).forEach((s: any) => { parentMap[s.sp_no] = s })
-          }
-          ;(promVariantData || []).forEach((v: any) => {
-            const parentName = parentMap[v.parent_sp_no]?.species
-            promSpeciesMap[v.sp_no] = {
-              sp_no: v.sp_no,
-              species: parentName ? `${parentName} '${v.variant_name}'` : v.variant_name,
-              common_name: v.common_name,
-              link_sp_no: v.parent_sp_no || v.sp_no,
-            }
-          })
-        }
-      }
-
-      setPromisingSpecies(promisingData.map((p: any) => ({
-        sp_no: promSpeciesMap[p.sp_no]?.link_sp_no ?? p.sp_no,
-        species: promSpeciesMap[p.sp_no]?.species || 'Unknown species',
-        common_name: promSpeciesMap[p.sp_no]?.common_name || '',
-        research_notes: p.research_notes || '',
-      })).sort((a: any, b: any) => a.species.localeCompare(b.species)))
-    } else {
-      setPromisingSpecies([])
-    }
+    setPromisingCount(promCount || 0)
 
     // Research-pod measurement reminders + first-time-data check.
     // Fetch ALL rows (not just ones with next_measurement_date set) so we can
@@ -448,6 +375,12 @@ export default function Home() {
           <Link href="/soil-mixes" style={{ fontSize: '13px', background: '#7c5a2a', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Soil Mixes
           </Link>
+          <Link href="/overdue" style={{ fontSize: '13px', background: '#dc2626', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Overdue{!loading ? ` (${overdueItems.length + overdueReminders.length})` : ''}
+          </Link>
+          <Link href="/elite-candidates" style={{ fontSize: '13px', background: '#4f46e5', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
+            Bonsai-Elite Candidates{!loading ? ` (${promisingCount})` : ''}
+          </Link>
           <Link href="/reminders" style={{ fontSize: '13px', background: '#b45309', color: 'white', padding: '6px 12px', borderRadius: '6px', textDecoration: 'none' }}>
             Reminders
           </Link>
@@ -548,52 +481,6 @@ export default function Home() {
 
       {!loading && !error && (
         <>
-          <section style={{ marginBottom: '28px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px', color: '#dc2626' }}>
-              Overdue &mdash; {overdueItems.length + overdueReminders.length} item{overdueItems.length + overdueReminders.length !== 1 ? 's' : ''}
-            </h2>
-            {overdueItems.length + overdueReminders.length === 0 && (
-              <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>Nothing overdue. Good work.</p>
-            )}
-            {overdueReminders.map((r: any) => (
-              <div
-                key={`rem-${r.id}`}
-                style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '6px' }}
-              >
-                <Link
-                  href="/reminders"
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <span style={{ fontWeight: '600', fontSize: '14px' }}>{r.title}</span>
-                    {r.related && <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>{r.related}</p>}
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
-                    <p style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626', margin: 0 }}>Reminder</p>
-                    <p style={{ fontSize: '11px', color: '#dc2626', margin: '2px 0 0' }}>Due {formatDate(r.due_date)} ({-reminderDays(r.due_date)}d overdue)</p>
-                  </div>
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => completeReminder(r.id)}
-                  style={{ marginTop: '8px', fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #166534', background: '#166534', color: 'white', cursor: 'pointer' }}
-                >
-                  Done
-                </button>
-              </div>
-            ))}
-            {overdueItems.map(item => (
-              <OverdueCareRow
-                key={item.ev.id}
-                ev={item.ev}
-                tree={item.tree}
-                careLabel={item.careLabel}
-                formatDate={formatDate}
-                onSaved={handleCareSaved}
-              />
-            ))}
-          </section>
-
           <section style={{ marginBottom: '28px' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px', color: '#b45309' }}>
               Due Soon (next 3 days) &mdash; {soonItems.length + soonReminders.length} item{soonItems.length + soonReminders.length !== 1 ? 's' : ''}
@@ -704,48 +591,6 @@ export default function Home() {
             ))}
           </section>
 
-          <section style={{ marginBottom: '28px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px', color: '#4f46e5' }}>
-              Bonsai-Elite Candidates &mdash; {promisingSpecies.length} species
-            </h2>
-            <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 8px' }}>
-              Real bonsai-relevant evidence found, but not yet enough breadth across the 10 scoring traits to trust a computed score. Worth a dedicated research pass.
-            </p>
-            {promisingSpecies.length === 0 && (
-              <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0' }}>No candidates flagged right now.</p>
-            )}
-            {promisingSpecies.map((item, i) => (
-              <Link
-                key={`promising-${i}`}
-                href={`/species/${item.sp_no}`}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: 'inherit', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '8px', padding: '10px 14px', marginBottom: '6px' }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <span style={{ fontWeight: '600', fontSize: '14px' }}>{item.species}</span>
-                  {item.common_name && item.common_name !== 'Unknown' && (
-                    <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '6px' }}>{item.common_name}</span>
-                  )}
-                  {item.research_notes && (
-                    <p style={{
-                      fontSize: '12px',
-                      color: '#6b7280',
-                      margin: '2px 0 0',
-                      maxWidth: '600px',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 3,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                    }}>
-                      {item.research_notes}
-                    </p>
-                  )}
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
-                  <p style={{ fontSize: '12px', fontWeight: '700', color: '#4f46e5', margin: 0 }}>Promising</p>
-                </div>
-              </Link>
-            ))}
-          </section>
         </>
       )}
     </div>
