@@ -20,6 +20,9 @@ type Tubestock = {
   acquisition_date: string | null
   health_notes: string | null
   growing_on_notes: string | null
+  location: string | null
+  planted_date: string | null
+  pot_type: string | null
   target_criteria: string | null
   status: 'growing_on' | 'promoted' | 'culled'
   promoted_to_collection_id: string | null
@@ -369,6 +372,11 @@ function TubestockAdmin() {
                     : `Qty ${row.quantity}`}
                   {row.source ? ` \u00b7 ${row.source}` : ''}{row.acquisition_date ? ` \u00b7 ${row.acquisition_date}` : ''}
                 </p>
+                {(row.location || row.pot_type || row.planted_date) && (
+                  <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0' }}>
+                    {[row.location, row.pot_type, row.planted_date ? `planted ${row.planted_date}` : null].filter(Boolean).join(' \u00b7 ')}
+                  </p>
+                )}
                 {(researchRows[row.id] || []).length > 0 && (
                   <p style={{ fontSize: '12px', color: '#374151', margin: '4px 0 0', fontFamily: 'monospace' }}>
                     {batchPlants(row.tubestock_number || `TS${String(row.id).padStart(4, '0')}`, row.quantity, researchRows[row.id] || []).map(pl => (
@@ -413,6 +421,9 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
   const [quantity, setQuantity] = useState(row.quantity + researchRows.length)
   const [healthNotes, setHealthNotes] = useState(row.health_notes || '')
   const [growingOnNotes, setGrowingOnNotes] = useState(row.growing_on_notes || '')
+  const [location, setLocation] = useState(row.location || '')
+  const [plantedDate, setPlantedDate] = useState(row.planted_date || '')
+  const [potType, setPotType] = useState(row.pot_type || '')
   const [targetCriteria, setTargetCriteria] = useState(row.target_criteria || '')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -551,6 +562,9 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
         quantity: Math.max(0, quantity - researchRows.length),
         health_notes: healthNotes || null,
         growing_on_notes: growingOnNotes || null,
+        location: location.trim() || null,
+        planted_date: plantedDate || null,
+        pot_type: potType.trim() || null,
         target_criteria: targetCriteria || null,
       }),
     })
@@ -840,6 +854,21 @@ function TubestockEditor({ row, speciesInfo, displayLabel, projects, isLinkedToR
       <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
         <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Health notes</span>
         <textarea value={healthNotes} onChange={e => setHealthNotes(e.target.value)} rows={2} style={inputStyle} />
+      </label>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Location</span>
+        <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Tomato Bed" style={inputStyle} />
+      </label>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Pot type</span>
+        <input type="text" value={potType} onChange={e => setPotType(e.target.value)} placeholder="e.g. Pond pots" style={inputStyle} />
+      </label>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Planted date</span>
+        <input type="date" value={plantedDate} onChange={e => setPlantedDate(e.target.value)} style={inputStyle} />
       </label>
 
       <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
@@ -1308,6 +1337,9 @@ function TubestockCreateForm({ suggestedNumber, onDone, onCancel }: { suggestedN
   const [acquisitionDate, setAcquisitionDate] = useState('')
   const [healthNotes, setHealthNotes] = useState('')
   const [growingOnNotes, setGrowingOnNotes] = useState('')
+  const [location, setLocation] = useState('')
+  const [plantedDate, setPlantedDate] = useState('')
+  const [potType, setPotType] = useState('')
   const [targetCriteria, setTargetCriteria] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -1371,6 +1403,9 @@ function TubestockCreateForm({ suggestedNumber, onDone, onCancel }: { suggestedN
         acquisition_date: acquisitionDate || null,
         health_notes: healthNotes.trim() || null,
         growing_on_notes: growingOnNotes.trim() || null,
+        location: location.trim() || null,
+        planted_date: plantedDate || null,
+        pot_type: potType.trim() || null,
         target_criteria: targetCriteria.trim() || null,
         status: 'growing_on',
       }),
@@ -1463,6 +1498,21 @@ function TubestockCreateForm({ suggestedNumber, onDone, onCancel }: { suggestedN
       <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
         <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Health notes</span>
         <textarea value={healthNotes} onChange={e => setHealthNotes(e.target.value)} rows={2} style={inputStyle} />
+      </label>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Location</span>
+        <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Tomato Bed" style={inputStyle} />
+      </label>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Pot type</span>
+        <input type="text" value={potType} onChange={e => setPotType(e.target.value)} placeholder="e.g. Pond pots" style={inputStyle} />
+      </label>
+
+      <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
+        <span style={{ color: '#6b7280', display: 'block', marginBottom: '4px' }}>Planted date</span>
+        <input type="date" value={plantedDate} onChange={e => setPlantedDate(e.target.value)} style={inputStyle} />
       </label>
 
       <label style={{ display: 'block', fontSize: '13px', marginBottom: '12px' }}>
