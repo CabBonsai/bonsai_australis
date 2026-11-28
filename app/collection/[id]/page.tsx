@@ -1437,6 +1437,11 @@ export default function CollectionDetailPage() {
         <select value={tree.status || ''} onChange={e => set('status', e.target.value)} style={{ fontSize: '14px', border: '1.5px solid #e2dac2', borderRadius: '8px', padding: '8px 12px', background: '#fffefb', color: '#2b2620' }}>
           <option value="">Status...</option>
           <option value="Developing">Developing</option>
+          <option value="Roots">Roots</option>
+          <option value="Trunk">Trunk</option>
+          <option value="Branches">Branches</option>
+          <option value="Ramification">Ramification</option>
+          <option value="Refinement">Refinement</option>
           <option value="Refining">Refining</option>
           <option value="Show Ready">Show Ready</option>
           <option value="Maintenance">Maintenance</option>
